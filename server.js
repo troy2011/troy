@@ -951,6 +951,8 @@ function createDependencies() {
                 entityKeyOverride,
                 idempotencyId,
                 alternateIdType,
+                stackId: options?.stackId,
+                displayProperties: options?.displayProperties,
                 resolveItemId: resolveCatalogItemId
             });
         },

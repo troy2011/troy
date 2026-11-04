@@ -240,17 +240,22 @@ function buildEquipmentEnhancementDescriptor(itemId, catalogData = {}, inventory
     };
 }
 
+// The stack's random options are added on top of the enhanced stats, so they stay outside the
+// enhancement cap and rarity. Required here, not at the top, because that module builds on this one.
 function applyEquipmentEnhancementToCatalogData(itemId, catalogData = {}, inventoryItem = {}) {
+    const {
+        applyEquipmentRandomOptionsToCatalogData,
+        getEquipmentRandomOptions
+    } = require('./equipmentRandomOptions');
     const enhancement = buildEquipmentEnhancementDescriptor(itemId, catalogData, inventoryItem);
-    if (!enhancement.primaryStat || enhancement.bonus <= 0) {
-        return { catalogData: { ...catalogData }, enhancement };
-    }
+    const randomOptions = getEquipmentRandomOptions(inventoryItem);
+    const enhancedCatalogData = !enhancement.primaryStat || enhancement.bonus <= 0
+        ? { ...catalogData }
+        : { ...catalogData, [enhancement.primaryStat]: enhancement.effectiveValue };
     return {
-        catalogData: {
-            ...catalogData,
-            [enhancement.primaryStat]: enhancement.effectiveValue
-        },
-        enhancement
+        catalogData: applyEquipmentRandomOptionsToCatalogData(enhancedCatalogData, randomOptions),
+        enhancement,
+        randomOptions
     };
 }
 

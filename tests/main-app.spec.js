@@ -3634,6 +3634,10 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
             displayName: '霧切りの刃',
             rarity: 'rare',
             quantity: 2,
+            randomOptions: [
+              [{ stat: 'Power', value: 3, label: '攻撃力' }],
+              [{ stat: 'Agi', value: 2, label: 'すばやさ' }]
+            ],
             spritePath: './Sprites/weapons/melee weapons/sword.png',
             spriteIndex: 2,
             spriteWidth: 32,
@@ -4044,6 +4048,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
   await expect(result.locator('.exploration-result-reward')).toContainText('×2');
+  await expect(result.locator('.exploration-result-reward-options')).toHaveText('攻撃力+3 / すばやさ+2');
   await expect.poll(() => page.evaluate(() => window.__explorationRewardInventoryRefreshes)).toContainEqual({ force: true });
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
@@ -6375,6 +6380,7 @@ test('inventory equipment enhancement modal uses a local preview and applies mul
       count: 1,
       name: '鍛えた素材剣',
       materialEligible: true,
+      randomOptions: [{ stat: 'Agi', value: 2, label: 'すばやさ' }],
       enhancement: {
         category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 9,
         bonus: 3, storedBonus: 3, effectiveValue: 12, rarity: 'common',
@@ -6486,6 +6492,7 @@ test('inventory equipment enhancement modal uses a local preview and applies mul
   const enhancedCard = page.locator('#inventoryGrid .inventory-item-cell[title="鍛えた素材剣"]');
   await expect(enhancedCard.locator('.inventory-item-head .inventory-item-badge.is-enhanced')).toHaveCount(0);
   await expect(enhancedCard.locator('.inventory-item-stat-badge.is-enhancement')).toHaveText('+3');
+  await expect(enhancedCard.locator('.inventory-item-stat-badge.is-random-option')).toHaveText('OP1');
   await page.locator('#inventoryGrid .inventory-item-cell[title="強化用の剣"]').click();
   await page.getByRole('button', { name: '強化', exact: true }).click();
   await expect(page.locator('#equipmentEnhancementModal')).toBeVisible();

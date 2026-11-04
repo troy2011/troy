@@ -3248,12 +3248,25 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
     ].filter(Boolean).slice(0, 2);
 }
 
+// Random options a piece of equipment was dropped with; the server rolled and keeps them.
+function getInventoryRandomOptions(item) {
+    return (Array.isArray(item?.randomOptions) ? item.randomOptions : [])
+        .filter((option) => option && option.label && Number(option.value) > 0);
+}
+
+function formatInventoryRandomOptions(options) {
+    return options.map((option) => `${option.label}+${Math.floor(Number(option.value) || 0)}`).join(' ');
+}
+
 function createInventoryStatBadges(item, canonicalCategory = '') {
     const stats = getPrimaryInventoryCardStats(item, canonicalCategory);
     const enhancementBonus = isInventoryEquipmentCategory(canonicalCategory)
         ? Math.max(0, Math.floor(Number(item?.enhancement?.bonus) || 0))
         : 0;
-    if (!stats.length && enhancementBonus <= 0) return null;
+    const randomOptionCount = isInventoryEquipmentCategory(canonicalCategory)
+        ? getInventoryRandomOptions(item).length
+        : 0;
+    if (!stats.length && enhancementBonus <= 0 && randomOptionCount <= 0) return null;
     const rarityTone = getInventoryRarityTone(item);
 
     const wrap = document.createElement('div');
@@ -3272,6 +3285,13 @@ function createInventoryStatBadges(item, canonicalCategory = '') {
         badge.className = 'inventory-item-stat-badge is-enhancement';
         badge.textContent = `+${enhancementBonus}`;
         badge.setAttribute('aria-label', `強化 +${enhancementBonus}`);
+        wrap.appendChild(badge);
+    }
+    if (randomOptionCount > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'inventory-item-stat-badge is-random-option';
+        badge.textContent = `OP${randomOptionCount}`;
+        badge.setAttribute('aria-label', `ランダムオプション ${formatInventoryRandomOptions(getInventoryRandomOptions(item))}`);
         wrap.appendChild(badge);
     }
     return wrap;
@@ -5432,16 +5452,27 @@ function showItemDetailModal(item) {
     statsEl.innerHTML = '';
     if (!isTarotCard) {
         const enhancedStat = enhancementBonus > 0 ? item?.enhancement?.primaryStat : '';
-        const enhancementNote = (key) => (enhancedStat === key && item?.enhancement?.baseValue !== undefined
-            ? `基本${item.enhancement.baseValue} +${enhancementBonus}`
-            : '');
-        const appendNumber = (label, value, tone, key) => appendItemDetailStat(statsEl, label, value, tone, { tile: true, note: enhancementNote(key) });
+        const randomOptions = getInventoryRandomOptions(item);
+        // the shown value already holds the enhancement and the random option; the note splits it
+        const statNote = (key) => {
+            const parts = [];
+            if (enhancedStat === key && item?.enhancement?.baseValue !== undefined) {
+                parts.push(`基本${item.enhancement.baseValue} +${enhancementBonus}`);
+            }
+            const option = randomOptions.find((entry) => entry.stat === key);
+            if (option) parts.push(`OP +${option.value}`);
+            return parts.join(' ');
+        };
+        const appendNumber = (label, value, tone, key) => appendItemDetailStat(statsEl, label, value, tone, { tile: true, note: statNote(key) });
         appendNumber('攻撃力', cd.Power, 'power', 'Power');
         appendNumber(canonicalCategory === 'Shield' ? '盾性能' : '防御力', cd.Defense, 'defense', 'Defense');
-        appendNumber('すばやさ', cd.Agi, 'agility');
-        appendNumber('かしこさ', cd.Int, 'magic');
-        appendNumber('術補', cd.MagicPower, 'magic');
-        appendNumber('回復補正', cd.HealPower, 'heal');
+        appendNumber('すばやさ', cd.Agi, 'agility', 'Agi');
+        appendNumber('かしこさ', cd.Int, 'magic', 'Int');
+        appendNumber('術補', cd.MagicPower, 'magic', 'MagicPower');
+        appendNumber('回復補正', cd.HealPower, 'heal', 'HealPower');
+        if (randomOptions.length) {
+            appendItemDetailStat(statsEl, 'ランダムOP', formatInventoryRandomOptions(randomOptions), 'option');
+        }
         appendNumber('詠唱補正', cd.CastRate);
         appendNumber('MP効率', cd.MpEfficiency);
         appendNumber('状態付与', cd.StatusRate);

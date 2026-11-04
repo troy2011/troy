@@ -3748,6 +3748,16 @@ button.home-player-ship-name {
     opacity: 0.76;
 }
 
+/* the random options a dropped piece came with, on a line of their own under its name */
+.exploration-result-reward-options {
+    grid-column: 1 / -1;
+    margin-top: -6px;
+    color: #86efac;
+    font-size: 11px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
 .exploration-result-reward.is-rare span { color: #93c5fd; }
 .exploration-result-reward.is-epic span { color: #d8b4fe; }
 .exploration-result-reward.is-legendary span { color: #fde68a; }
@@ -29947,6 +29957,15 @@ body[data-sea-tone] .home-hero-card {
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
 }
 
+#tabContentInventory #inventoryGrid[data-layout="equipment"] .inventory-item-stat-badge.is-random-option {
+    min-width: 0;
+    padding: 1px 3px;
+    background: none;
+    color: #86efac;
+    font-size: 8px;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
+}
+
 #tabContentInventory #inventoryGrid[data-layout="tarot"] .inventory-item-cell .inventory-item-stat-badge {
     font-family: Arial, Helvetica, sans-serif;
     -webkit-text-stroke: 0;
@@ -32260,6 +32279,10 @@ body[data-sea-tone] .home-hero-card {
     text-align: right;
     overflow-wrap: anywhere;
     text-shadow: 0 1px 0 #000;
+}
+
+#itemDetailModal .item-detail-stat-row.is-option .item-detail-stat-value {
+    color: #86efac;
 }
 
 #itemDetailModal .item-detail-stat-row.is-power .item-detail-stat-value,

@@ -62,6 +62,13 @@ const {
     normalizeTarotKingdomRaidState,
     rollTarotKingdomRaidEncounter
 } = require('./tarotKingdomRaid');
+const {
+    EQUIPMENT_RANDOM_OPTION_STATS,
+    buildEquipmentRandomOptionDisplayProperties,
+    buildEquipmentRandomOptionStackId,
+    isRandomOptionEquipment,
+    rollEquipmentRandomOptions
+} = require('./equipmentRandomOptions');
 const PIXEL_MONSTERS_ROSTER = require('../public/Sprites/pixel-monsters/manifest.json');
 
 const EXPLORATION_COLLECTION = 'player_explorations';
@@ -1872,6 +1879,46 @@ function getTarotKingdomStageGachaOptions(stageNo, rank, ship = {}) {
             .map(([category]) => category),
         maxStatsByCategory: statBand?.maxStatsByCategory
     };
+}
+
+// Each piece of dropped equipment is its own stack with options rolled from its grant key, so the
+// options shown in the result are the ones granted, and a retried grant gives the same ones.
+function getExplorationRewardRandomOptionSeed(idempotencyId, unitIndex) {
+    return unitIndex === 0 ? String(idempotencyId) : `${idempotencyId}-unit-${unitIndex}`;
+}
+
+function rollExplorationRewardRandomOptions(catalogCache, itemId, quantity, idempotencyId) {
+    // the raw catalog entry: its Category and stats decide whether and how options roll
+    const catalogData = catalogCache?.[itemId] || {};
+    if (!isRandomOptionEquipment(catalogData)) return null;
+    return Array.from({ length: quantity }, (_, unitIndex) => (
+        rollEquipmentRandomOptions(catalogData, getExplorationRewardRandomOptionSeed(idempotencyId, unitIndex))
+    ));
+}
+
+async function grantExplorationRewardItem(addEconomyItem, catalogCache, playFabId, itemId, quantity, idempotencyId) {
+    const rolls = rollExplorationRewardRandomOptions(catalogCache, itemId, quantity, idempotencyId);
+    if (!rolls) {
+        await addEconomyItem(playFabId, itemId, quantity, { idempotencyId });
+        return;
+    }
+    for (let unitIndex = 0; unitIndex < rolls.length; unitIndex += 1) {
+        const seed = getExplorationRewardRandomOptionSeed(idempotencyId, unitIndex);
+        await addEconomyItem(playFabId, itemId, 1, {
+            idempotencyId: seed,
+            stackId: buildEquipmentRandomOptionStackId(seed),
+            displayProperties: buildEquipmentRandomOptionDisplayProperties({}, rolls[unitIndex])
+        });
+    }
+}
+
+function describeExplorationRewardRandomOptions(rolls) {
+    if (!rolls) return undefined;
+    return rolls.map((roll) => (roll?.options || []).map(({ stat, value }) => ({
+        stat,
+        value,
+        label: EQUIPMENT_RANDOM_OPTION_STATS[stat]?.label || stat
+    })));
 }
 
 function resolveCatalogEntryByItemId(catalogCache, itemId) {
@@ -4327,6 +4374,9 @@ function initializeExplorationRoutes(app, deps) {
             }
 
             // インデックスベースの idempotency キーで付与（itemId 非依存のためリトライ安全）
+            const getExplorationRewardIdempotencyId = (participantId, index) => (stage
+                ? `exploration-stage-reward-${activeData.id}-${participantId}-${index}`
+                : `exploration-reward-${activeData.id}-${index}`);
             if (stage) {
                 const entries = Object.entries(rolledRewardsByPlayer || {});
                 for (const [participantId, participantRewards] of entries) {
@@ -4337,18 +4387,28 @@ function initializeExplorationRoutes(app, deps) {
                         const itemId = String(rolled.itemId || '').trim();
                         if (!itemId) continue;
                         const quantity = Math.max(1, Math.floor(Number(rolled.quantity ?? 1) || 1));
-                        await addEconomyItem(safeParticipantId, itemId, quantity, {
-                            idempotencyId: `exploration-stage-reward-${activeData.id}-${safeParticipantId}-${index}`
-                        });
+                        await grantExplorationRewardItem(
+                            addEconomyItem,
+                            catalogCache,
+                            safeParticipantId,
+                            itemId,
+                            quantity,
+                            getExplorationRewardIdempotencyId(safeParticipantId, index)
+                        );
                     }
                 }
             } else {
                 for (let i = 0; i < rolledItemIds.length; i++) {
                     const itemId = rolledItemIds[i];
                     const quantity = Math.max(1, Math.floor(Number(rolledRewards[i]?.quantity ?? 1) || 1));
-                    await addEconomyItem(playFabId, itemId, quantity, {
-                        idempotencyId: `exploration-reward-${activeData.id}-${i}`
-                    });
+                    await grantExplorationRewardItem(
+                        addEconomyItem,
+                        catalogCache,
+                        playFabId,
+                        itemId,
+                        quantity,
+                        getExplorationRewardIdempotencyId(playFabId, i)
+                    );
                 }
             }
             if (
@@ -4465,17 +4525,24 @@ function initializeExplorationRoutes(app, deps) {
                         ? rolledRewardsByPlayer[participantId]
                         : [])
                     : rolledRewards
-                ).map((rolled) => {
+                ).map((rolled, index) => {
                     const itemId = String(rolled?.itemId || '').trim();
                     if (!itemId) return null;
                     const catalogItem = catalogCache?.[itemId] || {};
                     const display = normalizeCatalogDisplayData(itemId, catalogItem);
+                    const quantity = Math.max(1, Math.floor(Number(rolled?.quantity ?? 1) || 1));
                     return {
                         ...display,
                         ...getExplorationRewardVisualData(catalogItem),
                         Rarity: String(rolled?.rarity || 'common'),
                         Category: String(rolled?.category || ''),
-                        Quantity: Math.max(1, Math.floor(Number(rolled?.quantity ?? 1) || 1))
+                        Quantity: quantity,
+                        RandomOptions: describeExplorationRewardRandomOptions(rollExplorationRewardRandomOptions(
+                            catalogCache,
+                            itemId,
+                            quantity,
+                            getExplorationRewardIdempotencyId(participantId, index)
+                        ))
                     };
                 }).filter(Boolean)
             );
@@ -4536,6 +4603,7 @@ function initializeExplorationRoutes(app, deps) {
                         rarity: item.Rarity,
                         category: item.Category,
                         quantity: item.Quantity,
+                        randomOptions: item.RandomOptions,
                         ...getExplorationRewardVisualData(item)
                     })),
                     supplyProfile,
@@ -4617,6 +4685,8 @@ module.exports = {
     initializeExplorationRoutes,
     __test: {
         DESTINATIONS,
+        grantExplorationRewardItem,
+        rollExplorationRewardRandomOptions,
         EXPLORATION_BOSSES,
         EXPLORATION_DAILY_RARITY_ORDER,
         EXPLORATION_CONSUMABLE_REQUIRED_BY_RARITY,

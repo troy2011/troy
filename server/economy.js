@@ -231,17 +231,22 @@ async function getCurrencyBalanceWithEntity(entityKey, currencyId, deps) {
 }
 
 async function addEconomyItem(playFabId, itemId, amount, deps) {
-    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId, alternateIdType } = deps;
+    const { promisifyPlayFab, PlayFabEconomy, getEntityKeyFromPlayFabId, entityKeyOverride, resolveItemId, idempotencyId, alternateIdType, stackId, displayProperties } = deps;
     const requestEntity = normalizeEntityKey(entityKeyOverride);
     const entityKey = requestEntity || await getEntityKeyForPlayFabId(playFabId, { getEntityKeyFromPlayFabId });
     const itemReference = alternateIdType
         ? { AlternateId: { Type: String(alternateIdType), Value: String(itemId) } }
         : { Id: typeof resolveItemId === 'function' ? resolveItemId(itemId) : itemId };
+    // A stack of its own carries per-piece values such as equipment random options.
+    if (stackId) itemReference.StackId = String(stackId);
     const request = {
         Entity: entityKey,
         Amount: Number(amount),
         Item: itemReference
     };
+    if (stackId && displayProperties && typeof displayProperties === 'object') {
+        request.NewStackValues = { DisplayProperties: displayProperties };
+    }
     if (idempotencyId) request.IdempotencyId = String(idempotencyId);
     await withTitleEntityToken(() => promisifyPlayFab(PlayFabEconomy.AddInventoryItems, request));
     return entityKey;

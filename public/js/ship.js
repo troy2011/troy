@@ -2328,6 +2328,17 @@ function normalizeRewardRarity(value) {
     return ['common', 'rare', 'epic', 'legendary'].includes(rarity) ? rarity : 'common';
 }
 
+// The random options each dropped piece came with, one group per piece.
+function getExplorationRewardRandomOptionText(item) {
+    const sets = Array.isArray(item?.randomOptions) ? item.randomOptions : [];
+    return sets
+        .map((options) => (Array.isArray(options) ? options : [])
+            .map((option) => `${option?.label || ''}+${Math.floor(Number(option?.value) || 0)}`)
+            .join(' '))
+        .filter(Boolean)
+        .join(' / ');
+}
+
 function getRewardItemsForReveal(data) {
     const fromReport = Array.isArray(data?.report?.rewardItems) ? data.report.rewardItems : [];
     if (fromReport.length) return fromReport;
@@ -2574,10 +2585,12 @@ function showExplorationResultSummary(data, options = {}) {
         ? rewards.map((item) => {
             const rarity = normalizeRewardRarity(item.rarity || item.Rarity);
             const quantityText = getExplorationRewardQuantityText(item).trim();
+            const optionText = getExplorationRewardRandomOptionText(item);
             return `
                 <li class="exploration-result-reward is-${rarity}">
                     <strong>${escapeHtml(getExplorationRewardName(item))}</strong>
                     <span>${escapeHtml(getExplorationRarityLabel(rarity))}${quantityText}</span>
+                    ${optionText ? `<small class="exploration-result-reward-options">${escapeHtml(optionText)}</small>` : ''}
                 </li>
             `;
         }).join('')

@@ -696,7 +696,8 @@ function initializeInventoryRoutes(app, deps) {
             name: enhanced.catalogData.DisplayName || itemId,
             description: enhanced.catalogData.Description || '',
             customData: enhanced.catalogData,
-            enhancement: enhanced.enhancement
+            enhancement: enhanced.enhancement,
+            randomOptions: enhanced.randomOptions
         };
     }
 
@@ -2589,7 +2590,8 @@ function initializeInventoryRoutes(app, deps) {
                 const amount = getInventoryStackAmount(item);
                 if (amount <= 0) return;
                 const stackId = getInventoryStackId(item);
-                const isEnhancedStack = enhancement.storedBonus > 0 && !!stackId;
+                // an enhanced stack, or one with random options, is a piece of its own in the list
+                const isEnhancedStack = (enhancement.storedBonus > 0 || enhanced.randomOptions.length > 0) && !!stackId;
                 const mapKey = isEnhancedStack ? `${itemId}::${stackId}` : itemId;
                 const stackRecord = {
                     stackId,
@@ -2617,6 +2619,7 @@ function initializeInventoryRoutes(app, deps) {
                         stacks: stackId ? [stackRecord] : [],
                         customData: catalogData,
                         enhancement,
+                        randomOptions: isEnhancedStack ? enhanced.randomOptions : [],
                         materialEligible: enhancement.materialEligible
                     });
                 }
