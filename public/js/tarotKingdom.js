@@ -29,7 +29,7 @@ import {
   getTarotKingdomMajorSecondaryDamageScale,
   getTarotKingdomResonanceDamageFloor,
   normalizeTarotKingdomCharacter
-} from './tarotKingdomCombat.js?v=20261103-element-balance-v1';
+} from './tarotKingdomCombat.js?v=20261104-random-option-v1';
 import {
   TAROT_KINGDOM_ARCANA_EFFECTS_READY,
   getTarotKingdomPhysicalScale,
@@ -4854,7 +4854,10 @@ function readKingdomItemNumber(item, keys) {
 }
 
 function deriveLoadedKingdomEquipmentStats(equipment, itemSource) {
-  const totals = { Power: 0, Defense: 0, Agi: 0, Int: 0, MagicPower: 0 };
+  const totals = {
+    Power: 0, Defense: 0, Agi: 0, Int: 0, MagicPower: 0,
+    CriticalRate: 0, MaxHp: 0, FireDamage: 0, WaterDamage: 0, WindDamage: 0, EarthDamage: 0
+  };
   const add = (reference, options = {}) => {
     const item = findKingdomItemReference(reference, itemSource);
     const itemData = getKingdomItemData(item);
@@ -4866,6 +4869,9 @@ function deriveLoadedKingdomEquipmentStats(equipment, itemSource) {
     totals.Agi += readKingdomItemNumber(item, ['Agi', 'Speed']);
     totals.Int += readKingdomItemNumber(item, ['Int', 'Intelligence']);
     totals.MagicPower += readKingdomItemNumber(item, ['MagicPower']);
+    ['CriticalRate', 'MaxHp', 'FireDamage', 'WaterDamage', 'WindDamage', 'EarthDamage'].forEach((key) => {
+      totals[key] += readKingdomItemNumber(item, [key]);
+    });
     if (options.replaceDefense) totals.Defense = defense;
     else if (!isShield) totals.Defense += defense;
   };
@@ -5002,7 +5008,14 @@ function buildLoadedLocalKingdomCharacter() {
     tarotDeck: cloneKingdomSnapshotValue(getMyTarotBattleDeckSnapshot?.() || [], []),
     guardianArcana: cloneKingdomSnapshotValue(getMyTarotGuardianSnapshot?.() || null, null),
     combat: {
-      maxHp: resolveLoadedKingdomMaxHp(stats, level),
+      maxHp: resolveLoadedKingdomMaxHp(stats, level) + equipmentStats.MaxHp,
+      criticalRate: equipmentStats.CriticalRate,
+      elementDamage: {
+        fire: equipmentStats.FireDamage,
+        water: equipmentStats.WaterDamage,
+        wind: equipmentStats.WindDamage,
+        earth: equipmentStats.EarthDamage
+      },
       power: (Number(stats.ちから) || 0) + equipmentStats.Power,
       defense: (Number(stats.みのまもり) || 0) + equipmentStats.Defense,
       intelligence: (Number(stats.かしこさ) || 0) + equipmentStats.Int,
@@ -8362,6 +8375,19 @@ function applyKingdomPlayerAilmentDamage(playerIndex) {
   return results;
 }
 
+// The critical rate and element damage a seat's equipment random options give.
+function getKingdomPlayerEquipmentCombat(actorIndex) {
+  const combat = s?.players?.[actorIndex]?.character?.combat || {};
+  const elementDamage = combat.elementDamage && typeof combat.elementDamage === 'object' ? combat.elementDamage : {};
+  return {
+    criticalRate: Math.max(0, Math.min(100, Math.floor(Number(combat.criticalRate) || 0))),
+    elementDamage: Object.fromEntries(['fire', 'water', 'wind', 'earth'].map((element) => [
+      element,
+      Math.max(0, Math.min(100, Math.floor(Number(elementDamage[element]) || 0)))
+    ]))
+  };
+}
+
 function applyKingdomOutgoingDamageBonuses(damage, actorIndex, options = {}) {
   let total = Math.max(0, Math.floor(Number(damage) || 0));
   const effects = ensureKingdomBattleEffects();
@@ -8394,6 +8420,11 @@ function applyKingdomOutgoingDamageBonuses(damage, actorIndex, options = {}) {
       applied.push({ kind: 'wet', potency });
     }
     if (!areKingdomStatusEffectsV1Enabled()) consumeKingdomBattleEffect('player', 'wet', actorIndex);
+  }
+  const equipmentElementDamage = getKingdomPlayerEquipmentCombat(actorIndex).elementDamage[String(options.element || '')] || 0;
+  if (equipmentElementDamage > 0) {
+    total = Math.floor(total * (1 + (equipmentElementDamage / 100)));
+    applied.push({ kind: 'equipmentElementDamage', element: String(options.element), potency: equipmentElementDamage });
   }
   const resonanceDamageUp = physical ? actorBucket.physicalDamageUp : actorBucket.magicDamageUp;
   if (resonanceDamageUp) {
@@ -8577,11 +8608,14 @@ function applyKingdomOutgoingDamageBonuses(damage, actorIndex, options = {}) {
     : 0;
   const forcedPhysicalCritical = physical && !!actorBucket.nextPhysicalCritical;
   const weaponCriticalPoints = Math.max(0, Math.min(100, Number(options.criticalBonusPoints) || 0));
+  const equipmentCriticalPoints = getKingdomPlayerEquipmentCombat(actorIndex).criticalRate;
   const criticalPoints = forcedPhysicalCritical
     ? 100
     : Math.max(0, Math.min(
         100,
-        Math.max(Number(partyCritical?.potency) || 0, personalCriticalPoints) + weaponCriticalPoints
+        Math.max(Number(partyCritical?.potency) || 0, personalCriticalPoints)
+          + weaponCriticalPoints
+          + equipmentCriticalPoints
       ));
   if (criticalPoints > 0 && !criticalBlockedByFear) {
     const chance = Math.max(0, Math.min(1, criticalPoints / 100));

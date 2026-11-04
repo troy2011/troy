@@ -239,7 +239,14 @@ function buildTarotKingdomCombatCharacter(profile = {}, cardLevels = {}) {
             cardLevels
         ),
         combat: {
-            maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)))),
+            maxHp: Math.max(1, Math.floor(statNumber('MaxHP', statNumber('HP', 1)) + equipmentNumber('MaxHp'))),
+            criticalRate: Math.max(0, Math.floor(equipmentNumber('CriticalRate'))),
+            elementDamage: {
+                fire: Math.max(0, Math.floor(equipmentNumber('FireDamage'))),
+                water: Math.max(0, Math.floor(equipmentNumber('WaterDamage'))),
+                wind: Math.max(0, Math.floor(equipmentNumber('WindDamage'))),
+                earth: Math.max(0, Math.floor(equipmentNumber('EarthDamage')))
+            },
             power: Math.max(0, Math.floor(statNumber('ちから', 0) + equipmentNumber('Power'))),
             defense: Math.max(0, Math.floor(statNumber('みのまもり', 0) + equipmentNumber('Defense'))),
             intelligence: Math.max(0, Math.floor(statNumber('かしこさ', 0))),
@@ -461,7 +468,14 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         CastRate: 0,
         StatusRate: 0,
         ParryRate: 0,
-        ParryCharges: 0
+        ParryCharges: 0,
+        // from equipment random options
+        CriticalRate: 0,
+        MaxHp: 0,
+        FireDamage: 0,
+        WaterDamage: 0,
+        WindDamage: 0,
+        EarthDamage: 0
     };
     const accumulateItemStats = (itemRef, options = {}) => {
         if (!itemRef) return;
@@ -491,6 +505,9 @@ async function getPlayerFullProfile(playFabId, options = {}) {
         equipmentStats.MpEfficiency += mpEfficiencyValue;
         equipmentStats.CastRate += castRateValue;
         equipmentStats.StatusRate += statusRateValue;
+        ['CriticalRate', 'MaxHp', 'FireDamage', 'WaterDamage', 'WindDamage', 'EarthDamage'].forEach((key) => {
+            equipmentStats[key] += Number(itemData[key] || 0) || 0;
+        });
     };
     accumulateItemStats(equipment.RightHand, { slot: 'RightHand' });
     accumulateItemStats(equipment.LeftHand, { slot: 'LeftHand' });

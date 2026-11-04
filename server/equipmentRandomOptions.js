@@ -1,7 +1,6 @@
 const { createHash } = require('crypto');
 const {
     getEquipmentCategory,
-    getEquipmentRarity,
     normalizeDisplayProperties
 } = require('./equipmentEnhancement');
 
@@ -9,29 +8,36 @@ const {
 // stack's DisplayProperties, next to its enhancement. The Economy V2 stack is their source of truth;
 // a client never sends options in. The roll is seeded by the grant's idempotency key, so a retried
 // grant gives the same options it would have the first time.
-const EQUIPMENT_RANDOM_OPTIONS_VERSION = 1;
+const EQUIPMENT_RANDOM_OPTIONS_VERSION = 2;
 const EQUIPMENT_RANDOM_OPTIONS_PROPERTY = 'equipmentRandomOptions';
 const EQUIPMENT_RANDOM_OPTION_CATEGORIES = Object.freeze(['Weapon', 'Armor', 'Shield', 'Accessory']);
+const EQUIPMENT_RANDOM_OPTION_MAX_LEVEL = 9;
 
-// Every stat here already reaches battle through the equipment stat totals.
+// Each option has a level from 1 to 9, and its stat grows by `perLevel` for each level. Critical rate is
+// in percentage points, and an element's damage in percent added to that element's attacks.
 const EQUIPMENT_RANDOM_OPTION_STATS = Object.freeze({
-    Power: Object.freeze({ label: '攻撃力', maxByRarity: { common: 3, rare: 5, epic: 7, legendary: 10 } }),
-    Defense: Object.freeze({ label: '防御力', maxByRarity: { common: 3, rare: 5, epic: 7, legendary: 10 } }),
-    MagicPower: Object.freeze({ label: '術補', maxByRarity: { common: 3, rare: 5, epic: 7, legendary: 10 } }),
-    HealPower: Object.freeze({ label: '回復補正', maxByRarity: { common: 3, rare: 5, epic: 7, legendary: 10 } }),
-    Agi: Object.freeze({ label: 'すばやさ', maxByRarity: { common: 2, rare: 3, epic: 4, legendary: 5 } }),
-    Int: Object.freeze({ label: 'かしこさ', maxByRarity: { common: 2, rare: 3, epic: 4, legendary: 5 } })
+    Power: Object.freeze({ label: '攻撃力', perLevel: 1 }),
+    Defense: Object.freeze({ label: '防御力', perLevel: 1 }),
+    MagicPower: Object.freeze({ label: '術補', perLevel: 1 }),
+    HealPower: Object.freeze({ label: '回復補正', perLevel: 1 }),
+    Agi: Object.freeze({ label: 'すばやさ', perLevel: 1 }),
+    Int: Object.freeze({ label: 'かしこさ', perLevel: 1 }),
+    CriticalRate: Object.freeze({ label: '会心率', perLevel: 1, unit: '%' }),
+    MaxHp: Object.freeze({ label: '最大HP', perLevel: 5 }),
+    FireDamage: Object.freeze({ label: '火属性ダメージ', perLevel: 3, unit: '%' }),
+    WaterDamage: Object.freeze({ label: '水属性ダメージ', perLevel: 3, unit: '%' }),
+    WindDamage: Object.freeze({ label: '風属性ダメージ', perLevel: 3, unit: '%' }),
+    EarthDamage: Object.freeze({ label: '地属性ダメージ', perLevel: 3, unit: '%' })
 });
 const EQUIPMENT_RANDOM_OPTION_STAT_KEYS = Object.freeze(Object.keys(EQUIPMENT_RANDOM_OPTION_STATS));
 
-// common pieces get one option half of the time
-const EQUIPMENT_RANDOM_OPTION_COUNT_BY_RARITY = Object.freeze({
-    common: Object.freeze({ min: 0, max: 1 }),
-    rare: Object.freeze({ min: 1, max: 1 }),
-    epic: Object.freeze({ min: 2, max: 2 }),
-    legendary: Object.freeze({ min: 3, max: 3 })
-});
-const EQUIPMENT_RANDOM_OPTION_MAX_COUNT = 3;
+// The same for every rarity: half of all pieces come with no option.
+const EQUIPMENT_RANDOM_OPTION_COUNT_WEIGHTS = Object.freeze([50, 30, 15, 5]);
+const EQUIPMENT_RANDOM_OPTION_MAX_COUNT = EQUIPMENT_RANDOM_OPTION_COUNT_WEIGHTS.length - 1;
+// Lv1 is the most common and Lv9 the rarest (weight 10 - level: Lv9 is 1 in 45).
+const EQUIPMENT_RANDOM_OPTION_LEVEL_WEIGHTS = Object.freeze(
+    Array.from({ length: EQUIPMENT_RANDOM_OPTION_MAX_LEVEL }, (_, index) => EQUIPMENT_RANDOM_OPTION_MAX_LEVEL - index)
+);
 
 function isRandomOptionEquipment(catalogData = {}) {
     return EQUIPMENT_RANDOM_OPTION_CATEGORIES.includes(getEquipmentCategory(catalogData));
@@ -49,20 +55,43 @@ function createSeededRandom(seed) {
     };
 }
 
+function pickWeightedIndex(weights, random) {
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    let roll = random() * total;
+    for (let index = 0; index < weights.length; index += 1) {
+        roll -= weights[index];
+        if (roll < 0) return index;
+    }
+    return weights.length - 1;
+}
+
+function getEquipmentRandomOptionValue(stat, level) {
+    return (EQUIPMENT_RANDOM_OPTION_STATS[stat]?.perLevel || 0) * level;
+}
+
+function describeEquipmentRandomOption(stat, level) {
+    const definition = EQUIPMENT_RANDOM_OPTION_STATS[stat];
+    return {
+        stat,
+        level,
+        value: getEquipmentRandomOptionValue(stat, level),
+        label: definition.label,
+        unit: definition.unit || ''
+    };
+}
+
 function rollEquipmentRandomOptions(catalogData = {}, seed = '') {
     if (!isRandomOptionEquipment(catalogData)) return null;
-    const rarity = getEquipmentRarity(catalogData);
-    const countRange = EQUIPMENT_RANDOM_OPTION_COUNT_BY_RARITY[rarity] || EQUIPMENT_RANDOM_OPTION_COUNT_BY_RARITY.common;
     const random = createSeededRandom(seed);
-    const count = countRange.min + Math.floor(random() * (countRange.max - countRange.min + 1));
+    const count = pickWeightedIndex(EQUIPMENT_RANDOM_OPTION_COUNT_WEIGHTS, random);
     const pool = [...EQUIPMENT_RANDOM_OPTION_STAT_KEYS];
     const options = [];
     for (let index = 0; index < count && pool.length; index += 1) {
         const stat = pool.splice(Math.floor(random() * pool.length), 1)[0];
-        const max = EQUIPMENT_RANDOM_OPTION_STATS[stat].maxByRarity[rarity] || 1;
-        options.push({ stat, value: 1 + Math.floor(random() * max) });
+        const level = 1 + pickWeightedIndex(EQUIPMENT_RANDOM_OPTION_LEVEL_WEIGHTS, random);
+        options.push({ stat, level });
     }
-    return { version: EQUIPMENT_RANDOM_OPTIONS_VERSION, rarity, options };
+    return { version: EQUIPMENT_RANDOM_OPTIONS_VERSION, options };
 }
 
 // The stored options, kept only when they are ones a roll could have given.
@@ -76,12 +105,10 @@ function getEquipmentRandomOptions(inventoryItem = {}) {
     return stored.options
         .map((option) => {
             const stat = String(option?.stat || '');
-            const definition = EQUIPMENT_RANDOM_OPTION_STATS[stat];
-            if (!definition || seen.has(stat)) return null;
+            if (!EQUIPMENT_RANDOM_OPTION_STATS[stat] || seen.has(stat)) return null;
             seen.add(stat);
-            const max = Math.max(...Object.values(definition.maxByRarity));
-            const value = Math.max(0, Math.min(max, Math.floor(Number(option?.value) || 0)));
-            return value > 0 ? { stat, value, label: definition.label } : null;
+            const level = Math.max(0, Math.min(EQUIPMENT_RANDOM_OPTION_MAX_LEVEL, Math.floor(Number(option?.level) || 0)));
+            return level > 0 ? describeEquipmentRandomOption(stat, level) : null;
         })
         .filter(Boolean)
         .slice(0, EQUIPMENT_RANDOM_OPTION_MAX_COUNT);
@@ -103,7 +130,7 @@ function buildEquipmentRandomOptionDisplayProperties(currentDisplayProperties = 
         ...current,
         [EQUIPMENT_RANDOM_OPTIONS_PROPERTY]: {
             version: roll.version,
-            options: roll.options.map(({ stat, value }) => ({ stat, value }))
+            options: roll.options.map(({ stat, level }) => ({ stat, level }))
         }
     };
 }
@@ -116,8 +143,10 @@ function buildEquipmentRandomOptionStackId(seed = '') {
 module.exports = {
     EQUIPMENT_RANDOM_OPTIONS_PROPERTY,
     EQUIPMENT_RANDOM_OPTIONS_VERSION,
+    EQUIPMENT_RANDOM_OPTION_MAX_LEVEL,
     EQUIPMENT_RANDOM_OPTION_STATS,
     applyEquipmentRandomOptionsToCatalogData,
+    describeEquipmentRandomOption,
     buildEquipmentRandomOptionDisplayProperties,
     buildEquipmentRandomOptionStackId,
     getEquipmentRandomOptions,

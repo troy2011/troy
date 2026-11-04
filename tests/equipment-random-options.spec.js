@@ -1,81 +1,102 @@
 const { test, expect } = require('@playwright/test');
 const {
+  EQUIPMENT_RANDOM_OPTION_MAX_LEVEL,
   EQUIPMENT_RANDOM_OPTION_STATS,
   getEquipmentRandomOptions,
   rollEquipmentRandomOptions
 } = require('../server/equipmentRandomOptions');
 const { applyEquipmentEnhancementToCatalogData } = require('../server/equipmentEnhancement');
 const { __test: exploration } = require('../server/exploration');
+const { buildTarotKingdomCombatCharacter } = require('../server/routes/battleRoutes');
 
 const legendarySword = { Category: 'Weapon', Power: 70 };
 const commonArmor = { Category: 'Armor', Defense: 5 };
-const accessory = { Category: 'Accessory', Power: 20, Agi: 2 };
 
-test('a roll is the same for the same grant key and stays inside the rarity limits', () => {
+function findSeed(catalogData, predicate) {
+  for (let index = 0; index < 500; index += 1) {
+    const seed = `seed-${index}`;
+    if (predicate(rollEquipmentRandomOptions(catalogData, seed))) return seed;
+  }
+  throw new Error('no seed matched');
+}
+
+test('a roll is the same for the same grant key, may have no option, and does not follow rarity', () => {
   const first = rollEquipmentRandomOptions(legendarySword, 'exploration-reward-a-0');
-  const again = rollEquipmentRandomOptions(legendarySword, 'exploration-reward-a-0');
-  expect(again).toEqual(first);
-  expect(first.rarity).toBe('legendary');
-  expect(first.options).toHaveLength(3);
-  expect(new Set(first.options.map((option) => option.stat)).size).toBe(3);
-  first.options.forEach(({ stat, value }) => {
-    expect(value).toBeGreaterThanOrEqual(1);
-    expect(value).toBeLessThanOrEqual(EQUIPMENT_RANDOM_OPTION_STATS[stat].maxByRarity.legendary);
-  });
+  expect(rollEquipmentRandomOptions(legendarySword, 'exploration-reward-a-0')).toEqual(first);
 
-  const commonCounts = new Set(Array.from({ length: 40 }, (_, index) => (
-    rollEquipmentRandomOptions(commonArmor, `common-${index}`).options.length
-  )));
-  expect([...commonCounts].sort()).toEqual([0, 1]);
-  expect(rollEquipmentRandomOptions(accessory, 'acc').options.length).toBeGreaterThanOrEqual(1);
+  const rolls = Array.from({ length: 400 }, (_, index) => rollEquipmentRandomOptions(commonArmor, `r-${index}`));
+  const counts = new Set(rolls.map((roll) => roll.options.length));
+  expect([...counts].sort()).toEqual([0, 1, 2, 3]);
+  const sameSeedCounts = Array.from({ length: 50 }, (_, index) => [
+    rollEquipmentRandomOptions(commonArmor, `same-${index}`).options.length,
+    rollEquipmentRandomOptions(legendarySword, `same-${index}`).options.length
+  ]);
+  sameSeedCounts.forEach(([common, legendary]) => expect(legendary).toBe(common));
+
+  rolls.flatMap((roll) => roll.options).forEach(({ stat, level }) => {
+    expect(EQUIPMENT_RANDOM_OPTION_STATS[stat]).toBeTruthy();
+    expect(level).toBeGreaterThanOrEqual(1);
+    expect(level).toBeLessThanOrEqual(EQUIPMENT_RANDOM_OPTION_MAX_LEVEL);
+  });
+  const stats = new Set(rolls.flatMap((roll) => roll.options.map((option) => option.stat)));
+  ['CriticalRate', 'MaxHp', 'FireDamage', 'WaterDamage', 'WindDamage', 'EarthDamage'].forEach((stat) => {
+    expect(stats.has(stat)).toBe(true);
+  });
   expect(rollEquipmentRandomOptions({ Category: 'Consumable' }, 'x')).toBeNull();
 });
 
-test('stored options add to the enhanced stats, and options a roll could not give are dropped', () => {
+test('stored option levels add to the enhanced stats, and levels outside 1-9 or unknown stats are dropped', () => {
   const inventoryItem = {
     DisplayProperties: {
       equipmentEnhancement: { version: 1, bonus: 4 },
       equipmentRandomOptions: {
-        version: 1,
+        version: 2,
         options: [
-          { stat: 'Power', value: 3 },
-          { stat: 'Agi', value: 2 },
-          { stat: 'Agi', value: 5 },
-          { stat: 'Gold', value: 999 },
-          { stat: 'Defense', value: 500 }
+          { stat: 'Power', level: 5 },
+          { stat: 'MaxHp', level: 9 },
+          { stat: 'MaxHp', level: 1 },
+          { stat: 'Gold', level: 9 },
+          { stat: 'FireDamage', level: 30 }
         ]
       }
     }
   };
   const result = applyEquipmentEnhancementToCatalogData('sword', { Category: 'Weapon', Power: 20 }, inventoryItem);
-  expect(result.enhancement.bonus).toBe(4);
-  expect(result.catalogData.Power).toBe(27);
-  expect(result.catalogData.Agi).toBe(2);
-  expect(result.catalogData.Defense).toBe(10);
-  expect(result.randomOptions.map(({ stat, value }) => [stat, value])).toEqual([
-    ['Power', 3], ['Agi', 2], ['Defense', 10]
+  expect(result.catalogData.Power).toBe(29);
+  expect(result.catalogData.MaxHp).toBe(45);
+  expect(result.catalogData.FireDamage).toBe(27);
+  expect(result.randomOptions.map(({ stat, level, label }) => [stat, level, label])).toEqual([
+    ['Power', 5, '攻撃力'], ['MaxHp', 9, '最大HP'], ['FireDamage', 9, '火属性ダメージ']
   ]);
   expect(getEquipmentRandomOptions({})).toEqual([]);
 });
 
-test('an exploration drop grants each piece as its own stack with the options its result shows', async () => {
-  const catalogCache = { sword: { ItemId: 'sword', DisplayName: 'Sword', ...legendarySword }, potion: { ItemId: 'potion', Category: 'Consumable' } };
+test('an exploration drop grants a piece with options as its own stack and a plain piece as a plain grant', async () => {
+  const withOptions = findSeed(legendarySword, (roll) => roll.options.length > 0);
+  const withoutOptions = findSeed(legendarySword, (roll) => roll.options.length === 0);
+  const catalogCache = { sword: { ItemId: 'sword', ...legendarySword }, potion: { ItemId: 'potion', Category: 'Consumable' } };
   const calls = [];
-  const addEconomyItem = async (playFabId, itemId, amount, options) => {
-    calls.push({ playFabId, itemId, amount, options });
-  };
+  const addEconomyItem = async (playFabId, itemId, amount, options) => calls.push({ itemId, amount, options });
 
-  await exploration.grantExplorationRewardItem(addEconomyItem, catalogCache, 'p1', 'sword', 2, 'exploration-reward-x-0');
-  await exploration.grantExplorationRewardItem(addEconomyItem, catalogCache, 'p1', 'potion', 3, 'exploration-reward-x-1');
-  const shown = exploration.rollExplorationRewardRandomOptions(catalogCache, 'sword', 2, 'exploration-reward-x-0');
+  await exploration.grantExplorationRewardItem(addEconomyItem, catalogCache, 'p1', 'sword', 1, withOptions);
+  await exploration.grantExplorationRewardItem(addEconomyItem, catalogCache, 'p1', 'sword', 1, withoutOptions);
+  await exploration.grantExplorationRewardItem(addEconomyItem, catalogCache, 'p1', 'potion', 3, 'potion-key');
+  const shown = exploration.rollExplorationRewardRandomOptions(catalogCache, 'sword', 1, withOptions);
 
-  expect(calls).toHaveLength(3);
-  const [firstSword, secondSword, potion] = calls;
-  expect(firstSword.amount).toBe(1);
-  expect(firstSword.options.idempotencyId).toBe('exploration-reward-x-0');
-  expect(secondSword.options.idempotencyId).toBe('exploration-reward-x-0-unit-1');
-  expect(firstSword.options.stackId).not.toBe(secondSword.options.stackId);
-  expect(firstSword.options.displayProperties.equipmentRandomOptions.options).toEqual(shown[0].options);
-  expect(secondSword.options.displayProperties.equipmentRandomOptions.options).toEqual(shown[1].options);
-  expect(potion).toEqual({ playFabId: 'p1', itemId: 'potion', amount: 3, options: { idempotencyId: 'exploration-reward-x-1' } });
+  expect(calls[0].options.stackId).toMatch(/^ro-/);
+  expect(calls[0].options.displayProperties.equipmentRandomOptions.options).toEqual(shown[0].options);
+  expect(calls[1]).toEqual({ itemId: 'sword', amount: 1, options: { idempotencyId: withoutOptions } });
+  expect(calls[2]).toEqual({ itemId: 'potion', amount: 3, options: { idempotencyId: 'potion-key' } });
+});
+
+test('the battle profile carries the critical rate, max HP and element damage of the options', () => {
+  const character = buildTarotKingdomCombatCharacter({
+    id: 'p1',
+    stats: { MaxHP: 120, Level: 10 },
+    equipmentStats: { CriticalRate: 7, MaxHp: 45, FireDamage: 27, EarthDamage: 6 },
+    equipment: {}
+  });
+  expect(character.combat.maxHp).toBe(165);
+  expect(character.combat.criticalRate).toBe(7);
+  expect(character.combat.elementDamage).toEqual({ fire: 27, water: 0, wind: 0, earth: 6 });
 });

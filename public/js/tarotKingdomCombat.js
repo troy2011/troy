@@ -187,11 +187,30 @@ export function normalizeTarotKingdomCombat(rawCombat = {}, fallback = {}) {
             source.equipmentMagicPower,
             finiteNumber(base.equipmentMagicPower, 0)
         ))),
+        // equipment random options: critical rate in points and each element's damage in percent
+        criticalRate: Math.max(0, Math.min(100, Math.floor(finiteNumber(
+            source.criticalRate,
+            finiteNumber(base.criticalRate, 0)
+        )))),
+        elementDamage: normalizeTarotKingdomElementDamage(source.elementDamage || base.elementDamage),
         weaponType,
         weaponTypes: normalizeTarotKingdomWeaponTypes(source.weaponTypes || base.weaponTypes, weaponType),
         weaponSlots: weaponSlots.length ? weaponSlots : [weaponType],
         formation
     };
+}
+
+const TAROT_KINGDOM_EQUIPMENT_ELEMENT_DAMAGE_CAP = 100;
+
+function normalizeTarotKingdomElementDamage(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    return Object.fromEntries(['fire', 'water', 'wind', 'earth'].map((element) => [
+        element,
+        Math.max(0, Math.min(
+            TAROT_KINGDOM_EQUIPMENT_ELEMENT_DAMAGE_CAP,
+            Math.floor(finiteNumber(source[element], 0))
+        ))
+    ]));
 }
 
 export function normalizeTarotKingdomCharacter(rawCharacter = {}, fallback = {}) {

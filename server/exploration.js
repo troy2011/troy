@@ -63,8 +63,8 @@ const {
     rollTarotKingdomRaidEncounter
 } = require('./tarotKingdomRaid');
 const {
-    EQUIPMENT_RANDOM_OPTION_STATS,
     buildEquipmentRandomOptionDisplayProperties,
+    describeEquipmentRandomOption,
     buildEquipmentRandomOptionStackId,
     isRandomOptionEquipment,
     rollEquipmentRandomOptions
@@ -1904,6 +1904,11 @@ async function grantExplorationRewardItem(addEconomyItem, catalogCache, playFabI
     }
     for (let unitIndex = 0; unitIndex < rolls.length; unitIndex += 1) {
         const seed = getExplorationRewardRandomOptionSeed(idempotencyId, unitIndex);
+        // a piece with no option stacks with the plain ones
+        if (!rolls[unitIndex]?.options?.length) {
+            await addEconomyItem(playFabId, itemId, 1, { idempotencyId: seed });
+            continue;
+        }
         await addEconomyItem(playFabId, itemId, 1, {
             idempotencyId: seed,
             stackId: buildEquipmentRandomOptionStackId(seed),
@@ -1914,11 +1919,9 @@ async function grantExplorationRewardItem(addEconomyItem, catalogCache, playFabI
 
 function describeExplorationRewardRandomOptions(rolls) {
     if (!rolls) return undefined;
-    return rolls.map((roll) => (roll?.options || []).map(({ stat, value }) => ({
-        stat,
-        value,
-        label: EQUIPMENT_RANDOM_OPTION_STATS[stat]?.label || stat
-    })));
+    return rolls.map((roll) => (roll?.options || []).map(({ stat, level }) => (
+        describeEquipmentRandomOption(stat, level)
+    )));
 }
 
 function resolveCatalogEntryByItemId(catalogCache, itemId) {

@@ -2333,7 +2333,7 @@ function getExplorationRewardRandomOptionText(item) {
     const sets = Array.isArray(item?.randomOptions) ? item.randomOptions : [];
     return sets
         .map((options) => (Array.isArray(options) ? options : [])
-            .map((option) => `${option?.label || ''}+${Math.floor(Number(option?.value) || 0)}`)
+            .map((option) => `${option?.label || ''}Lv${Math.floor(Number(option?.level) || 0)}`)
             .join(' '))
         .filter(Boolean)
         .join(' / ');

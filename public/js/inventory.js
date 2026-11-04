@@ -3251,11 +3251,17 @@ function getPrimaryInventoryCardStats(item, canonicalCategory) {
 // Random options a piece of equipment was dropped with; the server rolled and keeps them.
 function getInventoryRandomOptions(item) {
     return (Array.isArray(item?.randomOptions) ? item.randomOptions : [])
-        .filter((option) => option && option.label && Number(option.value) > 0);
+        .filter((option) => option && option.label && Number(option.level) > 0);
 }
 
-function formatInventoryRandomOptions(options) {
-    return options.map((option) => `${option.label}+${Math.floor(Number(option.value) || 0)}`).join(' ');
+// "攻撃力Lv5", or with its effect "攻撃力Lv5 (+5)" / "会心率Lv3 (+3%)"
+function formatInventoryRandomOption(option, withValue = false) {
+    const name = `${option.label}Lv${Math.floor(Number(option.level) || 0)}`;
+    return withValue ? `${name} (+${Math.floor(Number(option.value) || 0)}${option.unit || ''})` : name;
+}
+
+function formatInventoryRandomOptions(options, withValue = false) {
+    return options.map((option) => formatInventoryRandomOption(option, withValue)).join(' ');
 }
 
 function createInventoryStatBadges(item, canonicalCategory = '') {
@@ -5460,7 +5466,7 @@ function showItemDetailModal(item) {
                 parts.push(`基本${item.enhancement.baseValue} +${enhancementBonus}`);
             }
             const option = randomOptions.find((entry) => entry.stat === key);
-            if (option) parts.push(`OP +${option.value}`);
+            if (option) parts.push(`OP Lv${option.level} +${option.value}`);
             return parts.join(' ');
         };
         const appendNumber = (label, value, tone, key) => appendItemDetailStat(statsEl, label, value, tone, { tile: true, note: statNote(key) });
@@ -5471,7 +5477,9 @@ function showItemDetailModal(item) {
         appendNumber('術補', cd.MagicPower, 'magic', 'MagicPower');
         appendNumber('回復補正', cd.HealPower, 'heal', 'HealPower');
         if (randomOptions.length) {
-            appendItemDetailStat(statsEl, 'ランダムOP', formatInventoryRandomOptions(randomOptions), 'option');
+            randomOptions.forEach((option) => {
+                appendItemDetailStat(statsEl, `OP ${option.label}`, `Lv${option.level} (+${option.value}${option.unit || ''})`, 'option');
+            });
         }
         appendNumber('詠唱補正', cd.CastRate);
         appendNumber('MP効率', cd.MpEfficiency);

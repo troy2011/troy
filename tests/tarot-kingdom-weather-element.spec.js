@@ -113,3 +113,38 @@ test.describe('Tarot Kingdom weather element power', () => {
     expect(rules.weatherElementVersion).toBe(0);
   });
 });
+
+test.describe('Tarot Kingdom equipment option combat', () => {
+  test.beforeEach(async ({ page }) => {
+    await openKingdomDebug(page);
+  });
+
+  test('element damage and critical rate from equipment options raise the party attacks', async ({ page }) => {
+    const audit = await page.evaluate((monsterId) => {
+      const debug = window.TarotKingdomDebug;
+      const fireHit = (resolved) => resolved.result.results.find((entry) => entry.kind === 'major-damage');
+      const run = (combat) => {
+        debug.battleSetDemoEnemy(monsterId);
+        debug.battleScenario({
+          withTrick: true,
+          enemyHp: 5000,
+          enemyMaxHp: 5000,
+          enemyDefense: 0,
+          combatBySeat: [combat]
+        });
+        debug.battleSetCombatRandom(0.05);
+        return fireHit(debug.battleResolveMajorEffect(0, 19));
+      };
+      const plain = run({});
+      const fireUp = run({ elementDamage: { fire: 27 } });
+      const waterUp = run({ elementDamage: { water: 27 } });
+      const critical = run({ criticalRate: 9 });
+      return { plain, fireUp, waterUp, critical, character: debug.battleState().players[0].character.combat };
+    }, FIRE_MONSTER_ID);
+
+    expect(audit.fireUp.amount).toBeGreaterThan(audit.plain.amount);
+    expect(audit.waterUp.amount).toBe(audit.plain.amount);
+    expect(audit.critical.amount).toBeGreaterThan(audit.plain.amount);
+    expect(audit.character.criticalRate).toBe(9);
+  });
+});

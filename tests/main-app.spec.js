@@ -3635,8 +3635,8 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
             rarity: 'rare',
             quantity: 2,
             randomOptions: [
-              [{ stat: 'Power', value: 3, label: '攻撃力' }],
-              [{ stat: 'Agi', value: 2, label: 'すばやさ' }]
+              [{ stat: 'Power', level: 5, value: 5, label: '攻撃力', unit: '' }],
+              [{ stat: 'CriticalRate', level: 9, value: 9, label: '会心率', unit: '%' }]
             ],
             spritePath: './Sprites/weapons/melee weapons/sword.png',
             spriteIndex: 2,
@@ -4048,7 +4048,7 @@ test('exploration result reveals rewards after a tarot kingdom victory', async (
   await expect(result.locator('.exploration-result-details')).toHaveCSS('opacity', '1');
   await expect(result.locator('.exploration-result-reward')).toContainText('霧切りの刃');
   await expect(result.locator('.exploration-result-reward')).toContainText('×2');
-  await expect(result.locator('.exploration-result-reward-options')).toHaveText('攻撃力+3 / すばやさ+2');
+  await expect(result.locator('.exploration-result-reward-options')).toHaveText('攻撃力Lv5 / 会心率Lv9');
   await expect.poll(() => page.evaluate(() => window.__explorationRewardInventoryRefreshes)).toContainEqual({ force: true });
   await expect(result.locator('[data-exploration-result-state]')).toHaveText('勝利');
   expect(await result.locator('.exploration-result-dialog').evaluate((element) => getComputedStyle(element).overflowX)).toBe('hidden');
@@ -6380,7 +6380,7 @@ test('inventory equipment enhancement modal uses a local preview and applies mul
       count: 1,
       name: '鍛えた素材剣',
       materialEligible: true,
-      randomOptions: [{ stat: 'Agi', value: 2, label: 'すばやさ' }],
+      randomOptions: [{ stat: 'Agi', level: 2, value: 2, label: 'すばやさ', unit: '' }],
       enhancement: {
         category: 'Weapon', family: 'sword', primaryStat: 'Power', baseValue: 9,
         bonus: 3, storedBonus: 3, effectiveValue: 12, rarity: 'common',
