@@ -81,7 +81,7 @@ test.describe('Tarot Kingdom eight-card rules, combat timeline, and fair NPC', (
       enemyDefeatMode: 'hp-zero'
     });
     expect(audit.current.players.map((player) => player.hand.length)).toEqual([8, 8, 8, 8]);
-    expect(audit.published.schema).toBe(37);
+    expect(audit.published.schema).toBe(38);
     expect(audit.published.state.rules).toMatchObject({
       initialHandSize: 8,
       handLimit: 8,

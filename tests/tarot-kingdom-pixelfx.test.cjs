@@ -131,7 +131,7 @@ test('lasting field effects bring their own weather, which redraws slowly and ne
     assert.ok(!recipe.frameMs || recipe.frameMs >= 83, `${id} redraws at 12 fps or less`);
   }
   const game = fs.readFileSync(path.join(JS_DIR, 'tarotKingdom.js'), 'utf8');
-  assert.match(game, /syncKingdomFieldSceneFade\(\);\s*void syncTarotKingdomAmbientFx\(ui\.battleStage, getKingdomFieldWeatherKey\(\)\);/);
+  assert.match(game, /syncKingdomFieldSceneFade\(\);\s*const weatherKey = getKingdomFieldWeatherKey\(\);\s*void syncTarotKingdomAmbientFx\(ui\.battleStage, weatherKey\);/);
   assert.ok(!/syncTarotKingdomAmbientFx\(ui\.battleStage, battlefield\.id\)/.test(game), 'battlefields carry no weather of their own');
   // the Tower, the Star, the Moon and the Sun turn the weather with their cut-in, and it stays until the next change
   assert.match(game, /startKingdomWeatherBurst\(summonState\?\.majorNumber, Date\.now\(\) - elapsedMs, summonDurationMs\);/);

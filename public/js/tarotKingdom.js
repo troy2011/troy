@@ -577,7 +577,7 @@ const KINGDOM_SUMMON_EFFECT_VISUALS = Object.freeze({
   flushElemental: Object.freeze({ category: 'hybrid', choreography: 'elemental-surge', cue: 'elemental-charge', impact: 'elemental-burst' }),
   'major-arcana': Object.freeze({ category: 'hybrid', choreography: 'arcana-invocation', cue: 'arcana-awaken', impact: 'arcana-release' })
 });
-const KINGDOM_NET_SCHEMA_VERSION = 37;
+const KINGDOM_NET_SCHEMA_VERSION = 38;
 const KINGDOM_PRIVATE_STATE_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_VERSION = 2;
 const KINGDOM_OFFLINE_CHECKPOINT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1114,8 +1114,43 @@ function syncKingdomTrickSceneClass() {
     }
   } finally {
     syncKingdomFieldSceneFade();
-    void syncTarotKingdomAmbientFx(ui.battleStage, getKingdomFieldWeatherKey());
+    const weatherKey = getKingdomFieldWeatherKey();
+    void syncTarotKingdomAmbientFx(ui.battleStage, weatherKey);
+    syncKingdomWeatherElementBadge(weatherKey);
   }
+}
+
+// A small sign beside the enemy's name of which element the weather powers up and which it weakens.
+function syncKingdomWeatherElementBadge(weatherKey) {
+  const heading = ui.battleStage?.querySelector('.tarot-kingdom-battle-enemy .tarot-kingdom-battle-side-heading');
+  if (!heading) return;
+  const showsPower = areKingdomWeatherElementRulesEnabled()
+    || (window.__TAROT_KINGDOM_PREVIEW__ === true && kingdomDemoTrickSceneKey !== 'auto');
+  const power = showsPower ? KINGDOM_WEATHER_ELEMENT_POWER[weatherKey] : null;
+  let badge = heading.querySelector('.tarot-kingdom-weather-element-badge');
+  if (!power) {
+    if (badge) badge.hidden = true;
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'tarot-kingdom-weather-element-badge';
+    badge.setAttribute('role', 'status');
+    heading.append(badge);
+  }
+  const signature = `${power.up}:${power.down}`;
+  badge.hidden = false;
+  if (badge.dataset.power === signature) return;
+  badge.dataset.power = signature;
+  const upLabel = TAROT_KINGDOM_ELEMENT_LABELS[power.up] || power.up;
+  const downLabel = TAROT_KINGDOM_ELEMENT_LABELS[power.down] || power.down;
+  badge.setAttribute('aria-label', `天候: ${upLabel}属性アップ、${downLabel}属性ダウン`);
+  badge.replaceChildren(...[[power.up, upLabel, '↑'], [power.down, downLabel, '↓']].map(([element, label, arrow]) => {
+    const chip = document.createElement('span');
+    chip.className = `tarot-kingdom-weather-element is-${element}`;
+    chip.textContent = `${label}${arrow}`;
+    return chip;
+  }));
 }
 
 // The weather over the whole stage follows the field effects that stay in force, not the short flashes
@@ -1163,12 +1198,71 @@ function hasKingdomStarBlessing(effects) {
 }
 
 // The lasting field effects, in the order they take the stage.
-function getKingdomLastingFieldWeatherKey() {
-  const lockSuit = String(s.lock?.suit || '').toLowerCase();
+function getKingdomLastingFieldWeatherKey(state = s) {
+  const lockSuit = String(state?.lock?.suit || '').toLowerCase();
   if (['wand', 'cup', 'sword', 'pentacle'].includes(lockSuit)) return `lock-${lockSuit}`;
-  if (s.reverse) return 'back';
-  if (s.battle.effects?.enemy?.timeStop) return 'world';
+  if (state?.reverse) return 'back';
+  if (state?.battle?.effects?.enemy?.timeStop) return 'world';
   return '';
+}
+
+// Weather that powers an element up and the one it powers down, for both the party's and the enemy's
+// attacks. Each major arcana weather follows its card's element (16 Sword wind, 17 Cup water,
+// 18 Pentacle earth, 19 Wand fire) and a Royal Lock its suit's; the opposite element is the one it weakens.
+const KINGDOM_WEATHER_ELEMENT_UP_MULTIPLIER = 1.2;
+const KINGDOM_WEATHER_ELEMENT_DOWN_MULTIPLIER = 0.8;
+const KINGDOM_WEATHER_ELEMENT_POWER = Object.freeze({
+  tower: Object.freeze({ up: 'wind', down: 'earth' }),
+  star: Object.freeze({ up: 'water', down: 'fire' }),
+  moon: Object.freeze({ up: 'earth', down: 'wind' }),
+  sun: Object.freeze({ up: 'fire', down: 'water' }),
+  'lock-wand': Object.freeze({ up: 'fire', down: 'water' }),
+  'lock-cup': Object.freeze({ up: 'water', down: 'fire' }),
+  'lock-sword': Object.freeze({ up: 'wind', down: 'earth' }),
+  'lock-pentacle': Object.freeze({ up: 'earth', down: 'wind' })
+});
+
+function areKingdomWeatherElementRulesEnabled(state = s) {
+  return Number(state?.rules?.weatherElementVersion || 0) >= 1;
+}
+
+// The weather the battle state holds, so that every seat works out the same damage. `field` is the lasting
+// field effect last seen: one that starts replaces the weather, and when it ends its own weather goes with it,
+// while a major arcana weather summoned over it stays.
+function getKingdomBattleWeatherKey(state = s) {
+  const battle = state?.battle;
+  if (!battle || battle.outcome) return '';
+  const stored = battle.weather && typeof battle.weather === 'object' ? battle.weather : {};
+  const key = String(stored.key || '');
+  const field = getKingdomLastingFieldWeatherKey(state);
+  if (field === String(stored.field || '')) return key;
+  if (field) return field;
+  return Object.values(KINGDOM_MAJOR_WEATHER_BY_NUMBER).includes(key) ? key : '';
+}
+
+function syncKingdomBattleWeather(majorKey = '') {
+  if (!s?.battle || !areKingdomWeatherElementRulesEnabled()) return;
+  const key = majorKey || getKingdomBattleWeatherKey();
+  s.battle.weather = { key, field: getKingdomLastingFieldWeatherKey() };
+}
+
+function getKingdomWeatherElementMultiplier(element, state = s) {
+  if (!areKingdomWeatherElementRulesEnabled(state)) return 1;
+  const power = KINGDOM_WEATHER_ELEMENT_POWER[getKingdomBattleWeatherKey(state)];
+  const normalizedElement = String(element || '').trim().toLowerCase();
+  if (!power || !normalizedElement) return 1;
+  if (normalizedElement === power.up) return KINGDOM_WEATHER_ELEMENT_UP_MULTIPLIER;
+  if (normalizedElement === power.down) return KINGDOM_WEATHER_ELEMENT_DOWN_MULTIPLIER;
+  return 1;
+}
+
+// The enemy's element affinity for an attack, with the weather's power folded into the multiplier.
+function getKingdomWeatheredElementMultiplier(monsterOrAffinity, element) {
+  const affinity = getTarotKingdomElementMultiplier(monsterOrAffinity, element);
+  const weatherMultiplier = getKingdomWeatherElementMultiplier(element);
+  return weatherMultiplier === 1
+    ? affinity
+    : { ...affinity, multiplier: affinity.multiplier * weatherMultiplier, weatherMultiplier };
 }
 
 function getKingdomFieldWeatherKey() {
@@ -1180,6 +1274,8 @@ function getKingdomFieldWeatherKey() {
     kingdomLastFieldWeather = '';
     return '';
   }
+  // under the weather rules the battle state holds the weather, so the sky shows what the damage uses
+  if (areKingdomWeatherElementRulesEnabled()) return getKingdomBattleWeatherKey();
   const field = getKingdomLastingFieldWeatherKey();
   // a field effect that starts is a change of weather, and replaces a major arcana's
   if (field !== kingdomLastFieldWeather) {
@@ -8850,7 +8946,7 @@ function applyKingdomStageWideDamage(step, actorIndex, activeResult) {
       abilityVersion: Number(s.rules?.enemyAbilityVersion ?? 1)
     });
     const affinity = areKingdomElementAffinitiesEnabled() && element
-      ? getTarotKingdomElementMultiplier(profile.affinity || monster.id, element)
+      ? getKingdomWeatheredElementMultiplier(profile.affinity || monster.id, element)
       : { multiplier: 1, reaction: '' };
     const elemental = Math.max(0, Math.floor((Number(step.amount) || 0) * Number(affinity.multiplier || 1)));
     const outgoing = Math.max(0, Math.floor(elemental * outgoingMultiplier));
@@ -9029,7 +9125,7 @@ function applyKingdomEffectStep(step, actorIndex, context = {}) {
       ? 'wind'
       : (resonanceEnchant ? (step.kind === 'magic' ? 'fire' : 'wind') : String(step.element || ''));
     const affinity = !isConfirmedReplay && areKingdomElementAffinitiesEnabled() && element
-      ? getTarotKingdomElementMultiplier(enemy.affinity || enemy.id, element)
+      ? getKingdomWeatheredElementMultiplier(enemy.affinity || enemy.id, element)
       : { multiplier: 1, reaction: '' };
     const lightningDamageMultiplier = lightningBlade
       ? 1 + (Math.max(0, Math.min(100, Number(lightningBlade.damageBonus) || 0)) / 100)
@@ -9677,7 +9773,7 @@ function applyKingdomMajorEnemyDamage(actorIndex, rawDamage, options = {}) {
   const before = Math.max(0, Number(enemy.hp) || 0);
   const element = String(options.element || '');
   const affinity = areKingdomElementAffinitiesEnabled() && element
-    ? getTarotKingdomElementMultiplier(enemy.affinity || enemy.id, element)
+    ? getKingdomWeatheredElementMultiplier(enemy.affinity || enemy.id, element)
     : { multiplier: 1, reaction: '', weak: '', resist: '' };
   const elementalRaw = Math.max(0, Math.floor((Number(rawDamage) || 0) * affinity.multiplier));
   const outgoing = options.fixed === true
@@ -10780,6 +10876,9 @@ function resolveKingdomMajorBattleEffect(playerIndex, play, options = {}) {
       addResult({ kind: 'major-debuff', targetType: 'enemy', remainingTurns });
     }
   }
+  // The Tower, the Star, the Moon and the Sun turn the weather once their own effect has landed,
+  // so it powers the attacks that follow, not the summon's own.
+  if (KINGDOM_MAJOR_WEATHER_BY_NUMBER[number]) syncKingdomBattleWeather(KINGDOM_MAJOR_WEATHER_BY_NUMBER[number]);
 
   return {
     number,
@@ -12468,6 +12567,12 @@ function getKingdomEnemyAttackMultiplier(attackKind = 'single') {
     multiplier *= 1 + (potency / 100);
     applied.push({ kind: attackBuffKey, potency });
   }
+  // the weather powers the enemy's attacks by its own element too
+  const weatherMultiplier = getKingdomWeatherElementMultiplier(s.battle?.enemy?.affinity?.native);
+  if (weatherMultiplier !== 1) {
+    multiplier *= weatherMultiplier;
+    applied.push({ kind: 'weather', potency: Math.round((weatherMultiplier - 1) * 100) });
+  }
   return { multiplier, applied };
 }
 
@@ -14051,7 +14156,8 @@ function normalizeKingdomRules(
   fallbackArcanaPointVersion = 1,
   fallbackStageWideAreaDamageVersion = 2,
   fallbackRoleAttackRangeVersion = 1,
-  fallbackWeaponRulesVersion = TAROT_KINGDOM_WEAPON_RULES_VERSION
+  fallbackWeaponRulesVersion = TAROT_KINGDOM_WEAPON_RULES_VERSION,
+  fallbackWeatherElementVersion = 1
 ) {
   const incoming = rawRules && typeof rawRules === 'object' ? rawRules : {};
   const fallback = Math.max(1, Math.min(20, Math.floor(Number(fallbackHandSize) || DEFAULT_HAND_LIMIT)));
@@ -14184,6 +14290,12 @@ function normalizeKingdomRules(
       0,
       Math.min(TAROT_KINGDOM_WEAPON_RULES_VERSION, Math.floor(Number(
         incoming.weaponRulesVersion ?? fallbackWeaponRulesVersion
+      ) || 0))
+    ),
+    weatherElementVersion: Math.max(
+      0,
+      Math.min(1, Math.floor(Number(
+        incoming.weatherElementVersion ?? fallbackWeatherElementVersion
       ) || 0))
     )
   };
@@ -15562,7 +15674,8 @@ function deserializeStateFromNet(payload) {
       ? 0
       : (incomingSchema < 35
           ? TAROT_KINGDOM_WEAPON_RULES_BASE_VERSION
-          : TAROT_KINGDOM_WEAPON_RULES_VERSION)
+          : TAROT_KINGDOM_WEAPON_RULES_VERSION),
+    incomingSchema < 38 ? 0 : 1
   );
   [nextState.trick, nextState.lastPlay].forEach((play) => {
     if (!play || typeof play !== 'object') return;
@@ -21441,6 +21554,7 @@ function applySetEffects(play) {
     const label = cards.map((c) => `${getCardNameLabel(c)}(${getCardNumberLabel(c)})`).join(', ');
     log(`${pName(play.owner)}: クリア理由 ${label}`);
   }
+  syncKingdomBattleWeather();
   return { forceClear, keepTurn: false, skip };
 }
 
@@ -22138,6 +22252,7 @@ function continueAfterPlay(pi, play) {
     }
     purgeKingdomBattleEffects({ preserveRound: true });
       if (pendingWorldTimeStop) restoreKingdomPendingWorldTimeStop(pendingWorldTimeStop);
+    syncKingdomBattleWeather();
   }
   const tutorialObjectivePending = isKingdomTutorialObjectivePending(pi);
   // Scripted lessons end only after their required play. A high-level character

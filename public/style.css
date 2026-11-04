@@ -19561,6 +19561,45 @@ body.home-exploration-popup-open #globalStatusBar {
     background: #2c1a4a;
 }
 
+/* the weather's element power, in the same element colors, beside the enemy's name */
+.tarot-kingdom-weather-element-badge {
+    display: flex;
+    flex: none;
+    gap: 3px;
+    align-self: center;
+}
+
+.tarot-kingdom-weather-element-badge[hidden] {
+    display: none;
+}
+
+.tarot-kingdom-weather-element {
+    padding: 0 5px;
+    border: 1px solid rgb(255 255 255 / 45%);
+    border-radius: 999px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.4;
+    background: #6b7280;
+}
+
+.tarot-kingdom-weather-element.is-fire {
+    background: #b83a31;
+}
+
+.tarot-kingdom-weather-element.is-water {
+    background: #2f6fae;
+}
+
+.tarot-kingdom-weather-element.is-wind {
+    background: #7d55c9;
+}
+
+.tarot-kingdom-weather-element.is-earth {
+    background: #2e8556;
+}
+
 .ship-exploration-monster-detail-close {
     min-height: 40px;
     border: 1px solid #c79c47;
