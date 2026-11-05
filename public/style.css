@@ -41908,3 +41908,65 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
         animation: none;
     }
 }
+
+/* Daily fortune → inventory: jump button, fragment progress, and the arrival highlight. */
+.tarot-fortune-reward .tarot-fortune-view-inventory {
+    grid-column: 1 / -1;
+    justify-self: start;
+    min-height: 32px;
+    padding: 4px 12px;
+    border: 1px solid rgba(248, 226, 168, 0.42);
+    border-radius: 8px;
+    background: rgba(30, 58, 95, 0.72);
+    color: #ffe8a3;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-fortune-fragments {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(248, 226, 168, 0.28);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.55);
+    color: #f8e7c0;
+}
+
+#tabContentInventory .inventory-fortune-fragments[hidden] {
+    display: none;
+}
+
+#tabContentInventory .inventory-fortune-fragments-title {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+#tabContentInventory .inventory-fortune-fragments-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#tabContentInventory .inventory-fortune-fragment {
+    display: inline-flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(143, 95, 32, 0.45);
+    font-size: 12px;
+}
+
+#tabContentInventory .inventory-fortune-fragment strong {
+    color: #ffe8a3;
+}
+
+#tabContentInventory .is-spotlight {
+    outline: 2px solid #ffe8a3;
+    outline-offset: 2px;
+    transition: outline-color 0.6s ease;
+}

@@ -113,8 +113,19 @@ test('legacy daily results use the same weather as the server for all 156 outcom
   }
 });
 
-test('daily tarot grants a card upright and completes a reversed card from two fragments', () => {
-  const card = tarotFortune.buildTarotDeck()[0];
+test('a reversed minor arcana is granted whole, without fragments', () => {
+  const minor = tarotFortune.buildTarotDeck().find((card) => !card.isArcana);
+  expect(tarotFortune.buildFortuneReward(minor, 'reversed', 1)).toMatchObject({
+    rewardType: 'card',
+    rewardItemAmount: 1,
+    rewardCardGranted: true,
+    rewardFragmentAmount: 0,
+    rewardFragmentCompleted: false
+  });
+});
+
+test('daily tarot grants a major card upright and completes a reversed one from two fragments', () => {
+  const card = tarotFortune.buildTarotDeck().find((entry) => entry.isArcana);
   const uprightReward = tarotFortune.buildFortuneReward(card, 'upright');
   const firstReversedReward = tarotFortune.buildFortuneReward(card, 'reversed', 0);
   const secondReversedReward = tarotFortune.buildFortuneReward(card, 'reversed', 1);

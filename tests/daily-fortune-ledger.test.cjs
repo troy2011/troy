@@ -384,10 +384,22 @@ test('a confirmed fortune makes an unresolved ranking bonus visible', async () =
     Player: { isCurrentPlayerSession: () => true }, hasPendingDailyFortuneToday: () => false,
     document: { getElementById: id => id === 'dailyTarotFortuneOverlay' ? { style: { display: 'flex' } } : id === 'dailyTarotFortuneSub' ? sub : modal },
     callApiWithLoader: async () => { calls++; return { result: { dayKey: '2026-10-30' }, bountyPending: true }; },
-    queueStatusFortuneBounty: () => null, showStatusFortuneBounty: () => {},
+    queueStatusFortuneBounty: () => null, showStatusFortuneBounty: () => {}, updateStatusFortuneBountyNames: () => {},
     Inventory: { getInventory: async () => { refreshes++; } }
   };
   vm.runInNewContext(`${source.slice(start, end)}; globalThis.run = finishDisplayedFortuneRecovery;`, context);
   await context.run('PLAYER', '2026-10-30', {});
   assert.match(sub.textContent, /確認中/); assert.equal(calls, 1); assert.equal(refreshes, 1);
+});
+
+test('the fragment route lists only major arcana progress and needs the signed-in player', async () => {
+  const f = fixture();
+  f.records.set('DailyTarotCardFragmentsV1', JSON.stringify({ version: 1, counts: { 'arcana-18': 1, 'minor-cups-4': 1 } }));
+  const res = await f.call('/api/tarot-fortune-fragments');
+  assert.equal(res.code, 200);
+  assert.equal(res.body.required, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.fragments)), [{ cardId: 'arcana-18', cardName: res.body.fragments[0].cardName, cardNumber: 18, count: 1 }]);
+  assert.ok(res.body.fragments[0].cardName);
+  assert.equal((await f.call('/api/tarot-fortune-fragments', 'OTHER')).code, 403);
+  assert.equal(f.grants.length, 0);
 });

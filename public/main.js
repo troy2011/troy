@@ -63,7 +63,7 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20261101-arcana-signs-v1';
+const TAROT_MODULE_VERSION = '20261105-fortune-flow-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261104-random-option-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -375,13 +375,23 @@ function queueStatusFortuneBounty(playFabId, status) {
     return { key, reward };
 }
 
+function formatStatusFortuneBountyItems(items) {
+    return `ランキング報酬: ${items.map(item => `${Inventory.getInventoryItemDisplayName(item.itemId) || '報酬アイテム'}${item.amount > 1 ? ` x${item.amount}` : ''}`).join(' / ')}`;
+}
+
+// Item names come from the inventory, so a notice shown before the refresh is relabelled after it.
+function updateStatusFortuneBountyNames(notice) {
+    const label = document.querySelector('#dailyTarotFortuneBounty [data-status-bounty] span');
+    if (label && notice) label.textContent = formatStatusFortuneBountyItems(notice.reward.items);
+}
+
 function showStatusFortuneBounty(notice) {
     const host = document.getElementById('dailyTarotFortuneBounty');
     if (!host || !notice || host.querySelector('[data-status-bounty]')) return;
     const row = document.createElement('div');
     row.dataset.statusBounty = 'true';
     const label = document.createElement('span');
-    label.textContent = `ランキング報酬: ${notice.reward.items.map(item => `${item.itemId}${item.amount > 1 ? ` x${item.amount}` : ''}`).join(' / ')}`;
+    label.textContent = formatStatusFortuneBountyItems(notice.reward.items);
     const button = document.createElement('button');
     button.type = 'button'; button.textContent = '確認';
     button.addEventListener('click', () => {
@@ -413,7 +423,9 @@ async function finishDisplayedFortuneRecovery(playFabId, dayKey, session) {
         if (sub) sub.textContent = `${dayKey} の占い結果です。画面を閉じて本日の占いを始められます。`;
         setDailyFortuneButtonClaimed(document.getElementById('btnDailyFortune'), false);
     }
-    if (Player.isCurrentPlayerSession(session)) await Inventory.getInventory(playFabId, { force: true, isSilent: true });
+    if (!Player.isCurrentPlayerSession(session)) return;
+    await Inventory.getInventory(playFabId, { force: true, isSilent: true });
+    updateStatusFortuneBountyNames(notice);
 }
 
 function setDailyFortuneButtonClaimed(button, claimed) {
@@ -3201,6 +3213,9 @@ bindModalClose(itemDetailModal?.querySelector('.item-detail-corner-close'), Inve
 });
 bindModalClose(itemDetailModal?.querySelector('.item-detail-close'), Inventory.closeItemDetailModal);
 window.refreshInventory = (options = {}) => Inventory.getInventory(myPlayFabId, options);
+window.markInventoryItemsAsNew = (items) => Inventory.markInventoryItemsAsNew(items);
+window.getInventoryItemDisplayName = (itemId) => Inventory.getInventoryItemDisplayName(itemId);
+window.showInventoryTarotCard = (itemId, options) => Inventory.showInventoryTarotCard(itemId, options);
 window.useItem = (instanceId, itemId) => Inventory.useItem(myPlayFabId, instanceId, itemId);
 window.sellItem = (instanceId, itemId) => Inventory.sellItem(myPlayFabId, instanceId, itemId);
 window.showSellConfirmationModal = Inventory.showSellConfirmationModal;

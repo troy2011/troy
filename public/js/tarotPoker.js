@@ -5207,7 +5207,8 @@ function getDailyFortuneRewardText(result) {
         const skillName = String(result?.skillName || '').trim();
         const skillPart = skillName ? ` スキル:「${skillName}」` : '';
         if (result?.rewardFragmentCompleted) {
-            return `欠片が2個そろい、「${rewardItemName}」を1枚手に入れた。${goldPart}${skillPart}`;
+            const required = Math.max(1, Math.floor(Number(result?.rewardFragmentRequired || 2)));
+            return `欠片が${required}個そろい、「${rewardItemName}」を1枚手に入れた。${goldPart}${skillPart}`;
         }
         return `「${rewardItemName}」を1枚手に入れた。${goldPart}${skillPart}`;
     }
@@ -5268,6 +5269,18 @@ function setDailyFortuneReward(result) {
     value.className = 'tarot-fortune-reward-value';
     value.textContent = rewardText;
     rewardEl.replaceChildren(label, value);
+    const itemId = String(result?.rewardItemId || result?.cardId || '').trim();
+    const rewardType = String(result?.rewardType || '').trim().toLowerCase();
+    if (!itemId || (rewardType !== 'card' && rewardType !== 'fragment') || typeof window.showInventoryTarotCard !== 'function') return;
+    const view = document.createElement('button');
+    view.type = 'button';
+    view.className = 'tarot-fortune-view-inventory';
+    view.textContent = rewardType === 'fragment' ? '欠片を持ち物で見る' : '持ち物で見る';
+    view.addEventListener('click', () => {
+        closeDailyFortuneOverlay();
+        void window.showInventoryTarotCard(itemId, { isArcana: !!result?.isArcana, fragment: rewardType === 'fragment' });
+    });
+    rewardEl.append(view);
 }
 
 function resetDailyFortuneResultDetails() {
@@ -5448,7 +5461,7 @@ function setDailyFortuneBounty(result) {
         label.textContent = `${dayLabel}${rank}報酬`;
         const value = document.createElement('strong');
         value.className = 'tarot-fortune-reward-value';
-        value.textContent = reward.items.map((item) => `${item.itemId}${item.amount > 1 ? ` x${item.amount}` : ''}`).join(' / ');
+        value.textContent = formatDailyFortuneBountyItems(reward.items);
         el.append(label, value);
     }
     const acknowledge = document.createElement('button');
@@ -5520,12 +5533,19 @@ function queueDailyFortuneBounty(playFabId, day, reward) {
     } catch { dailyFortuneBountyMemory.set(key, entry); }
 }
 
+function formatDailyFortuneBountyItems(items) {
+    return items.map((item) => {
+        const name = String(window.getInventoryItemDisplayName?.(item.itemId) || '').trim() || '報酬アイテム';
+        return `${name}${item.amount > 1 ? ` x${item.amount}` : ''}`;
+    }).join(' / ');
+}
+
 function showDailyFortuneBountyAfterClose() {
     const notices = loadDailyFortuneBountyNotices(String(window.myPlayFabId || ''));
     if (!notices.length || typeof window.showRpgMessage !== 'function') return;
     const lines = notices.map(({reward}) => {
         const rank = reward.rank ? `第${reward.rank}位` : '順位';
-        const items = reward.items.map((item) => `${item.itemId}${item.amount > 1 ? ` x${item.amount}` : ''}`).join(' / ');
+        const items = formatDailyFortuneBountyItems(reward.items);
         const dayLabel = reward.rewardDayKey ? `${reward.rewardDayKey}集計 ` : '';
         return `${dayLabel}${rank}報酬: ${items}`;
     });
@@ -5565,6 +5585,7 @@ async function handleDailyFortuneDraw(playFabId) {
         const pendingKey = dailyFortunePendingKey(playFabId);
         setDailyFortunePending(playFabId, true, pendingKey);
         const data = await requestDailyFortuneDraw(playFabId);
+        let showBountyAfterRefresh = false;
         if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         if (!data?.result) throw new Error('ResultUnavailable');
         setDailyFortunePending(playFabId, false, pendingKey);
@@ -5574,9 +5595,12 @@ async function handleDailyFortuneDraw(playFabId) {
             const reward = normalizeDailyBountyReward(data?.dailyBountyReward || null);
             const hasBountyReward = reward.awarded;
             if (hasBountyReward) queueDailyFortuneBounty(playFabId, String(data.result.dayKey || dailyFortuneJstDay()), reward);
-            if (hasBountyReward && !canShowResult
-                && document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display !== 'flex') {
-                showDailyFortuneBountyAfterClose();
+            showBountyAfterRefresh = hasBountyReward && !canShowResult
+                && document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display !== 'flex';
+            if (!data.alreadyClaimed) {
+                const newItems = reward.items.map((item) => item.itemId);
+                if (data.result.rewardCardGranted && data.result.rewardItemId) newItems.unshift(data.result.rewardItemId);
+                window.markInventoryItemsAsNew?.(newItems);
             }
             const isPreviousDay = data.result.dayKey && data.result.dayKey !== dailyFortuneJstDay();
             if (canShowResult && (data.alreadyClaimed || isPreviousDay)) {
@@ -5604,6 +5628,12 @@ async function handleDailyFortuneDraw(playFabId) {
             || String(data?.result?.rewardType || '').trim().toLowerCase() === 'card'
             || (reward.awarded && !reward.alreadyClaimed);
         if (shouldRefreshInventory) await refreshDailyFortuneInventory();
+        if (showBountyAfterRefresh) showDailyFortuneBountyAfterClose();
+        else if (reward.awarded && generation === dailyFortuneOverlayGeneration
+            && document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display === 'flex') {
+            // Item names come from the refreshed inventory.
+            setDailyFortuneBounty(data.result);
+        }
     } catch (error) {
         if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         const notStarted = isDailyFortuneDrawNotStarted(error);
@@ -5897,7 +5927,9 @@ export async function showDailyFortune(playFabId, options = {}) {
             document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
             renderDailyFortuneResultLegacy(status.result);
             setDailyFortuneSubText('本日の占い結果です。');
+            const revisitGeneration = dailyFortuneOverlayGeneration;
             await refreshDailyFortuneInventory();
+            if (revisitGeneration === dailyFortuneOverlayGeneration) setDailyFortuneBounty(status.result);
             return;
         }
         setDailyFortuneSubText('本日の占いは完了しています。');

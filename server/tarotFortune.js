@@ -1040,7 +1040,8 @@ function buildFortuneReward(card, orientation, ownedFragmentCount = 0) {
     const rewardPs = getFortuneGoldRewardAmount(card);
     const goldLabel = rewardPs > 0 ? ` / +${rewardPs}G` : '';
     const rewardItemId = String(card?.id || '').trim();
-    const isReversed = orientation === 'reversed';
+    // Only major arcana are collected as fragments; a reversed minor card is granted whole.
+    const isReversed = orientation === 'reversed' && !!card?.isArcana;
     const currentFragmentCount = Math.max(0, Math.min(
         FORTUNE_FRAGMENT_REQUIREMENT - 1,
         Math.floor(Number(ownedFragmentCount) || 0)
@@ -1432,6 +1433,23 @@ function initializeTarotFortuneRoutes(app, deps) {
         }
     });
 
+    // Read-only: fragments being collected toward a major arcana card.
+    app.post('/api/tarot-fortune-fragments', async (req, res) => {
+        const playFabId = await authenticated(req, res);
+        if (!playFabId) return;
+        try {
+            const record = await readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer);
+            const majors = new Map(buildTarotDeck().filter(card => card.isArcana).map(card => [card.id, card]));
+            const fragments = Object.entries(record.counts)
+                .filter(([cardId]) => majors.has(cardId))
+                .map(([cardId, count]) => ({ cardId, cardName: getCardName(majors.get(cardId)), cardNumber: majors.get(cardId).number, count }));
+            return res.json({ ok: true, required: FORTUNE_FRAGMENT_REQUIREMENT, fragments });
+        } catch (error) {
+            console.error('[tarot-fortune-fragments] Error:', error?.message || error);
+            return res.status(503).json({ error: 'FailedToGetTarotFortuneFragments' });
+        }
+    });
+
     app.post('/api/tarot-fortune-ack-recovery', async (req, res) => {
         const playFabId = await authenticated(req, res);
         if (!playFabId) return;
@@ -1475,7 +1493,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                 }
                 const orientation = Math.random() < 0.5 ? 'upright' : 'reversed';
                 let fragmentRecord = { version: 1, counts: {} };
-                if (orientation === 'reversed') {
+                if (orientation === 'reversed' && card.isArcana) {
                     fragmentRecord = await readFortuneFragmentRecord(playFabId, promisifyPlayFab, PlayFabServer);
                 }
                 const ownedFragmentCount = Number(fragmentRecord.counts?.[card.id] || 0);
@@ -1509,7 +1527,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                     rewardFragmentCompleted: reward.rewardFragmentCompleted,
                     rewardLabel: reward.rewardLabel
                 };
-                if (orientation === 'reversed' && reward.rewardItemId) {
+                if (reward.rewardFragmentAmount > 0 && reward.rewardItemId) {
                     if (reward.rewardFragmentCompleted) delete fragmentRecord.counts[reward.rewardItemId];
                     else fragmentRecord.counts[reward.rewardItemId] = reward.rewardFragmentCount;
                 }
@@ -1533,7 +1551,7 @@ function initializeTarotFortuneRoutes(app, deps) {
                 await step('card', grant(result.rewardItemId, result.rewardItemAmount,
                     `tarot-fortune-card-${normalizePlayFabId(playFabId)}-${todayKey}`));
             }
-            if (result.orientation === 'reversed' && result.rewardItemId) {
+            if (result.rewardFragmentAmount > 0 && result.rewardItemId) {
                 await step('fragments', () => writeFortuneFragmentRecord(playFabId, fragmentRecord, promisifyPlayFab, PlayFabServer));
             }
             if (result.rewardPs > 0) {
