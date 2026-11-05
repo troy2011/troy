@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "assetVersion": "v8-41e255769cdbdde4",
-  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05",
+  "assetVersion": "v8-13b2b7db82ae0096",
+  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05 / Magician pipe adopted 2026-11-05",
   "frontRevision": "v8",
-  "sourceManifestSha256": "4c2cb12ca4ac10ee1e85628d6085414eba4de4a4a1cf6c44eb383c49bf15a77c",
-  "completedManifestSha256": "ae2abd61b3c435d8dc24192b26b2423b4e32c1e2df9dbf29b9f8cf3cf5bf3400",
+  "sourceManifestSha256": "01f9b9d97a65d4577e2639d1bed6e59b4b5ae886e607201a28313f17899f557a",
+  "completedManifestSha256": "8c892a2ae8d5f6a47851fa47a083cab4f7f56aae556df45195fd41756be5a13f",
   "majorFrame": "02 航海の天測儀・枠全体編集v15／オーディンの目",
   "policy": "Verified adopted complete fronts, frames and names retained. Isotropic contain fit with transparent padding; no crop or fill. Originals read-only.",
   "encoding": {
@@ -64,32 +64,32 @@
       "id": "major-1",
       "sourceId": "major-01",
       "label": "魔術師",
-      "selectedVersion": "魔術師・地球儀除去済み／全体左右反転済みの採用版（花瓶が左・天球儀が右）",
+      "selectedVersion": "パイプたばこ・2026-11-05採用",
       "source": "art/major/01_The_Magician.png",
-      "sourceSha256": "50054675ec9d93708f71d5db24ad15e86cdf1b8b9fcc240572ca3e63dbc64b6b",
-      "sourceBytes": 2506407,
+      "sourceSha256": "bc4a1014db9822b814f4431795678c7bb1fbd989e62a385ed3ffba445dd278eb",
+      "sourceBytes": 2554081,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/01_The_Magician.png",
-        "sha256": "1acf1c18f13ee611759763e1201a4615dbbd0e67a17f8dc53711ab51cff2f570",
-        "bytes": 5512633,
+        "sha256": "a69e44fd5c9517c9be693990e4d7637035fa043cbf6dc1a8c0b0591ee8f2d26f",
+        "bytes": 5494334,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-1.webp",
-        "bytes": 148430,
+        "bytes": 143182,
         "width": 640,
         "height": 960,
-        "sha256": "a4585ed11d9391159aeec0414f3bee4c8a625cba05a04c9f6d671e0b63bf85a4"
+        "sha256": "c0acd66a8af18cd752294606c07602bcdafc5f0d8b0747bf3f4c0a9e612a1e92"
       },
       "thumbs": {
         "path": "thumbs/major-1.webp",
-        "bytes": 12792,
+        "bytes": 12864,
         "width": 160,
         "height": 240,
-        "sha256": "ec9b2b94d739b25c4d8a36d532694c085fb8a3812c31dda896a1196f2265133e"
+        "sha256": "cc277a543d3352954ac1ea44be851e2bd8f46d96dfe7b3cfd76f3e02b224e28c"
       }
     },
     {
