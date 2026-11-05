@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "assetVersion": "v8-a740ed2707b653a3",
-  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24",
+  "assetVersion": "v8-41e255769cdbdde4",
+  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05",
   "frontRevision": "v8",
-  "sourceManifestSha256": "6a224517c19ec57fb1f7bd3dd88b7ae3d5fe62c653a415f0c4ca6cda72d76003",
-  "completedManifestSha256": "ff8132e01e8360926c8844e55595c908bd6bc6735a500955e6c1564d57b1404f",
+  "sourceManifestSha256": "4c2cb12ca4ac10ee1e85628d6085414eba4de4a4a1cf6c44eb383c49bf15a77c",
+  "completedManifestSha256": "ae2abd61b3c435d8dc24192b26b2423b4e32c1e2df9dbf29b9f8cf3cf5bf3400",
   "majorFrame": "02 航海の天測儀・枠全体編集v15／オーディンの目",
   "policy": "Verified adopted complete fronts, frames and names retained. Isotropic contain fit with transparent padding; no crop or fill. Originals read-only.",
   "encoding": {
@@ -544,32 +544,32 @@
       "id": "major-16",
       "sourceId": "major-16",
       "label": "塔",
-      "selectedVersion": "塔・小さな暗い王冠v5",
+      "selectedVersion": "触手先端修正・2026-11-05採用",
       "source": "art/major/16_The_Tower.png",
-      "sourceSha256": "0d5680f5b74c0f0d0a9432e14d5bec5a079ba12f6077086a7aea8e1e78cac04f",
-      "sourceBytes": 2770397,
+      "sourceSha256": "5cf503df5087e3b9812f49825d230e43aff5b9bb35215adc31e734d597e6fe1a",
+      "sourceBytes": 2807481,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/16_The_Tower.png",
-        "sha256": "b4ea86292e0945097f0dec9cf4c112013b879d81d58c5063b47731c8fcfa4916",
-        "bytes": 5277152,
+        "sha256": "91a743f1891a8ee28eda8d681c040a65845bd4a36c21dd7c3f8bc7964363a618",
+        "bytes": 5374604,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-16.webp",
-        "bytes": 152786,
+        "bytes": 155282,
         "width": 640,
         "height": 960,
-        "sha256": "34a3803bf5a102aa3642fc5eadf5b67d5af7c701370923b1c92bf9d74103757f"
+        "sha256": "4c92dc8fb245d7ea76d9421321119ca69e06e43c750900140dc41220ddfaef96"
       },
       "thumbs": {
         "path": "thumbs/major-16.webp",
-        "bytes": 12698,
+        "bytes": 12962,
         "width": 160,
         "height": 240,
-        "sha256": "d7d32cb17e3af1da0f65703d4a0c515fde36c13b6b8fccc4fce3ace65cfaf8eb"
+        "sha256": "884041a7489d2f628f414f37dc7eccc109a9a9cef2517b43f8cd18d51f26b947"
       }
     },
     {
@@ -1821,32 +1821,32 @@
       "id": "wand-7",
       "sourceId": "wands-07",
       "label": "銃／ワンドの7",
-      "selectedVersion": "ワンド7・迫る6人に対する防御版",
+      "selectedVersion": "銃修正・機械的左右反転・2026-11-05採用",
       "source": "art/wands/07_Seven_of_Wands.png",
-      "sourceSha256": "2c8e1a1bccd73d0e77e3d7a9213a0a9ba6f31f7d43c023edd71dce7b063e7a64",
-      "sourceBytes": 3299108,
+      "sourceSha256": "80690c7561619d293b559cc4328e2cbbb9a65801c5a16b9ace8f19c57968b6fd",
+      "sourceBytes": 2827903,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/wands/07_Seven_of_Wands.png",
-        "sha256": "596dd488c018c9df30be44f97a0f254629df32f81407255b0e4caeef26d3988e",
-        "bytes": 5250478,
+        "sha256": "a8879b7c2020e5c3321569ebed8cb23c6dc9035af7cbebd6141855a6812c20e3",
+        "bytes": 5228351,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/wand-7.webp",
-        "bytes": 169866,
+        "bytes": 132646,
         "width": 640,
         "height": 960,
-        "sha256": "b34cc7740987758c899fa0e1d12c5c477ef4f00cbc45855f0ca6a37abc9b2627"
+        "sha256": "05aa26b89ca352f6635e3bc70c36104821521cea0548f210b163309230421569"
       },
       "thumbs": {
         "path": "thumbs/wand-7.webp",
-        "bytes": 11398,
+        "bytes": 9996,
         "width": 160,
         "height": 240,
-        "sha256": "2fc2da40d9fe9ad1181b04dc40448abce5b6e247337241b978ae03bd595a5443"
+        "sha256": "922a5a12e1050e3bfee247a43642759ae141dbc1a54f5357d2d0d82aa091359c"
       }
     },
     {
