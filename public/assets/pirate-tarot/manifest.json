@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "assetVersion": "v8-13b2b7db82ae0096",
-  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05 / Magician pipe adopted 2026-11-05",
+  "assetVersion": "v8-01b6796d2bdce280",
+  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05 / Magician pipe adopted 2026-11-05 / Temperance wings adopted 2026-11-05",
   "frontRevision": "v8",
-  "sourceManifestSha256": "01f9b9d97a65d4577e2639d1bed6e59b4b5ae886e607201a28313f17899f557a",
-  "completedManifestSha256": "8c892a2ae8d5f6a47851fa47a083cab4f7f56aae556df45195fd41756be5a13f",
+  "sourceManifestSha256": "3f5de5ed6f2c453f2cc8f303dd054be437b03a6ee873377069921d41346db67d",
+  "completedManifestSha256": "0f6de1895dd146c6c3f6e21f985837fc5023d82148fddeae599cb25bafbad1c9",
   "majorFrame": "02 航海の天測儀・枠全体編集v15／オーディンの目",
   "policy": "Verified adopted complete fronts, frames and names retained. Isotropic contain fit with transparent padding; no crop or fill. Originals read-only.",
   "encoding": {
@@ -480,32 +480,32 @@
       "id": "major-14",
       "sourceId": "major-14",
       "label": "節制",
-      "selectedVersion": "節制・オリーブ系の肌／編み上げ髪のテティス版v1",
+      "selectedVersion": "翼とネックレス・2026-11-05採用",
       "source": "art/major/14_Temperance.png",
-      "sourceSha256": "57c14a6bd21cb90f5c38314c78c7c8fcb386e83ac894a1afc76bd18ddc288b64",
-      "sourceBytes": 2624276,
+      "sourceSha256": "e128fc283d4955a04c0ebc10b4b9917194e3ca4f1ab0e7ddb68868fceeed3204",
+      "sourceBytes": 2667935,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/14_Temperance.png",
-        "sha256": "b63e9acc0355fa93a8df42cc9b68bcfc4637441d93ccea9d35be2dcbb53d280b",
-        "bytes": 5378391,
+        "sha256": "63e6917abfbc2f2193bb55de5cc90fbcce7435025c31d02db917b9a6af5fd870",
+        "bytes": 5561316,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-14.webp",
-        "bytes": 149292,
+        "bytes": 151250,
         "width": 640,
         "height": 960,
-        "sha256": "c74f6aad6162c19c5ad4568a65178c8ccf6216be722c657c92930d01a4e2f51b"
+        "sha256": "fe562d984160318a409feab6b0cd32a3a9d89349356b23c6170a9fbeb892d0e3"
       },
       "thumbs": {
         "path": "thumbs/major-14.webp",
-        "bytes": 12498,
+        "bytes": 13104,
         "width": 160,
         "height": 240,
-        "sha256": "97275425448767a0bdfa135f70179e5870eec22e4dc731cc1a71c8796639ec9e"
+        "sha256": "4a2355bf5e0c4f8a34f1e2009a59311ff5d9e3168100abe4af9e17310d4ff19a"
       }
     },
     {
