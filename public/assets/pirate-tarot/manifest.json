@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
-  "assetVersion": "v8-a740ed2707b653a3",
-  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24",
+  "assetVersion": "v8-01b6796d2bdce280",
+  "sourceEdition": "Pirate Tarot latest / adopted Cups3 heavy oil v2 and Cups10 ten-cups v8b / 2026-10-24 / Tower and Seven of Wands adopted 2026-11-05 / Magician pipe adopted 2026-11-05 / Temperance wings adopted 2026-11-05",
   "frontRevision": "v8",
-  "sourceManifestSha256": "6a224517c19ec57fb1f7bd3dd88b7ae3d5fe62c653a415f0c4ca6cda72d76003",
-  "completedManifestSha256": "ff8132e01e8360926c8844e55595c908bd6bc6735a500955e6c1564d57b1404f",
+  "sourceManifestSha256": "3f5de5ed6f2c453f2cc8f303dd054be437b03a6ee873377069921d41346db67d",
+  "completedManifestSha256": "0f6de1895dd146c6c3f6e21f985837fc5023d82148fddeae599cb25bafbad1c9",
   "majorFrame": "02 航海の天測儀・枠全体編集v15／オーディンの目",
   "policy": "Verified adopted complete fronts, frames and names retained. Isotropic contain fit with transparent padding; no crop or fill. Originals read-only.",
   "encoding": {
@@ -64,32 +64,32 @@
       "id": "major-1",
       "sourceId": "major-01",
       "label": "魔術師",
-      "selectedVersion": "魔術師・地球儀除去済み／全体左右反転済みの採用版（花瓶が左・天球儀が右）",
+      "selectedVersion": "パイプたばこ・2026-11-05採用",
       "source": "art/major/01_The_Magician.png",
-      "sourceSha256": "50054675ec9d93708f71d5db24ad15e86cdf1b8b9fcc240572ca3e63dbc64b6b",
-      "sourceBytes": 2506407,
+      "sourceSha256": "bc4a1014db9822b814f4431795678c7bb1fbd989e62a385ed3ffba445dd278eb",
+      "sourceBytes": 2554081,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/01_The_Magician.png",
-        "sha256": "1acf1c18f13ee611759763e1201a4615dbbd0e67a17f8dc53711ab51cff2f570",
-        "bytes": 5512633,
+        "sha256": "a69e44fd5c9517c9be693990e4d7637035fa043cbf6dc1a8c0b0591ee8f2d26f",
+        "bytes": 5494334,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-1.webp",
-        "bytes": 148430,
+        "bytes": 143182,
         "width": 640,
         "height": 960,
-        "sha256": "a4585ed11d9391159aeec0414f3bee4c8a625cba05a04c9f6d671e0b63bf85a4"
+        "sha256": "c0acd66a8af18cd752294606c07602bcdafc5f0d8b0747bf3f4c0a9e612a1e92"
       },
       "thumbs": {
         "path": "thumbs/major-1.webp",
-        "bytes": 12792,
+        "bytes": 12864,
         "width": 160,
         "height": 240,
-        "sha256": "ec9b2b94d739b25c4d8a36d532694c085fb8a3812c31dda896a1196f2265133e"
+        "sha256": "cc277a543d3352954ac1ea44be851e2bd8f46d96dfe7b3cfd76f3e02b224e28c"
       }
     },
     {
@@ -480,32 +480,32 @@
       "id": "major-14",
       "sourceId": "major-14",
       "label": "節制",
-      "selectedVersion": "節制・オリーブ系の肌／編み上げ髪のテティス版v1",
+      "selectedVersion": "翼とネックレス・2026-11-05採用",
       "source": "art/major/14_Temperance.png",
-      "sourceSha256": "57c14a6bd21cb90f5c38314c78c7c8fcb386e83ac894a1afc76bd18ddc288b64",
-      "sourceBytes": 2624276,
+      "sourceSha256": "e128fc283d4955a04c0ebc10b4b9917194e3ca4f1ab0e7ddb68868fceeed3204",
+      "sourceBytes": 2667935,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/14_Temperance.png",
-        "sha256": "b63e9acc0355fa93a8df42cc9b68bcfc4637441d93ccea9d35be2dcbb53d280b",
-        "bytes": 5378391,
+        "sha256": "63e6917abfbc2f2193bb55de5cc90fbcce7435025c31d02db917b9a6af5fd870",
+        "bytes": 5561316,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-14.webp",
-        "bytes": 149292,
+        "bytes": 151250,
         "width": 640,
         "height": 960,
-        "sha256": "c74f6aad6162c19c5ad4568a65178c8ccf6216be722c657c92930d01a4e2f51b"
+        "sha256": "fe562d984160318a409feab6b0cd32a3a9d89349356b23c6170a9fbeb892d0e3"
       },
       "thumbs": {
         "path": "thumbs/major-14.webp",
-        "bytes": 12498,
+        "bytes": 13104,
         "width": 160,
         "height": 240,
-        "sha256": "97275425448767a0bdfa135f70179e5870eec22e4dc731cc1a71c8796639ec9e"
+        "sha256": "4a2355bf5e0c4f8a34f1e2009a59311ff5d9e3168100abe4af9e17310d4ff19a"
       }
     },
     {
@@ -544,32 +544,32 @@
       "id": "major-16",
       "sourceId": "major-16",
       "label": "塔",
-      "selectedVersion": "塔・小さな暗い王冠v5",
+      "selectedVersion": "触手先端修正・2026-11-05採用",
       "source": "art/major/16_The_Tower.png",
-      "sourceSha256": "0d5680f5b74c0f0d0a9432e14d5bec5a079ba12f6077086a7aea8e1e78cac04f",
-      "sourceBytes": 2770397,
+      "sourceSha256": "5cf503df5087e3b9812f49825d230e43aff5b9bb35215adc31e734d597e6fe1a",
+      "sourceBytes": 2807481,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/major/16_The_Tower.png",
-        "sha256": "b4ea86292e0945097f0dec9cf4c112013b879d81d58c5063b47731c8fcfa4916",
-        "bytes": 5277152,
+        "sha256": "91a743f1891a8ee28eda8d681c040a65845bd4a36c21dd7c3f8bc7964363a618",
+        "bytes": 5374604,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/major-16.webp",
-        "bytes": 152786,
+        "bytes": 155282,
         "width": 640,
         "height": 960,
-        "sha256": "34a3803bf5a102aa3642fc5eadf5b67d5af7c701370923b1c92bf9d74103757f"
+        "sha256": "4c92dc8fb245d7ea76d9421321119ca69e06e43c750900140dc41220ddfaef96"
       },
       "thumbs": {
         "path": "thumbs/major-16.webp",
-        "bytes": 12698,
+        "bytes": 12962,
         "width": 160,
         "height": 240,
-        "sha256": "d7d32cb17e3af1da0f65703d4a0c515fde36c13b6b8fccc4fce3ace65cfaf8eb"
+        "sha256": "884041a7489d2f628f414f37dc7eccc109a9a9cef2517b43f8cd18d51f26b947"
       }
     },
     {
@@ -1821,32 +1821,32 @@
       "id": "wand-7",
       "sourceId": "wands-07",
       "label": "銃／ワンドの7",
-      "selectedVersion": "ワンド7・迫る6人に対する防御版",
+      "selectedVersion": "銃修正・機械的左右反転・2026-11-05採用",
       "source": "art/wands/07_Seven_of_Wands.png",
-      "sourceSha256": "2c8e1a1bccd73d0e77e3d7a9213a0a9ba6f31f7d43c023edd71dce7b063e7a64",
-      "sourceBytes": 3299108,
+      "sourceSha256": "80690c7561619d293b559cc4328e2cbbb9a65801c5a16b9ace8f19c57968b6fd",
+      "sourceBytes": 2827903,
       "sourceWidth": 1024,
       "sourceHeight": 1536,
       "renderSource": {
         "path": "完成版/PNG/wands/07_Seven_of_Wands.png",
-        "sha256": "596dd488c018c9df30be44f97a0f254629df32f81407255b0e4caeef26d3988e",
-        "bytes": 5250478,
+        "sha256": "a8879b7c2020e5c3321569ebed8cb23c6dc9035af7cbebd6141855a6812c20e3",
+        "bytes": 5228351,
         "width": 1160,
         "height": 1780
       },
       "cards": {
         "path": "cards/wand-7.webp",
-        "bytes": 169866,
+        "bytes": 132646,
         "width": 640,
         "height": 960,
-        "sha256": "b34cc7740987758c899fa0e1d12c5c477ef4f00cbc45855f0ca6a37abc9b2627"
+        "sha256": "05aa26b89ca352f6635e3bc70c36104821521cea0548f210b163309230421569"
       },
       "thumbs": {
         "path": "thumbs/wand-7.webp",
-        "bytes": 11398,
+        "bytes": 9996,
         "width": 160,
         "height": 240,
-        "sha256": "2fc2da40d9fe9ad1181b04dc40448abce5b6e247337241b978ae03bd595a5443"
+        "sha256": "922a5a12e1050e3bfee247a43642759ae141dbc1a54f5357d2d0d82aa091359c"
       }
     },
     {

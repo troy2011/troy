@@ -34,6 +34,9 @@ test('previous-day recovery remains visible until acknowledged and refreshes inv
     : !ready ? { state: 'pending', canDraw: false, result: null }
       : { state: 'recovered', recoveryDay: oldDay, dayKey: oldDay, canDraw: false, result,
         dailyBountyReward: { awarded: true, eligible: true, alreadyClaimed: true, rank: 1, rewardDayKey: oldDay, items: [{ itemId: 'bonus-card', amount: 1 }] } } }));
+  // The ranking reward is shown by its inventory name, never its internal id.
+  await page.route('**/api/get-inventory', route => route.fulfill({ json: {
+    inventory: [{ itemId: 'bonus-card', name: 'ボーナスカード', count: 1, customData: { Category: 'Consumable' } }], virtualCurrency: { PS: 0 }, contribution: 0 } }));
   await page.route('**/api/tarot-fortune-ack-recovery', route => {
     assert.equal(route.request().postDataJSON().dayKey, oldDay); acknowledgements++;
     return route.fulfill({ json: { ok: true } });
@@ -47,10 +50,11 @@ test('previous-day recovery remains visible until acknowledged and refreshes inv
     assert.equal(acknowledgements, 0);
     ready = true;
     await page.locator('#dailyTarotFortuneModal .tarot-fortune-retry').click();
-    await page.waitForFunction(() => document.getElementById('dailyTarotFortuneSub')?.textContent.includes('本日の占い'));
+    await page.waitForFunction(() => document.getElementById('dailyTarotFortuneSub')?.textContent.includes('本日の占いを始められます'));
     assert.equal(acknowledgements, 1);
     assert.equal(await page.evaluate(() => localStorage.getItem('troy:fortune-pending:PF_PLAYWRIGHT')), null);
-    assert.match(await page.locator('#dailyTarotFortuneBounty').innerText(), /bonus-card/);
+    await page.waitForFunction(() => document.getElementById('dailyTarotFortuneBounty')?.innerText.includes('ボーナスカード'));
+    assert.doesNotMatch(await page.locator('#dailyTarotFortuneBounty').innerText(), /bonus-card/);
     assert.ok(inventoryRequests > before);
     await page.locator('#dailyTarotFortuneModal .tarot-fortune-close').click();
     await page.locator('#btnDailyFortune').click();

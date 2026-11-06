@@ -27,6 +27,7 @@ import {
 } from './playfabClient.js?v=20261029-startup-v1';
 import { renderAvatar, preloadAvatarBaseSprites, preloadEquipmentSprites, resolveSpritePathByAvatarColor } from './avatar.js';
 import * as Player from './player.js';
+import { callApiWithLoader } from './api.js';
 import {
     preloadTarotBattleSkills,
     resolveTarotBattleSkill
@@ -136,6 +137,9 @@ const INVENTORY_NEW_ITEM_LIMIT = 120;
 let inventoryNewItemIds = new Set();
 let inventoryNewItemsStorageKey = '';
 let inventoryGridRefreshPending = false;
+let fortuneFragments = [];
+let fortuneFragmentsRequired = 2;
+let fortuneFragmentsPromise = null;
 
 function normalizeInventoryNewItemId(value) {
     return String(value || '').trim();
@@ -217,6 +221,87 @@ export function markInventoryItemsAsNew(items = []) {
         requestPassiveInventoryGridRefresh();
     }
     return true;
+}
+
+export function getInventoryItemDisplayName(itemId) {
+    const safeItemId = String(itemId || '').trim();
+    if (!safeItemId) return '';
+    const item = myInventory.find((entry) => String(entry?.itemId || '').trim() === safeItemId);
+    return String(item?.name || '').trim();
+}
+
+// Fragments of major arcana collected from reversed daily fortunes (server read-only data).
+export function loadFortuneFragments(playFabId = window.myPlayFabId) {
+    if (!playFabId) return Promise.resolve(fortuneFragments);
+    if (fortuneFragmentsPromise) return fortuneFragmentsPromise;
+    const request = (async () => {
+        try {
+            const data = await callApiWithLoader('/api/tarot-fortune-fragments', { playFabId }, { isSilent: true });
+            if (playFabId !== window.myPlayFabId || !Array.isArray(data?.fragments)) return fortuneFragments;
+            fortuneFragmentsRequired = Math.max(1, Math.floor(Number(data.required) || 2));
+            fortuneFragments = data.fragments
+                .filter((entry) => entry?.cardId && Number(entry.count) > 0)
+                .sort((a, b) => (Number(a.cardNumber) || 0) - (Number(b.cardNumber) || 0));
+            if (activeInventoryCategory === 'TarotMajor') renderFortuneFragmentStrip(activeInventoryCategory);
+        } catch (error) {
+            console.warn('[inventory] fortune fragments unavailable:', error);
+        }
+        return fortuneFragments;
+    })();
+    fortuneFragmentsPromise = request;
+    void request.finally(() => { if (fortuneFragmentsPromise === request) fortuneFragmentsPromise = null; });
+    return request;
+}
+
+function renderFortuneFragmentStrip(category) {
+    const host = document.getElementById('inventoryFortuneFragments');
+    if (!host) return;
+    if (category !== 'TarotMajor' || !fortuneFragments.length) {
+        host.hidden = true;
+        host.replaceChildren();
+        return;
+    }
+    const title = document.createElement('p');
+    title.className = 'inventory-fortune-fragments-title';
+    title.textContent = `集めている欠片（${fortuneFragmentsRequired}個でカード1枚）`;
+    const list = document.createElement('ul');
+    list.className = 'inventory-fortune-fragments-list';
+    for (const entry of fortuneFragments) {
+        const row = document.createElement('li');
+        row.className = 'inventory-fortune-fragment';
+        row.dataset.cardId = entry.cardId;
+        const name = document.createElement('span');
+        name.textContent = entry.cardName || '大アルカナ';
+        const count = document.createElement('strong');
+        count.textContent = `${Math.min(entry.count, fortuneFragmentsRequired)}/${fortuneFragmentsRequired}`;
+        row.append(name, count);
+        list.append(row);
+    }
+    host.replaceChildren(title, list);
+    host.hidden = false;
+}
+
+// Opens the inventory on a tarot card (e.g. from the daily fortune result) and highlights it.
+export async function showInventoryTarotCard(itemId, options = {}) {
+    const safeItemId = String(itemId || '').trim();
+    if (typeof window.showTab === 'function') await window.showTab('inventory');
+    const item = myInventory.find((entry) => String(entry?.itemId || '').trim() === safeItemId);
+    const category = getCanonicalTarotCategory(item?.customData?.Category)
+        || (options.isArcana ? 'TarotMajor' : 'TarotMinor');
+    switchInventoryGroup('Tarot', { panel: 'tarot' });
+    switchInventoryTab(category === 'TarotMinor' ? 'TarotMinor' : 'TarotMajor');
+    if (options.fragment) await loadFortuneFragments();
+    const target = (safeItemId && document.querySelector(`#inventoryGrid .inventory-item-cell[data-item-id="${CSS.escape(safeItemId)}"]`))
+        || (options.fragment && document.querySelector(`#inventoryFortuneFragments [data-card-id="${CSS.escape(safeItemId)}"]`))
+        || document.getElementById('inventoryTabHint');
+    if (!target) return;
+    target.scrollIntoView({ block: 'center', behavior: prefersReducedInventoryMotion() ? 'auto' : 'smooth' });
+    target.classList.add('is-spotlight');
+    setTimeout(() => target.classList.remove('is-spotlight'), 2400);
+}
+
+function prefersReducedInventoryMotion() {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 }
 
 async function loadCardLevels(options = {}) {
@@ -3592,6 +3677,7 @@ function createInventoryCell(item, requestedCategory) {
     cell.className = `inventory-item-cell inventory-item-cell--${layout}`;
     cell.dataset.layout = layout;
     cell.dataset.category = canonicalCategory || 'Unknown';
+    if (itemId) cell.dataset.itemId = itemId;
     cell.title = item?.name || '不明なアイテム';
     const quickActions = (!isTarotCard && !isEquipmentCard)
         ? getInventoryQuickActions(item, canonicalCategory)
@@ -3834,6 +3920,7 @@ function getEquipActionLabel(slot, defaultLabel) {
 }
 
 export function clearInventorySession() {
+    fortuneFragments = [];
     myInventory = [];
     myCurrentEquipment = {};
     myVirtualCurrency = {};
@@ -4571,6 +4658,7 @@ export function switchInventoryGroup(group, options = {}) {
     if (targetPanel === 'tarot') {
         renderTarotDeckPanels();
     }
+    if (group === 'Tarot') void loadFortuneFragments();
     if (group === 'Tarot' || group === 'All') {
         Promise.all([loadCardLevels(), loadTarotJobMastery()]).then(() => {
             requestPassiveInventoryGridRefresh();
@@ -4604,6 +4692,7 @@ export function renderInventoryGrid(category) {
         : displayInventory.filter(item => matchesInventoryDisplayCategory(item.customData?.Category, category));
     const filtered = categoryItems.filter(matchesInventorySearch);
     renderInventoryListSummary(category, filtered);
+    renderFortuneFragmentStrip(category);
 
     const sortOrder = document.getElementById('inventorySort').value;
     const sorted = [...filtered].sort((a, b) => {

@@ -14,6 +14,7 @@ async function setup(page,{failure='none',reducedMotion=false}={}){
  await context.routeWebSocket('**/*',socket=>socket.close());
  await context.route('**/*',route=>{const url=new URL(route.request().url());if(url.hostname==='127.0.0.1'&&!url.pathname.startsWith('/api/')&&route.request().method()==='GET')return route.continue();return route.fulfill({status:501,json:{error:'UnmockedRequestBlocked'}})});
  await installBaseAppMocks(page,{});let drawn=false,calls=0;
+ await page.route('**/api/get-inventory',r=>r.fulfill({json:{inventory:drawn?[{itemId:'fixture-prize',name:'Fixture Prize',count:1,customData:{Category:'Consumable'}}]:[],virtualCurrency:{PS:257},contribution:0}}));
  await page.route('**/api/tarot-fortune-status',r=>r.fulfill({json:drawn?{canDraw:false,result}:{canDraw:true}}));
  await page.route('**/api/tarot-fortune-draw',r=>{calls++;drawn=true;return r.fulfill({json:{ok:true,result,balance:257,dailyBountyReward:{awarded:true,alreadyClaimed:true,rank:2,rewardDayKey:'2026-10-29',items:[{itemId:'fixture-prize',amount:1}]}}})});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -24,7 +25,7 @@ async function setup(page,{failure='none',reducedMotion=false}={}){
 for(const failure of ['init','draw'])test(`${failure} failure shows the same complete result and cleans up`,async({page})=>{
  const s=await setup(page,{failure});await page.locator('.tarot-fortune-card-shell').first().click();
  await expect(page.locator('#dailyTarotFortuneText')).toContainText(result.strikeLine,{timeout:5000});
- await expect(page.locator('#dailyTarotFortuneReward')).toContainText('Fixture Card');await expect(page.locator('#dailyTarotFortuneBounty')).toContainText('fixture-prize');
+ await expect(page.locator('#dailyTarotFortuneReward')).toContainText('Fixture Card');await expect(page.locator('#dailyTarotFortuneBounty')).toContainText('Fixture Prize');
  await expect(page.locator('.tarot-fortune-fx')).toHaveCount(0);await expect(page.locator('#dailyTarotFortuneOverlay')).not.toHaveClass(/is-fortune-charging/);
  expect(s.errors).toEqual([]);expect(s.draws()).toBe(1);
  await page.locator('.tarot-fortune-close').click();await page.locator('#btnDailyFortune').click();
