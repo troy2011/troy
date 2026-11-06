@@ -5112,6 +5112,43 @@ test('shieldless defense pauses idle motion without applying the shield guard po
   });
 });
 
+test('a pass holds the avatar still without raising the shield, and it moves again when the field clears', async ({ page }) => {
+  await openOfflineBattle(page, { width: 390, height: 844 });
+  const readAvatar = () => page.evaluate(() => {
+    const row = document.querySelector(
+      '#tarotKingdomBattleParty > .tarot-kingdom-battle-player[data-player-index="0"]'
+    );
+    const avatar = row?.querySelector('.tarot-kingdom-battle-player-avatar');
+    return {
+      rowDefending: row?.classList.contains('is-defending') === true,
+      passPaused: avatar?.dataset.kingdomPassPaused === 'true',
+      defensePaused: avatar?.dataset.kingdomDefensePaused === 'true',
+      bodyMotionStopped: avatar?.dataset.avatarBodyMotionStopped === 'true',
+      shieldPose: avatar?.classList.contains('is-kingdom-shield-defending') === true
+    };
+  });
+
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ turnIndex: 1, leaderIndex: 2, pass: [true, false, false, false] });
+    debug.battleRender();
+  });
+  expect(await readAvatar()).toEqual({
+    rowDefending: false,
+    passPaused: true,
+    defensePaused: false,
+    bodyMotionStopped: true,
+    shieldPose: false
+  });
+
+  await page.evaluate(() => {
+    const debug = window.TarotKingdomDebug;
+    debug.battleScenario({ turnIndex: 1, leaderIndex: 2, pass: [false, false, false, false] });
+    debug.battleRender();
+  });
+  expect(await readAvatar()).toMatchObject({ passPaused: false, defensePaused: false, shieldPose: false });
+});
+
 test('a right-hand shield moves the matching hand and equipment layer into guard pose', async ({ page }) => {
   await openOfflineBattle(page, { width: 390, height: 844 });
   const result = await page.evaluate(() => {

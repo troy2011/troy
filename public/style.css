@@ -1416,6 +1416,12 @@ button:disabled {
     pointer-events: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .content-area::after {
+        animation: none;
+    }
+}
+
 .home-hero-header {
     display: flex;
     flex-direction: column;
@@ -4347,6 +4353,12 @@ button.home-player-ship-name {
     transform: translateX(-120%);
     animation: cardSheen 10s ease-in-out infinite;
     pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-card::after {
+        animation: none;
+    }
 }
 
 .home-card:focus-within,
@@ -8213,6 +8225,11 @@ body.modal-lock .troy-menu-board-order-modal {
     font-weight: 700;
 }
 
+/* The round chip is hidden before a match starts, where there is no round to count. */
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomRound.tarot-kingdom-chip[hidden] {
+    display: none;
+}
+
 .tarot-kingdom-chip--reverse {
     border-color: rgba(251, 191, 36, 0.78);
     background: linear-gradient(180deg, rgba(113, 63, 18, 0.7), rgba(120, 53, 15, 0.84));
@@ -8222,6 +8239,12 @@ body.modal-lock .troy-menu-board-order-modal {
         0 0 0 1px rgba(251, 191, 36, 0.24),
         0 0 14px rgba(251, 191, 36, 0.26);
     animation: tarotKingdomReversePulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tarot-kingdom-chip--reverse {
+        animation: none;
+    }
 }
 
 .tarot-kingdom-chip--lock {
@@ -8712,12 +8735,26 @@ body.modal-lock .troy-menu-board-order-modal {
     color: #fde68a;
 }
 
+/* The result button floats over the top of the field panel (idle between rounds) instead of taking
+   its own row, so the field and hand do not jump down when a round ends. */
 .tarot-kingdom-settlement-actions {
+    --tk-settlement-actions-height: 54px;
+    position: relative;
+    z-index: 80;
     display: flex;
+    align-items: flex-start;
     justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
     width: 100%;
-    margin: 6px 0;
+    height: var(--tk-settlement-actions-height);
+    margin: 0 0 calc(-1 * var(--tk-settlement-actions-height));
     padding: 0 8px;
+    pointer-events: none;
+}
+
+.tarot-kingdom-settlement-actions > button {
+    pointer-events: auto;
 }
 
 .tarot-kingdom-settlement-actions[hidden] {
@@ -11370,6 +11407,12 @@ body.modal-lock .troy-menu-board-order-modal {
     animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .tarot-card.is-arcana-match::before {
+        animation: none;
+    }
+}
+
 .tarot-card.is-arcana-match.is-selected::before {
     filter: saturate(1.1);
 }
@@ -11728,11 +11771,12 @@ body.modal-lock .troy-menu-board-order-modal {
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony {
     position: absolute;
     z-index: 68;
-    top: 43%;
-    left: 49%;
+    /* Centered on the stage with a solid backing, so the enemy HP bar and party rows do not show through the text. */
+    top: 50%;
+    left: 50%;
     display: grid;
     place-items: center;
-    width: min(48%, 220px);
+    width: min(74%, 280px);
     min-width: 154px;
     padding: 12px 16px 13px;
     overflow: hidden;
@@ -11740,8 +11784,8 @@ body.modal-lock .troy-menu-board-order-modal {
     border-bottom: 1px solid rgba(194, 137, 35, 0.9);
     color: #fff5ce;
     background:
-        linear-gradient(90deg, transparent, rgba(13, 8, 3, 0.92) 16% 84%, transparent),
-        radial-gradient(circle at 50% 36%, rgba(143, 91, 17, 0.5), transparent 70%);
+        radial-gradient(circle at 50% 30%, rgba(143, 91, 17, 0.5), transparent 70%),
+        linear-gradient(90deg, rgba(13, 8, 3, 0.62), rgba(13, 8, 3, 0.94) 14% 86%, rgba(13, 8, 3, 0.62));
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.58), 0 0 24px rgba(235, 184, 62, 0.2);
     text-align: center;
     text-shadow: 0 2px 1px #000, 0 0 9px rgba(236, 190, 75, 0.46);
@@ -11795,6 +11839,74 @@ body.modal-lock .troy-menu-board-order-modal {
     color: #d5c28e;
     font: 800 10px/1 Arial, sans-serif;
     letter-spacing: 0.08em;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-standings {
+    display: grid;
+    width: 100%;
+    margin: 9px 0 0;
+    padding: 7px 0 0;
+    gap: 3px;
+    border-top: 1px solid rgba(216, 187, 115, 0.32);
+    list-style: none;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-standings > li {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 6px;
+    color: #e8dcb8;
+    font: 800 11px/1.2 "Yu Gothic", "Noto Sans JP", sans-serif;
+    text-align: left;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-standing-rank {
+    color: #d8bb73;
+    font: 900 11px/1 Georgia, serif;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-standing-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-standing-score {
+    color: #cdbb88;
+    font: 800 10px/1 Arial, sans-serif;
+}
+
+/* Defeat uses the same plate in a cold red, and waits for the last party member's retreat to finish. */
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony.is-defeat {
+    border-top-color: rgba(254, 202, 202, 0.86);
+    border-bottom-color: rgba(153, 27, 27, 0.9);
+    color: #fee2e2;
+    background:
+        radial-gradient(circle at 50% 30%, rgba(127, 29, 29, 0.55), transparent 70%),
+        linear-gradient(90deg, rgba(12, 4, 6, 0.62), rgba(12, 4, 6, 0.94) 14% 86%, rgba(12, 4, 6, 0.62));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.62), 0 0 24px rgba(220, 38, 38, 0.22);
+    text-shadow: 0 2px 1px #000, 0 0 9px rgba(248, 113, 113, 0.5);
+    animation-delay: 900ms;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-defeat {
+    margin-top: 4px;
+    color: #fecaca;
+    font: 900 clamp(30px, 9vw, 46px)/1 Georgia, serif;
+    letter-spacing: 0.12em;
+}
+
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-champion-ceremony.is-defeat .tarot-kingdom-champion-eyebrow {
+    color: #fca5a5;
+}
+
+/* Once the match is over the hand cannot be played, so it steps back instead of looking ready. */
+:is(body, #tabContentTarot) #tarotKingdomRoot.is-match-over #tarotKingdomHand {
+    opacity: 0.4;
+    filter: grayscale(0.7);
+    pointer-events: none;
+    transition: opacity 320ms ease, filter 320ms ease;
 }
 
 @keyframes tarotKingdomPlayerVictoryPose {
@@ -12528,7 +12640,14 @@ body.tarot-kingdom-preview-body {
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > #tarotKingdomCutin.tarot-cutin.show {
-    animation: tarotKingdomActionCutinSweep var(--tk-action-cutin-duration, 680ms) cubic-bezier(0.2, 0.78, 0.18, 1) both !important;
+    animation: var(--tk-action-cutin-animation, tarotKingdomActionCutinSweep) var(--tk-action-cutin-duration, 680ms) cubic-bezier(0.2, 0.78, 0.18, 1) both !important;
+}
+
+/* With reduced motion the banner keeps its full reading time but only fades in and out. */
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > #tarotKingdomCutin.tarot-cutin {
+        --tk-action-cutin-animation: tarotKingdomActionCutinQuiet;
+    }
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage > #tarotKingdomCutin.tarot-cutin.is-kingdom-rebirth {
@@ -12597,6 +12716,11 @@ body.tarot-kingdom-preview-body {
     16% { opacity: 1; clip-path: inset(0); transform: translate(0, -50%) scaleX(1); }
     24%, 76% { opacity: 1; clip-path: inset(0); transform: translate(0, -50%) scaleX(1); }
     100% { opacity: 0; clip-path: inset(0 15% 0 0); transform: translate(-8%, -50%) scaleX(0.92); }
+}
+
+@keyframes tarotKingdomActionCutinQuiet {
+    0%, 100% { opacity: 0; transform: translate(0, -50%); }
+    10%, 86% { opacity: 1; transform: translate(0, -50%); }
 }
 
 /* Tarot Kingdom combat effects: compact icon language. */
@@ -13168,7 +13292,10 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     font-size: clamp(28px, 9vw, 52px);
     font-weight: 900;
     line-height: 1;
-    text-shadow: 0 3px 1px #2a0800, 0 0 8px #ff7b33, 0 0 18px rgba(255, 44, 20, 0.8);
+    /* A dark outline first, so the number stays readable over a bright battlefield or summon. */
+    text-shadow:
+        -1px -1px 0 #1a0500, 1px -1px 0 #1a0500, -1px 1px 0 #1a0500, 1px 1px 0 #1a0500,
+        0 3px 1px #2a0800, 0 0 8px #ff7b33, 0 0 18px rgba(255, 44, 20, 0.8);
     opacity: 0;
     transform: translate(-50%, 12px) scale(0.72);
     pointer-events: none;
@@ -13233,7 +13360,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 }
 
 .tarot-kingdom-damage-number.is-show {
-    animation: tarotKingdomDamagePop 420ms cubic-bezier(0.15, 0.8, 0.25, 1) both;
+    animation: tarotKingdomDamagePop 760ms cubic-bezier(0.15, 0.8, 0.25, 1) both;
 }
 
 #tarotKingdomBattleStage.is-battle-charging .tarot-kingdom-battle-player.is-battle-charging .tarot-kingdom-battle-player-avatar {
@@ -13282,7 +13409,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     0% { opacity: 0; transform: translate(-50%, 12px) scale(0.72); }
     24% { opacity: 1; transform: translate(-50%, -8px) scale(1.18); }
     68% { opacity: 1; transform: translate(-50%, -16px) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -28px) scale(0.94); }
+    100% { opacity: 1; transform: translate(-50%, -22px) scale(1); }
 }
 
 @keyframes tarotKingdomSkillImpact {
@@ -13303,7 +13430,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
 @media (max-width: 640px) {
     :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand.tarot-kingdom-hand {
-        --tk-hand-card-width: clamp(40px, calc((100vw - 26px) / 8), 45px);
+        --tk-hand-card-width: clamp(35px, calc((100vw - 26px) / 8), 45px);
         max-width: none;
         gap: 2px;
     }
@@ -13470,7 +13597,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
 @media (max-width: 640px) {
     :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand.tarot-kingdom-hand {
-        --tk-hand-card-width: clamp(40px, calc((100vw - 26px) / 8), 45px);
+        --tk-hand-card-width: clamp(35px, calc((100vw - 26px) / 8), 45px);
         max-width: none;
         gap: 2px;
     }
@@ -15328,6 +15455,12 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     animation: tarotArcanaHaloSpin 7.8s linear infinite, tarotArcanaHaloBreath 2.6s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .tarot-card.is-arcana::before {
+        animation: none;
+    }
+}
+
 .tarot-card.is-arcana .tarot-card-title,
 .tarot-card.is-arcana .tarot-card-number {
     color: #ffffff;
@@ -15530,6 +15663,11 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
     background: rgba(0, 0, 0, 0.25);
 }
 
+/* An empty log (before a Kingdom match starts) would only show a blank frame. */
+:is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomLog.tarot-log:empty {
+    display: none;
+}
+
 .tarot-log-row {
     font-size: 12px;
     color: #d1d8e6;
@@ -15615,6 +15753,12 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
         radial-gradient(circle at 50% 38%, rgba(255, 239, 178, 0.34), rgba(0, 0, 0, 0.78)),
         conic-gradient(from 0deg at 50% 50%, rgba(250, 204, 21, 0.24), rgba(245, 158, 11, 0.16), rgba(250, 204, 21, 0.24));
     animation: tarotKingdomRoundEndFlash 740ms ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tarot-effect-overlay.is-kingdom-roundend {
+        animation-duration: 240ms;
+    }
 }
 
 .tarot-effect-overlay.is-kingdom-grandfinal {
@@ -37884,12 +38028,31 @@ body.tarot-kingdom-preview-body {
     width: min(100%, 360px);
     max-width: min(calc(100vw - 24px), 520px);
     min-height: 48px;
-    margin: 0 auto;
+    margin: 6px auto 0;
     padding-inline: clamp(16px, 5vw, 28px);
     border: 2px solid #d9b54d;
     color: #f4e2aa;
     background: linear-gradient(180deg, #7e5710, #382405);
     font-weight: 800;
+}
+
+/* The quieter second choice next to "play again". */
+#tarotKingdomSettlementMenuButton {
+    flex: 0 0 auto;
+    min-height: 48px;
+    margin-top: 6px;
+    padding: 8px 14px;
+    border: 1px solid rgba(217, 181, 77, 0.55);
+    border-radius: 10px;
+    color: #e8dcb8;
+    background: rgba(20, 14, 6, 0.92);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+#tarotKingdomSettlementMenuButton[hidden] {
+    display: none;
 }
 
 :is(body, #tabContentTarot) #tarotKingdomRoot #tarotKingdomBattleStage .tarot-kingdom-battle-arena[data-battlefield-id="coral-island"] {
@@ -38147,6 +38310,12 @@ body.tarot-kingdom-preview-body {
 :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-avatar:not(.is-avatar-attacking) {
     filter: drop-shadow(0 4px 2px #000) drop-shadow(0 0 5px #fff0a8) drop-shadow(0 0 11px rgba(255, 210, 64, 0.92));
     animation: tarotKingdomAvatarTurnGlow 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomBattleStage .tarot-kingdom-battle-player.is-turn .tarot-kingdom-battle-player-avatar:not(.is-avatar-attacking) {
+        animation: none;
+    }
 }
 
 /* Tarot Kingdom Rush Time and monster finisher. */
@@ -38458,7 +38627,7 @@ body.tarot-kingdom-preview-body {
 
 @media (max-width: 640px) {
     :is(body, #tabContentTarot) #tarotKingdomRoot.tarot-kingdom-reference-ui.tarot-kingdom-reference-v2 #tarotKingdomHand.tarot-kingdom-hand {
-        --tk-hand-card-width: clamp(40px, calc((100vw - 26px) / 8), 45px);
+        --tk-hand-card-width: clamp(35px, calc((100vw - 26px) / 8), 45px);
         max-width: none;
         gap: 2px;
     }

@@ -512,6 +512,16 @@ const PRESENCE_AWAY_GRACE_MS = 30000;
 const OPENING_HAND_FLIP_START_DELAY_MS = 90;
 const OPENING_HAND_FLIP_MS = 330;
 const OPENING_HAND_FLIP_GAP_MS = 45;
+// With reduced motion every opening step still happens in order, but each one is brief,
+// so the first turn comes in about 2 seconds instead of 6.
+const KINGDOM_REDUCED_MOTION_OPENING_MS = Object.freeze({
+  enemyEnter: 240,
+  enemyAttack: 320,
+  fieldCard: 260,
+  handFlip: 60,
+  handFlipGap: 20,
+  roundStart: 520
+});
 const DRAW_HAND_FLIP_REVEAL_DELAY_MS = 90;
 const DRAW_HAND_FLIP_MS = 330;
 const KINGDOM_NORMAL_ATTACK_MS = 900;
@@ -11527,6 +11537,8 @@ function playKingdomActorResultFx(actorEl, event, eventIsActive, phase, targetTy
   void playTarotKingdomActorFx(ui.battleStage, actorEl, kind, { key });
 }
 
+const KINGDOM_NO_EFFECT_MESSAGE = '効果は発動しなかった';
+
 function buildKingdomEffectNavigationMessage(results = []) {
   const entries = (Array.isArray(results) ? results : []).filter((entry) => (
     entry
@@ -11539,7 +11551,7 @@ function buildKingdomEffectNavigationMessage(results = []) {
   if (!entries.length) return '';
 
   const successful = entries.filter((entry) => entry.success !== false);
-  if (!successful.length) return '効果は発動しなかった';
+  if (!successful.length) return KINGDOM_NO_EFFECT_MESSAGE;
 
   const clauses = [];
   const resultPhrases = [];
@@ -20315,10 +20327,12 @@ function playOpeningDealCinematic() {
   const me = getLocalPlayerIndex();
   const handCount = Math.max(0, Number(s.players?.[me]?.hand?.length || 0));
   const openingAttackMotion = getKingdomEnemyAttackMotionProfile(monster, 'single');
-  const enemyAttackDurationMs = Math.max(
-    OPENING_ENEMY_ATTACK_MS,
-    openingAttackMotion.totalDurationMs
-  );
+  const quietOpening = prefersKingdomReducedMotion();
+  const enemyAttackDurationMs = quietOpening
+    ? KINGDOM_REDUCED_MOTION_OPENING_MS.enemyAttack
+    : Math.max(OPENING_ENEMY_ATTACK_MS, openingAttackMotion.totalDurationMs);
+  const handFlipMs = quietOpening ? KINGDOM_REDUCED_MOTION_OPENING_MS.handFlip : OPENING_HAND_FLIP_MS;
+  const handFlipGapMs = quietOpening ? KINGDOM_REDUCED_MOTION_OPENING_MS.handFlipGap : OPENING_HAND_FLIP_GAP_MS;
   const tutorialWithoutOpeningCard = getKingdomTutorialLesson() > 0
     && getKingdomTutorialLesson() < 4
     && !s.openingPresentationCard;
@@ -20355,8 +20369,8 @@ function playOpeningDealCinematic() {
       openingDealNextTimer = setTimeout(() => {
         openingDealNextTimer = null;
         revealNext();
-      }, OPENING_HAND_FLIP_GAP_MS);
-    }, OPENING_HAND_FLIP_MS);
+      }, handFlipGapMs);
+    }, handFlipMs);
   };
 
   const beginOpeningHandDeal = () => {
@@ -20404,9 +20418,9 @@ function playOpeningDealCinematic() {
       openingDealNextTimer = setTimeout(() => {
         openingDealNextTimer = null;
         beginOpeningHandDeal();
-      }, OPENING_FIELD_CARD_MS);
+      }, quietOpening ? KINGDOM_REDUCED_MOTION_OPENING_MS.fieldCard : OPENING_FIELD_CARD_MS);
     }, enemyAttackDurationMs);
-  }, OPENING_ENEMY_ENTER_MS);
+  }, quietOpening ? KINGDOM_REDUCED_MOTION_OPENING_MS.enemyEnter : OPENING_ENEMY_ENTER_MS);
 }
 
 function playRoundStartCinematic() {
@@ -20415,13 +20429,16 @@ function playRoundStartCinematic() {
   if (!s || !s.roundActive) return;
   const roundNo = Math.max(1, Number(s.handNo || 0) + 1);
   const currentTurn = s.turn;
+  const roundStartMs = prefersKingdomReducedMotion()
+    ? KINGDOM_REDUCED_MOTION_OPENING_MS.roundStart
+    : ROUND_START_CINEMATIC_MS;
   s.openingIntroStage = 'ready';
   s.phase = 'openingCinematic';
   s.message = `第${roundNo}局が　はじまった！`;
   traceKingdomFlow('roundStartCinematic.start', `round=${roundNo} nextTurn=${currentTurn}`);
   triggerKingdomActionFx(currentTurn, `第${roundNo}局 開始`, {
     overlay: 'action',
-    durationMs: ROUND_START_CINEMATIC_MS,
+    durationMs: roundStartMs,
     cutin: true
   });
   render();
@@ -20434,7 +20451,7 @@ function playRoundStartCinematic() {
     traceKingdomFlow('roundStartCinematic.end', `turn=${s.turn}`);
     scheduleNpc();
     render();
-  }, ROUND_START_CINEMATIC_MS);
+  }, roundStartMs);
 }
 function nextAlive(from, steps = 1, onlyNotPassed = false) {
   const playerCount = getKingdomPlayerCount();
@@ -26275,6 +26292,8 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       || defenseStanceHoldIndexes.has(playerIndex)
       || coveringAlly
     );
+    // A pass also holds still until the field clears, but only a defense raises the shield.
+    const passing = battleConscious && !defending && !!s.roundActive && s.pass?.[playerIndex] === true;
     const guardProfile = getKingdomGuardDefenseProfile(character);
     const shieldDefending = defending && guardProfile.hasShield;
     const playerAttackEvent = eventIsActive
@@ -26492,13 +26511,18 @@ function renderKingdomBattleParty(activeEvent = null, eventIsActive = false, eve
       }
       if (avatar) {
         const wasDefensePaused = avatar.dataset.kingdomDefensePaused === 'true';
-        if (defending && !retreating) {
-          if (!wasDefensePaused) {
+        const wasPassPaused = avatar.dataset.kingdomPassPaused === 'true';
+        if ((defending || passing) && !retreating) {
+          if (!wasDefensePaused && !wasPassPaused) {
             stopAvatarBodyMotion(avatar, { reset: false });
-            avatar.dataset.kingdomDefensePaused = 'true';
           }
-        } else if (wasDefensePaused) {
+          if (defending) avatar.dataset.kingdomDefensePaused = 'true';
+          else delete avatar.dataset.kingdomDefensePaused;
+          if (passing) avatar.dataset.kingdomPassPaused = 'true';
+          else delete avatar.dataset.kingdomPassPaused;
+        } else if (wasDefensePaused || wasPassPaused) {
           delete avatar.dataset.kingdomDefensePaused;
+          delete avatar.dataset.kingdomPassPaused;
           const victorious = avatar.classList.contains('is-avatar-victorious');
           if (conscious && !retreating && !victorious && !prefersKingdomReducedMotion()) {
             startAvatarBodyMotion(avatar, 'idle');
@@ -26730,6 +26754,8 @@ function getKingdomMajorVisualScope(event) {
 function syncKingdomEffectNavigationMessage(event, eventIsActive, phase) {
   const message = String(event?.effectMessage || buildKingdomEffectNavigationMessage(event?.effects) || '').trim();
   if (!ui.selectedEffect || !eventIsActive || !message) return;
+  // A finishing blow is a win: "no effect" there reads like a failure, so the defeat line stays instead.
+  if (message === KINGDOM_NO_EFFECT_MESSAGE && Number(s?.battle?.enemy?.hp) <= 0) return;
   const isCoverEvent = String(event?.type || '') === 'enemy-single'
     && event?.coverIndex != null
     && event?.protectedIndex != null;
@@ -27588,45 +27614,97 @@ function ensureKingdomChampionCeremony() {
   return ceremony;
 }
 
+function buildKingdomCeremonyText(className, text) {
+  const node = document.createElement('span');
+  node.className = className;
+  node.textContent = text;
+  return node;
+}
+
+// The other places under the champion, so the final screen shows the whole result and not only 1st.
+function buildKingdomCeremonyStandings(championIndex) {
+  const list = document.createElement('ol');
+  list.className = 'tarot-kingdom-champion-standings';
+  const others = (s.players || [])
+    .map((player, index) => ({ player, index }))
+    .filter(({ player, index }) => player && index !== championIndex && !player.isPet)
+    .sort((left, right) => (Number(right.player.chips) || 0) - (Number(left.player.chips) || 0));
+  others.forEach(({ player, index }, order) => {
+    const row = document.createElement('li');
+    row.append(
+      buildKingdomCeremonyText('tarot-kingdom-champion-standing-rank', String(order + 2)),
+      buildKingdomCeremonyText('tarot-kingdom-champion-standing-name', String(player.name || `P${index + 1}`)),
+      buildKingdomCeremonyText('tarot-kingdom-champion-standing-score', `${Math.max(0, Number(player.chips) || 0)} TP`)
+    );
+    list.appendChild(row);
+  });
+  return others.length ? list : null;
+}
+
+function renderKingdomDefeatCeremony(ceremony) {
+  const retreatingIndex = Number(s?.battle?.retreatingPlayerIndex);
+  const retreated = s?.battle?.resultReason === 'party-retreated' && Number.isInteger(retreatingIndex);
+  const detail = retreated
+    ? `${pName(retreatingIndex)}は撤退した`
+    : 'パーティは全滅した';
+  const renderKey = `defeat:${detail}`;
+  if (ceremony.dataset.renderKey === renderKey) return;
+  ceremony.dataset.renderKey = renderKey;
+  ceremony.replaceChildren(
+    buildKingdomCeremonyText('tarot-kingdom-champion-eyebrow', 'BATTLE RESULT'),
+    buildKingdomCeremonyText('tarot-kingdom-champion-defeat', 'DEFEAT'),
+    buildKingdomCeremonyText('tarot-kingdom-champion-name', detail)
+  );
+  ceremony.setAttribute('aria-label', `敗北 ${detail}`);
+}
+
 function renderKingdomChampionCeremony() {
   const ceremony = ensureKingdomChampionCeremony();
   if (!ceremony || !ui.battleStage) return;
+  const matchDone = isKingdomMatchDoneState(s);
   const championIndex = Number.isInteger(s?.champion) ? Number(s.champion) : null;
-  const show = isKingdomMatchDoneState(s)
+  const show = matchDone
     && s?.battle?.outcome === 'victory'
     && championIndex != null
     && !!s.players?.[championIndex];
+  // The stage shows the defeat only after the last enemy attack has played, so the result waits for it too.
+  const showDefeat = matchDone
+    && s?.battle?.outcome === 'defeat'
+    && ui.battleStage.classList.contains('is-defeat');
   ui.battleStage.classList.toggle('is-grand-final', show);
-  if (!show) {
+  ui.root?.classList.toggle('is-match-over', matchDone && !!s?.battle?.outcome);
+  ceremony.classList.toggle('is-defeat', showDefeat);
+  if (!show && !showDefeat) {
     ceremony.hidden = true;
     ceremony.setAttribute('aria-hidden', 'true');
     ceremony.dataset.renderKey = '';
     return;
   }
+  ceremony.hidden = false;
+  ceremony.setAttribute('aria-hidden', 'false');
+  if (showDefeat) {
+    renderKingdomDefeatCeremony(ceremony);
+    return;
+  }
 
   const champion = s.players[championIndex];
   const renderKey = `${championIndex}:${champion.name}:${champion.chips}`;
-  ceremony.hidden = false;
-  ceremony.setAttribute('aria-hidden', 'false');
   if (ceremony.dataset.renderKey === renderKey) return;
   ceremony.dataset.renderKey = renderKey;
 
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'tarot-kingdom-champion-eyebrow';
-  eyebrow.textContent = 'FINAL RANKING';
   const rank = document.createElement('strong');
   rank.className = 'tarot-kingdom-champion-rank';
   rank.innerHTML = '<span>1</span><small>st</small>';
-  const title = document.createElement('span');
-  title.className = 'tarot-kingdom-champion-title';
-  title.textContent = 'CHAMPION';
-  const name = document.createElement('span');
-  name.className = 'tarot-kingdom-champion-name';
-  name.textContent = String(champion.name || `P${championIndex + 1}`);
-  const score = document.createElement('span');
-  score.className = 'tarot-kingdom-champion-score';
-  score.textContent = `${Math.max(0, Number(champion.chips) || 0)} TP`;
-  ceremony.replaceChildren(eyebrow, rank, title, name, score);
+  const name = buildKingdomCeremonyText('tarot-kingdom-champion-name', String(champion.name || `P${championIndex + 1}`));
+  const score = buildKingdomCeremonyText('tarot-kingdom-champion-score', `${Math.max(0, Number(champion.chips) || 0)} TP`);
+  ceremony.replaceChildren(
+    buildKingdomCeremonyText('tarot-kingdom-champion-eyebrow', 'FINAL RANKING'),
+    rank,
+    buildKingdomCeremonyText('tarot-kingdom-champion-title', 'CHAMPION'),
+    name,
+    score,
+    ...[buildKingdomCeremonyStandings(championIndex)].filter(Boolean)
+  );
   const groundEl = ui.battleEnemy?.querySelector('.tarot-kingdom-battle-enemy-visual') || ui.battleEnemy;
   void playTarotKingdomCelebrationFx(ui.battleStage, groundEl, kingdomExplorationSession ? 'treasure' : 'champion', {
     key: `champion:${renderKey}`
@@ -29190,9 +29268,14 @@ function renderSummary() {
   const turnText = s.roundActive ? `\nTurn ${Math.max(1, Number(s.turnCount) || 1)}` : '';
   const stage = normalizeKingdomExplorationStageState(s.stage);
   const totalHands = getKingdomRaidTotalHands();
+  // handNo moves on as soon as a round ends; while that round's result is on screen, keep showing it.
+  const showingFinishedRound = !s.roundActive && s.awaitRoundConfirm && !!s.roundSettlement;
+  const shownHand = Math.max(1, Math.min(showingFinishedRound ? s.handNo : s.handNo + 1, totalHands));
   ui.round.textContent = stage
-    ? `STAGE ${stage.stageNo}\nENEMY ${Math.min(s.handNo + 1, totalHands)} / ${totalHands}${turnText}`
-    : `Round ${Math.min(s.handNo + 1, totalHands)} / ${totalHands}${turnText}`;
+    ? `STAGE ${stage.stageNo}\nENEMY ${shownHand} / ${totalHands}${turnText}`
+    : `Round ${shownHand} / ${totalHands}${turnText}`;
+  // Before a match starts (the preview's mode choice) there is no round to count yet.
+  ui.round.hidden = !stage && !s.battle?.outcome && shouldShowKingdomModeChoice();
   if (ui.turn) {
     if (s.roundActive) {
       setInlinePlayerLabel(ui.turn, '', s.turn, 'の手番');
@@ -29377,6 +29460,10 @@ function renderSettlement() {
       confirmButton.hidden = true;
       confirmButton.disabled = true;
     }
+    if (ui.settlementMenuButton) {
+      ui.settlementMenuButton.hidden = true;
+      ui.settlementMenuButton.disabled = true;
+    }
     return;
   }
 
@@ -29386,6 +29473,12 @@ function renderSettlement() {
     confirmButton.hidden = !actionState;
     confirmButton.disabled = actionState ? !!actionState.disabled : true;
     if (actionState) confirmButton.textContent = actionState.label;
+  }
+  // A finished match outside exploration can also go back to the start menu instead of playing again.
+  if (ui.settlementMenuButton) {
+    const showMenu = actionState?.kind === 'restart';
+    ui.settlementMenuButton.hidden = !showMenu;
+    ui.settlementMenuButton.disabled = !showMenu;
   }
   if (actionContainer) actionContainer.hidden = !actionState;
 }
@@ -31028,6 +31121,7 @@ function bindUi() {
   ui.openRoomsWrap = document.getElementById('tarotKingdomOpenRooms');
   ui.openRoomsList = document.getElementById('tarotKingdomOpenRoomsList');
   ui.settlementConfirmButton = document.getElementById('tarotKingdomSettlementConfirmButton');
+  ui.settlementMenuButton = document.getElementById('tarotKingdomSettlementMenuButton');
   ui.settlementActions = document.getElementById('tarotKingdomSettlementActions');
   ui.actionPopup = document.getElementById('tarotKingdomActionPopup');
   if (ui.actionPopup) {
@@ -31178,6 +31272,10 @@ function bindUi() {
     }).catch((error) => {
       console.warn('[tarotKingdom] judgment skip action failed:', error);
     });
+  });
+  ui.settlementMenuButton?.addEventListener('click', () => {
+    if (!isKingdomMatchDoneState(s)) return;
+    returnToKingdomModeChoice();
   });
   ui.settlementConfirmButton?.addEventListener('click', () => {
     const actionState = getKingdomSettlementActionState(s);

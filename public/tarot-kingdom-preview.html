@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="robots" content="noindex,follow">
     <title>Tarot Kingdom Preview</title>
-    <link rel="stylesheet" href="./style.css?v=20261104-random-option-v1">
+    <link rel="stylesheet" href="./style.css?v=20261106-kingdom-presentation-v1">
     <link rel="stylesheet" href="./tarot-kingdom-summons.css?v=20261103-element-ace-v8">
     <style>
         html, body {
@@ -41,7 +41,7 @@
                 "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
                 "config": "./js/config.js",
                 "api": "./js/api.js",
-                "ui": "./js/ui.js?v=20261104-random-option-v1",
+                "ui": "./js/ui.js?v=20261106-kingdom-presentation-v1",
                 "./js/tarotKingdomPixelFx.js?v=20261103-pixelfx-v11": "./js/tarotKingdomPixelFx.js?v=20261103-pixelfx-v15",
                 "./js/pixelMonsterCompanion.js?v=20260825-monster-motion-v2": "./js/pixelMonsterCompanion.js?v=20261103-pet-size-v1",
                 "avatar": "./js/avatar.js",
@@ -191,6 +191,7 @@
         </section>
         <div id="tarotKingdomSettlementActions" class="tarot-kingdom-settlement-actions" hidden>
             <button id="tarotKingdomSettlementConfirmButton" type="button" hidden>次の局へ</button>
+            <button id="tarotKingdomSettlementMenuButton" type="button" hidden>メニューへ戻る</button>
         </div>
         <div class="tarot-kingdom-layout">
             <div class="tarot-kingdom-panel tarot-kingdom-panel--trick">
@@ -258,7 +259,7 @@
         window.myLineProfile = { displayName: 'Preview' };
         window.__TAROT_KINGDOM_PREVIEW__ = true;
 
-        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20261104-random-option-v1';
+        import { loadTarotKingdomPage, destroyTarotKingdomPage } from './js/tarotKingdom.js?v=20261106-kingdom-presentation-v1';
 
         window.TarotKingdomPreview = {
             load: () => loadTarotKingdomPage(),
