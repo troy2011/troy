@@ -64,6 +64,24 @@ export async function getPlayerStats(playFabId, options) {
             window.showRpgMessage(message);
         }
     }
+    if (data?.pirateKingCrownReward) {
+        showPirateKingCrownReward(data.pirateKingCrownReward);
+    }
+}
+
+// The server equipped the helmet, so reload inventory and equipment to redraw the avatar.
+function showPirateKingCrownReward(reward) {
+    if (typeof window === 'undefined') return;
+    const itemName = String(reward.itemName || '王の兜');
+    if (typeof window.markInventoryItemsAsNew === 'function') {
+        window.markInventoryItemsAsNew([reward.itemId]);
+    }
+    if (typeof window.refreshInventory === 'function') {
+        void Promise.resolve(window.refreshInventory({ force: true, isSilent: true })).catch(() => {});
+    }
+    if (typeof window.showRpgMessage === 'function') {
+        window.showRpgMessage(`海賊王の証「${itemName}」を手に入れ、装備した！`, 6000);
+    }
 }
 
 function updatePlayerStatsDisplay() {

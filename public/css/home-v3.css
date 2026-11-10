@@ -101,6 +101,20 @@ body.home-v3 #tabContentHome {
         linear-gradient(180deg, rgba(3, 8, 12, 0.7), rgba(8, 5, 3, 0.94));
 }
 
+/* 海賊王 (Lv51+): polished gold, with diagonal sheens and fine gold dust.
+   Static gradients only (no animation or filters) so slow phones stay smooth. */
+body.home-v3 #appWrapper.is-pirate-king,
+body.home-v3 #appWrapper.is-pirate-king #tabContentHome {
+    background:
+        radial-gradient(ellipse at 50% -6%, rgba(255, 240, 190, 0.6), transparent 48%),
+        linear-gradient(115deg, transparent 28%, rgba(255, 236, 170, 0.2) 40%, transparent 52%),
+        linear-gradient(115deg, transparent 58%, rgba(255, 228, 150, 0.12) 64%, transparent 70%),
+        radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(40, 24, 2, 0.5) 100%),
+        radial-gradient(circle at 50% 50%, rgba(255, 246, 200, 0.35) 0 1px, transparent 1.5px) 0 0 / 46px 46px,
+        radial-gradient(circle at 50% 50%, rgba(255, 230, 160, 0.2) 0 0.6px, transparent 1px) 23px 17px / 31px 31px,
+        linear-gradient(180deg, #9a6d18 0%, #6e4b0e 42%, #4a320a 72%, #2f2006 100%);
+}
+
 body.home-v3 #tabContentHome .home-hero-card,
 body.home-v3[data-sea-tone] #tabContentHome .home-hero-card {
     min-height: 0;

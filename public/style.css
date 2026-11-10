@@ -1366,6 +1366,11 @@ button:disabled {
     border-color: rgba(235, 194, 116, 0.56);
 }
 
+/* 海賊王 (Lv51+): the badge is dropped so the name keeps its width. */
+#appWrapper.is-pirate-king .global-rank-badge {
+    display: none;
+}
+
 .currency-display {
     background: linear-gradient(180deg, rgba(32, 27, 22, 0.96), rgba(8, 10, 13, 0.98));
     padding: 7px 10px;

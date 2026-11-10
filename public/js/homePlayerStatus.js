@@ -1,6 +1,8 @@
+export const PIRATE_KING_LEVEL = 51;
+
 export function getPlayerRankName(level) {
     const value = Math.max(1, Math.floor(Number(level) || 1));
-    if (value >= 51) return '海賊王';
+    if (value >= PIRATE_KING_LEVEL) return '海賊王';
     if (value >= 41) return '提督';
     if (value >= 21) return '船長';
     if (value >= 11) return '航海士';
@@ -27,6 +29,9 @@ export function renderHomePlayerStatus(stats = {}, crewRankInfo = null) {
 
     setText('globalLevel', Level);
     setText('globalRankBadge', rankName);
+    // Decided by level, not by the shown title: a crew title can replace the badge text.
+    const isPirateKing = Math.max(1, Math.floor(Number(Level) || 1)) >= PIRATE_KING_LEVEL;
+    document.getElementById('appWrapper')?.classList.toggle('is-pirate-king', isPirateKing);
     setText('homeStatStr', ちから);
     setText('homeStatDef', みのまもり);
     setText('homeStatAgi', すばやさ);

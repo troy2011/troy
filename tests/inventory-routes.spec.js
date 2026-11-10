@@ -1472,3 +1472,105 @@ test('black-market ownership counts remain correct across concurrent purchases',
     count: 2
   }));
 });
+
+function makeStatsHarness({ contribution, readOnlyData = {}, addEconomyItemImpl = null } = {}) {
+  const routes = new Map();
+  const grants = [];
+  const updates = [];
+  const app = { post(path, handler) { routes.set(path, handler); } };
+  const { PLAYER_CONTRIBUTION_STAT } = require('../server/playerLevel');
+  const getPlayerStatisticsApi = function getPlayerStatisticsApi() {};
+
+  initializeInventoryRoutes(app, {
+    PlayFabServer: {
+      GetUserReadOnlyData: getUserReadOnlyDataApi,
+      UpdateUserReadOnlyData: updateUserReadOnlyDataApi,
+      UpdatePlayerStatistics: updatePlayerStatisticsApi,
+      GetPlayerStatistics: getPlayerStatisticsApi
+    },
+    promisifyPlayFab: async (apiFunction, request) => {
+      if (apiFunction === getPlayerStatisticsApi) {
+        return { Statistics: [{ StatisticName: PLAYER_CONTRIBUTION_STAT, Value: contribution }] };
+      }
+      if (apiFunction === getUserReadOnlyDataApi) {
+        const data = {};
+        (request.Keys || Object.keys(readOnlyData)).forEach((key) => {
+          if (readOnlyData[key]) data[key] = readOnlyData[key];
+        });
+        return { Data: data };
+      }
+      if (apiFunction === updateUserReadOnlyDataApi) {
+        updates.push(request);
+        Object.entries(request.Data || {}).forEach(([key, value]) => {
+          readOnlyData[key] = { Value: value };
+        });
+        return {};
+      }
+      return {};
+    },
+    addEconomyItem: async (playFabId, itemId, amount, options) => {
+      if (addEconomyItemImpl) await addEconomyItemImpl();
+      grants.push({ playFabId, itemId, amount, idempotencyId: options?.idempotencyId });
+    },
+    catalogCache: {},
+    getEntityKeyForPlayFabId: async () => ({ Id: 'ENTITY1', Type: 'title_player_account' }),
+    getAllInventoryItems: async () => [],
+    getVirtualCurrencyMap: () => ({}),
+    requireAuthenticatedPlayFabId: async (_req, _res, playFabId) => playFabId
+  });
+
+  const getStats = async () => {
+    const res = makeResponse();
+    await routes.get('/api/get-stats')({ body: { playFabId: 'P1' } }, res);
+    return res;
+  };
+  return { getStats, grants, updates, readOnlyData };
+}
+
+const LEVEL_51_CONTRIBUTION = 511500;
+
+test('get-stats grants and equips 覇王の兜 once when a player reaches 海賊王', async () => {
+  const harness = makeStatsHarness({ contribution: LEVEL_51_CONTRIBUTION, readOnlyData: { Equipped_Armor: { Value: 'hat_black_07' } } });
+
+  const first = await harness.getStats();
+  expect(first.statusCode).toBe(200);
+  expect(first.body.stats.Level).toBe(51);
+  expect(first.body.pirateKingCrownReward).toEqual({ itemId: 'metal_black_10', itemName: '覇王の兜', amount: 1, equippedSlot: 'Armor' });
+  expect(harness.grants).toEqual([{ playFabId: 'P1', itemId: 'metal_black_10', amount: 1, idempotencyId: 'pirate-king-crown:P1' }]);
+  expect(harness.readOnlyData.Equipped_Armor.Value).toBe('metal_black_10');
+  expect(harness.updates.find((u) => u.Data.Equipped_Armor)?.Permission).toBe('Public');
+  expect(harness.readOnlyData.PirateKingCrownGrantedAt?.Value).toBeTruthy();
+
+  // Taking the helmet off later must not be undone by the next visit.
+  harness.readOnlyData.Equipped_Armor = { Value: 'hat_black_07' };
+  const second = await harness.getStats();
+  expect(second.body.pirateKingCrownReward).toBeNull();
+  expect(harness.grants).toHaveLength(1);
+  expect(harness.readOnlyData.Equipped_Armor.Value).toBe('hat_black_07');
+});
+
+test('get-stats does not grant 覇王の兜 below Lv51 or to a nation king', async () => {
+  const below = makeStatsHarness({ contribution: LEVEL_51_CONTRIBUTION - 1 });
+  expect((await below.getStats()).body.pirateKingCrownReward).toBeNull();
+  expect(below.grants).toHaveLength(0);
+
+  const king = makeStatsHarness({ contribution: LEVEL_51_CONTRIBUTION, readOnlyData: { IsKing: { Value: 'true' } } });
+  expect((await king.getStats()).body.pirateKingCrownReward).toBeNull();
+  expect(king.grants).toHaveLength(0);
+});
+
+test('get-stats still answers when granting 覇王の兜 fails, and retries next time', async () => {
+  let fail = true;
+  const harness = makeStatsHarness({
+    contribution: LEVEL_51_CONTRIBUTION,
+    addEconomyItemImpl: async () => { if (fail) throw new Error('PlayFab down'); }
+  });
+  const first = await harness.getStats();
+  expect(first.statusCode).toBe(200);
+  expect(first.body.pirateKingCrownReward).toBeNull();
+  expect(harness.readOnlyData.PirateKingCrownGrantedAt).toBeUndefined();
+
+  fail = false;
+  const second = await harness.getStats();
+  expect(second.body.pirateKingCrownReward?.itemId).toBe('metal_black_10');
+});

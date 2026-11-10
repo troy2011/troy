@@ -84,6 +84,10 @@ const INVENTORY_SELL_EQUIPMENT_KEYS = [
 ];
 const INVENTORY_SELL_DECK_KEYS = ['TarotDeck', 'TarotMeleeDeck', 'TarotShipDeck'];
 const DAILY_NATION_SPECIALTY_REWARD_KEY = 'DailyNationSpecialtyRewardDay';
+// Reaching the 海賊王 rank (Lv51, not a nation king) grants and equips this helmet once.
+const PIRATE_KING_CROWN_ITEM_ID = 'metal_black_10';
+const PIRATE_KING_CROWN_ITEM_NAME = '覇王の兜';
+const PIRATE_KING_CROWN_GRANTED_KEY = 'PirateKingCrownGrantedAt';
 const FACIAL_HAIR_STYLE_INDEX_DEFAULT = 1;
 const FACIAL_HAIR_STYLE_INDEX_NONE = 0;
 const NATION_SPECIALTY_RESOURCE_BY_NATION = {
@@ -599,6 +603,41 @@ function initializeInventoryRoutes(app, deps) {
     async function getPlayerNation(playFabId) {
         const readOnly = await getPlayerReadOnlyData(playFabId, ['Nation']);
         return String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase();
+    }
+
+    // The ReadOnly flag is the record that the helmet was given; the idempotency ID covers
+    // a retry after the grant succeeded but the flag write failed.
+    async function claimPirateKingCrownReward(playFabId, level, isKing, readOnlyData = {}) {
+        if (isKing || Math.max(1, Math.floor(Number(level) || 1)) < PIRATE_KING_LEVEL) return null;
+        if (String(readOnlyData?.[PIRATE_KING_CROWN_GRANTED_KEY]?.Value || '').trim()) return null;
+
+        const releaseEquipmentMutation = await acquireEquipmentMutationLock(playFabId);
+        try {
+            const latest = await getPlayerReadOnlyData(playFabId, [PIRATE_KING_CROWN_GRANTED_KEY]);
+            if (String(latest?.Data?.[PIRATE_KING_CROWN_GRANTED_KEY]?.Value || '').trim()) return null;
+
+            await addEconomyItem(playFabId, PIRATE_KING_CROWN_ITEM_ID, 1, {
+                idempotencyId: `pirate-king-crown:${playFabId}`
+            });
+            // The armor it replaces stays in the inventory; only the equipped pointer changes.
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: { Equipped_Armor: buildStoredEquipmentValue(PIRATE_KING_CROWN_ITEM_ID) },
+                Permission: 'Public'
+            });
+            await promisifyPlayFab(PlayFabServer.UpdateUserReadOnlyData, {
+                PlayFabId: playFabId,
+                Data: { [PIRATE_KING_CROWN_GRANTED_KEY]: String(Date.now()) }
+            });
+            return {
+                itemId: PIRATE_KING_CROWN_ITEM_ID,
+                itemName: PIRATE_KING_CROWN_ITEM_NAME,
+                amount: 1,
+                equippedSlot: 'Armor'
+            };
+        } finally {
+            releaseEquipmentMutation();
+        }
     }
 
     async function claimDailyNationSpecialtyReward(playFabId) {
@@ -3044,8 +3083,9 @@ function initializeInventoryRoutes(app, deps) {
             const crewRankInfo = await getPlayerCrewRankInfo(playFabId, stats);
             let isKing = false;
             let nation = null;
+            let pirateKingCrownReward = null;
             try {
-                const readOnly = await getPlayerReadOnlyData(playFabId, ['IsKing', 'Nation', 'AvatarColor']);
+                const readOnly = await getPlayerReadOnlyData(playFabId, ['IsKing', 'Nation', 'AvatarColor', PIRATE_KING_CROWN_GRANTED_KEY]);
                 isKing = resolveIsKingFlag(readOnly?.Data);
                 nation = String(readOnly?.Data?.Nation?.Value || '').trim().toLowerCase() || null;
                 if (!isKing && Number(stats.Level || 1) >= PIRATE_KING_LEVEL) {
@@ -3053,6 +3093,11 @@ function initializeInventoryRoutes(app, deps) {
                     if (syncResult?.nation) {
                         nation = syncResult.nation;
                     }
+                }
+                try {
+                    pirateKingCrownReward = await claimPirateKingCrownReward(playFabId, stats.Level, isKing, readOnly?.Data);
+                } catch (crownError) {
+                    console.warn('[pirate-king-crown] Grant skipped:', crownError?.errorMessage || crownError?.message || crownError);
                 }
             } catch (rankError) {
                 console.warn('[ステータス取得] 王情報の取得に失敗:', rankError?.errorMessage || rankError?.message || rankError);
@@ -3062,6 +3107,7 @@ function initializeInventoryRoutes(app, deps) {
                 stats: stats,
                 statAllocation: calculateStatAllocationState(stats),
                 dailyNationSpecialtyReward,
+                pirateKingCrownReward,
                 crewRankInfo,
                 isKing,
                 nation
