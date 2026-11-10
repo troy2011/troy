@@ -1,4 +1,2103 @@
-/* Approved navigator-chart concept. Scoped by the home-v3 body feature class. */
+/* Home screen, header and bottom navigation. Loaded only by index.html, whose body always has home-v3.
+   The base styles come first, unscoped, as they were in style.css. The approved navigator-chart concept
+   follows, scoped by the home-v3 body feature class so it always wins over the base styles. */
+
+/* Base styles (moved from style.css). */
+
+/* --- グローバルステータスバー (ヘッダー) --- */
+#globalStatusBar {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(180deg, rgba(7, 8, 10, 0.96), rgba(18, 12, 7, 0.92)),
+        repeating-linear-gradient(90deg, rgba(90, 47, 20, 0.28) 0 28px, rgba(34, 20, 11, 0.28) 28px 56px);
+    z-index: 1000;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+#globalPlayerInfoTop {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    gap: 10px;
+    justify-self: center;
+}
+
+#globalPlayerInfo {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    min-width: 0;
+}
+
+#globalPlayerName {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 0 #000;
+}
+
+#globalPlayerName:hover,
+#globalPlayerName:focus-visible {
+    color: var(--accent-color);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.global-rank-badge {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #ffe2a0;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1.2;
+    max-width: 24vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 海賊王 (Lv51+): the badge is dropped so the name keeps its width. */
+#appWrapper.is-pirate-king .global-rank-badge {
+    display: none;
+}
+
+.currency-display {
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 22px;
+    color: #f1d37b;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.18), 0 3px 10px rgba(0, 0, 0, 0.36);
+    min-width: clamp(118px, 24vw, 150px);
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-weight: 900;
+    overflow: visible;
+    font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 #3a1b06,
+        0 0 4px rgba(0, 0, 0, 0.72),
+        0 0 7px rgba(235, 176, 60, 0.28);
+}
+
+.home-hero-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.home-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 0;
+    min-height: 132px;
+}
+
+.home-ps-card {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 16px 12px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 3px rgba(74, 38, 17, 0.14), 0 10px 22px rgba(0, 0, 0, 0.34);
+    position: relative;
+    overflow: visible;
+    color: #201107;
+    width: min(356px, calc(100% - 92px));
+    min-height: 132px;
+    margin: 4px 0 0 2px;
+    margin-top: 0;
+    margin-left: 0;
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    row-gap: 0;
+}
+
+.home-exp-card {
+    position: static;
+    margin-bottom: 0;
+    width: min(372px, calc(100% - 24px));
+    padding: 14px 14px 16px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(16, 11, 8, 0.86), rgba(4, 4, 5, 0.94)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.1), transparent 58%);
+    border: 13px solid transparent;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    text-align: center;
+    margin-top: 22px;
+    min-height: 210px;
+    display: grid;
+    grid-template-columns: 98px minmax(0, 1fr);
+    grid-template-areas: "rank values"
+        "rank bar"
+        "rank vitals"
+        "button button";
+    column-gap: 16px;
+    row-gap: 8px;
+    align-items: center;
+    border-image: url("/assets/ui/panels/panel-dark-gold.png") 32 fill / 13px / 0 stretch;
+}
+
+.home-exp-header {
+    display: grid;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    margin-bottom: 6px;
+    grid-area: rank;
+    align-self: stretch;
+    place-items: center;
+}
+
+.home-exp-bar {
+    height: 12px;
+    background: rgba(9, 8, 7, 0.72);
+    border-radius: 999px;
+    overflow: hidden;
+    grid-area: bar;
+    border: 1px solid rgba(214, 165, 85, 0.58);
+}
+
+.home-exp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.9), rgba(251, 191, 36, 0.9));
+    width: 0%;
+    transition: width 0.35s ease;
+}
+
+.home-exp-values {
+    margin-top: 6px;
+    font-size: 17px;
+    color: #efe1c4;
+    text-align: center;
+    grid-area: values;
+    justify-self: stretch;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.home-player-ship-head {
+    display: grid;
+    place-items: center;
+    gap: 0;
+    color: var(--text-sub);
+    font-size: 9px;
+    text-align: center;
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    width: 96px;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+.home-player-ship-head strong {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-player-ship-title,
+button.home-player-ship-name {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    line-height: 1.15;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.home-player-ship-body {
+    display: grid;
+    place-items: center;
+    gap: 0;
+    margin-top: 0;
+    position: absolute;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+.home-player-ship-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 0;
+    background: url("/Sprites/Ships/ships.png") var(--player-ship-sprite-x, -56px) 0 / 1792px 896px no-repeat;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 0 white) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.72));
+}
+
+.home-player-ship-icon.is-boat {
+    --player-ship-sprite-x: -56px;
+}
+
+.home-player-ship-icon.is-explorer {
+    --player-ship-sprite-x: -392px;
+}
+
+.home-player-ship-icon.is-defender {
+    --player-ship-sprite-x: -728px;
+}
+
+.home-player-ship-icon.is-fighter {
+    --player-ship-sprite-x: -1064px;
+}
+
+.home-player-ship-icon.is-merchant {
+    --player-ship-sprite-x: -1400px;
+}
+
+.home-player-ship-icon.is-guild {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -56px;
+    --guild-hull-frame-x: -64px;
+    --guild-hull-animation-x: 0px;
+    --guild-sail-frame-x: -64px;
+    --guild-sail-animation-x: 0px;
+    --guild-top-y: 0px;
+    position: relative;
+    overflow: hidden;
+    background: none;
+}
+
+.home-guild-ship-layer {
+    position: absolute;
+    inset: 0;
+    image-rendering: pixelated;
+    pointer-events: none;
+    background-image: url("/Sprites/Ships/guildShips.png");
+    background-repeat: no-repeat;
+    background-size: 1344px 768px;
+}
+
+.home-guild-ship-layer.is-hull {
+    background-position: var(--guild-hull-frame-x, -64px) var(--guild-top-y, 0px);
+}
+
+.home-guild-ship-layer.is-sail-top {
+    background-position: var(--guild-sail-frame-x, -64px) var(--guild-top-y, 0px);
+}
+
+.home-guild-ship-layer.is-sail-middle {
+    background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, 0px) - 256px);
+}
+
+.home-guild-ship-layer.is-sail-bottom {
+    background-position: var(--guild-sail-frame-x, -64px) calc(var(--guild-top-y, 0px) - 512px);
+}
+
+.home-guild-ship-layer.is-white {
+    display: none;
+}
+
+.home-player-ship-meta,
+.home-player-ship-empty,
+.home-player-ship-final {
+    color: var(--text-sub);
+    font-size: 10px;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.home-player-ship-upgrades {
+    display: grid;
+    gap: 3px;
+    margin-top: 5px;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: calc(100% - 14px);
+    margin: 0;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+.home-player-ship-upgrades button {
+    min-height: 34px;
+    padding: 4px 7px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(70, 181, 238, 0.24), rgba(3, 28, 45, 0.32)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    font-size: 15px;
+    font-weight: 800;
+    border-image: url("/assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
+    width: 100%;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    line-height: 1.05;
+}
+
+.home-player-ship-upgrades button span {
+    display: block;
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.1;
+    opacity: 0.8;
+}
+
+.home-player-ship-icon.is-exploring-sail {
+    animation: homePlayerShipSail 620ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-up {
+    animation: homePlayerShipLookUp 780ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-left {
+    animation: homePlayerShipLookLeft 760ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-battle {
+    animation: homePlayerShipBattle 160ms ease-in-out infinite;
+}
+
+.home-player-ship-icon.is-exploring-treasure {
+    animation: homePlayerShipTreasure 680ms ease-in-out infinite;
+}
+
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-returning .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull,
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer.is-hull {
+    animation: homeGuildShipHullFrameStep 300ms steps(3) infinite;
+}
+
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-sail .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-up .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-left .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-battle .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-returning .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull),
+.exploration-sequence-overlay.is-treasure .exploration-sequence-ship.is-guild .home-guild-ship-layer:not(.is-hull) {
+    animation: homeGuildShipSailFrameStep 300ms steps(3) infinite;
+}
+
+.home-ps-lamp {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+}
+
+.home-ps-card.is-low .home-ps-lamp {
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    animation: pulseLamp 1.6s ease-in-out infinite;
+}
+
+.home-ps-icon {
+    font-size: clamp(12px, 3.2vw, 17px);
+    color: transparent;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 58px;
+    background: url("/assets/ui/icons/001.png") center / contain no-repeat;
+    flex-basis: auto;
+    background-position: center;
+    background-size: contain;
+    grid-column: 1;
+    grid-row: 1 / 3;
+    justify-self: center;
+    align-self: center;
+    background-image: var(--icon-money-bag);
+}
+
+.home-ps-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+}
+
+.home-ps-value {
+    font-size: clamp(54px, 13vw, 76px);
+    font-weight: 900;
+    color: #f1d37b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: filter 0.4s ease, opacity 0.4s ease;
+    text-shadow: 0 3px 0 #3a1b06,
+        0 0 4px rgba(0, 0, 0, 0.76),
+        0 0 8px rgba(235, 176, 60, 0.32);
+    overflow: visible;
+    font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.home-ps-slit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 1em;
+    overflow: visible;
+    min-width: 2.8ch;
+}
+
+.home-ps-slit-value {
+    display: inline-block;
+    transform: translateY(0);
+    line-height: 1;
+}
+
+.home-ps-slit-value.slide {
+    animation: vaultSlide 0.5s ease;
+}
+
+.home-ps-unit {
+    font-size: 0.52em;
+    color: inherit;
+    font-family: inherit;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: inherit;
+    transform: translateY(0.03em);
+}
+
+.home-specialty-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+    max-width: 190px;
+    min-width: 0;
+    white-space: nowrap;
+    grid-column: 1 / 3;
+    grid-row: 2;
+    justify-self: center;
+    align-self: end;
+    width: 190px;
+    margin: 0;
+    justify-content: space-between;
+}
+
+.home-specialty-label {
+    flex: 0 0 auto;
+    color: rgba(56, 31, 13, 0.76);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.home-specialty-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 33px;
+    padding: 0;
+    border-radius: 7px;
+    border: 0;
+    background: transparent;
+    color: #211208;
+    font-size: 13px;
+    line-height: 1;
+    border-color: rgba(80, 45, 18, 0.24);
+    font-weight: 900;
+    position: relative;
+    justify-content: center;
+    width: 33px;
+    height: 25px;
+    overflow: visible;
+    flex: 0 0 33px;
+}
+
+.home-specialty-chip b {
+    color: #fff2c6;
+    font-size: 11px;
+    font-weight: 900;
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    min-width: 16px;
+    height: 17px;
+    padding: 0 3px;
+    border: 1px solid rgba(255, 226, 137, 0.72);
+    border-radius: 999px;
+    background: rgba(22, 12, 5, 0.82);
+    font-family: "Noto Sans JP", system-ui, sans-serif;
+    line-height: 15px;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    transform: translateY(-50%);
+}
+
+.home-hero-tag {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.2em;
+    color: var(--text-main);
+}
+
+.home-hero-subtitle {
+    font-size: 12px;
+    color: var(--text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.home-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(10, 14, 20, 0.98), rgba(24, 30, 42, 0.98));
+}
+
+.home-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.06) 45%, transparent 70%);
+    transform: translateX(-120%);
+    animation: cardSheen 10s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-card::after {
+        animation: none;
+    }
+}
+
+.home-card:focus-within,
+.home-card:hover {
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.28), 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.home-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.home-card-title {
+    font-size: 0.95rem;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+}
+
+.home-shortcut-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.home-shortcut-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    min-height: 68px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 11px solid transparent;
+    background: linear-gradient(180deg, rgba(14, 20, 30, 0.72), rgba(4, 6, 10, 0.9)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.06), transparent 58%);
+    color: #f8fafc;
+    box-shadow: none;
+    text-align: left;
+    border-image: url("/assets/ui/panels/panel-dark-square.png") 24 fill / 11px / 0 stretch;
+}
+
+.home-shortcut-btn-secondary {
+    background: linear-gradient(180deg, rgba(49, 27, 13, 0.36), rgba(7, 6, 5, 0.42)),
+        repeating-linear-gradient(0deg, rgba(119, 68, 30, 0.1) 0 1px, transparent 1px 12px);
+    border-image: url("/assets/ui/panels/panel-wood.png") 34 fill / 11px / 0 stretch;
+}
+
+.home-shortcut-main {
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.home-shortcut-sub {
+    font-size: 11px;
+    color: #cbd5e1;
+}
+
+.home-qr-area {
+    text-align: center;
+    margin: 6px 0 0;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    padding: 14px;
+}
+
+.home-qr-note {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin: 8px 0 0;
+}
+
+.home-qr-area canvas {
+    cursor: default;
+}
+
+/* --- ホーム画面: アバターと装備 --- */
+#homeLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+}
+
+/* --- 下部ナビゲーション --- */
+#bottomNav {
+    position: fixed;
+    backdrop-filter: none;
+    justify-content: stretch;
+    align-items: center;
+    z-index: 900;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 280ms ease, visibility 0s linear 280ms;
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+
+body.tabs-ready #bottomNav {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 280ms ease, visibility 0s;
+}
+
+.nav-button {
+    background: linear-gradient(180deg, rgba(69, 39, 19, 0.94), rgba(24, 15, 9, 0.98)),
+        repeating-linear-gradient(0deg, rgba(255, 238, 194, 0.05) 0 1px, transparent 1px 7px);
+    border: 1px solid rgba(220, 169, 82, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 239, 192, 0.12);
+    color: #f0d7a4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 72px;
+    height: 68px;
+    font-size: 10px;
+    transition: transform 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    flex: 1 1 0;
+    border-radius: 8px;
+    gap: 2px;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+}
+
+.nav-button.active {
+    color: #fff1bd;
+    box-shadow: 0 0 18px rgba(217, 164, 65, 0.28), inset 0 1px 0 rgba(255, 247, 214, 0.26);
+}
+
+.home-ship-stage {
+    width: min(392px, 100%);
+    margin: 0 auto 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    min-height: 386px;
+    margin-top: -14px;
+}
+
+.home-ship-bob {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: homeShipBob 6s ease-in-out infinite;
+    min-height: 340px;
+}
+
+.home-ship-image {
+    width: 260px;
+    height: auto;
+    image-rendering: pixelated;
+}
+
+.home-ship-avatar {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%) translateY(-32px) scale(1.6);
+    transform-origin: center center;
+    margin: 0;
+    border-radius: 14px;
+    padding: 6px;
+    cursor: pointer;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.home-ship-avatar:hover,
+.home-ship-avatar:focus-visible {
+    outline: 2px solid rgba(255, 225, 136, 0.78);
+    outline-offset: 3px;
+    box-shadow: 0 0 18px rgba(255, 218, 116, 0.32);
+}
+
+.home-ship-avatar[data-sea-tone="day"] {
+    background: radial-gradient(circle at 40% 30%, rgba(125, 211, 252, 0.65), rgba(14, 116, 144, 0.35) 70%);
+    box-shadow: 0 8px 18px rgba(14, 116, 144, 0.35);
+}
+
+.home-ship-avatar[data-sea-tone="night"] {
+    background: radial-gradient(circle at 40% 30%, rgba(30, 41, 59, 0.85), rgba(2, 6, 23, 0.9) 70%);
+    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
+}
+
+.home-coin-convert-panel {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+.home-coin-convert-panel .troy-coin-convert-controls {
+    grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.home-chip-card {
+    display: grid;
+    gap: 10px;
+    --home-card-icon: var(--icon-chip);
+}
+
+.home-chip-card[hidden] {
+    display: none;
+}
+
+.home-qr-actions {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    margin-top: 12px;
+}
+
+.home-qr-scan-btn {
+    min-height: 44px;
+    width: min(100%, 220px);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(70, 181, 238, 0.22), rgba(3, 28, 45, 0.3)),
+        linear-gradient(180deg, #104c70, #071b29);
+    color: #eff8ff;
+    font-weight: 900;
+    --button-icon: var(--icon-qr-scan);
+    border-image: url("/assets/ui/buttons/button-blue-large.png") 24 fill / 10px / 0 stretch;
+    letter-spacing: 0;
+    line-height: 1.08;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    box-shadow: none;
+    padding: 8px 14px;
+    font-size: 15px;
+}
+
+.home-qr-scan-btn:disabled {
+    opacity: 0.6;
+}
+
+.home-qr-help {
+    color: var(--text-sub);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
+body.home-exploration-popup-open #bottomNav {
+    z-index: 10070;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+body.home-exploration-popup-open #tabContainer {
+    z-index: 10060;
+}
+
+body.home-exploration-popup-open #globalStatusBar {
+    pointer-events: none;
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup > .home-exploration-popup-close {
+    position: sticky;
+    top: 8px;
+    z-index: 6;
+    display: block;
+    margin: 10px -4px 8px auto;
+}
+
+#shipExplorationPanel.ship-exploration-panel.is-popup .ship-exploration-head .home-exploration-popup-close {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    align-self: center;
+}
+
+.home-qr-card {
+    padding-top: 14px;
+    --home-card-icon: var(--icon-compass);
+}
+
+.home-card-note {
+    position: relative;
+    z-index: 1;
+    margin: 12px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.78);
+}
+
+@media (max-width: 640px) {
+    #bottomNav {
+        justify-content: stretch;
+        overflow: hidden;
+    }
+
+    .nav-button {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: 58px;
+        padding: 3px 1px;
+        border-radius: 8px;
+        font-size: 10px;
+    }
+
+    .nav-button span:last-child {
+        font-size: 8px;
+        line-height: 1.05;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+}
+
+.app-title-plaque {
+    justify-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: none;
+}
+
+.app-title-plaque strong {
+    display: block;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.app-title-plaque span {
+    margin-top: 4px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 800;
+}
+
+.currency-display::before {
+    content: "";
+    width: 30px;
+    height: 30px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: url("/assets/ui/icons/002.png") center / contain no-repeat;
+    color: #5c3510;
+    font-weight: 900;
+    box-shadow: none;
+    background-position: center;
+    background-size: 30px 30px;
+    background-image: var(--icon-coin);
+}
+
+@media (max-width: 640px) {
+    #globalStatusBar {
+        gap: 6px;
+    }
+
+    .currency-display {
+        min-width: 88px;
+        min-height: 36px;
+        font-size: 17px;
+        padding: 4px 8px;
+    }
+
+    .currency-display::before {
+        width: 24px;
+        height: 24px;
+    }
+
+    .home-ship-bob {
+        min-height: 280px;
+    }
+}
+
+.currency-display::after {
+    content: none;
+    width: 30px;
+    height: 30px;
+    display: none;
+    place-items: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 229, 149, 0.64);
+    background: linear-gradient(180deg, rgba(255, 227, 139, 0.18), rgba(86, 48, 12, 0.28));
+    color: #fff1bd;
+    font-size: 22px;
+    line-height: 1;
+    text-shadow: 0 1px 0 #000;
+}
+
+.home-specialty-chip span {
+    width: 33px;
+    height: 22px;
+    display: block;
+    color: transparent;
+    font-size: 0;
+    border-radius: 999px;
+    background-color: #080706;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    box-shadow: inset 0 0 0 1px rgba(226, 177, 84, 0.26),
+        0 1px 2px rgba(0, 0, 0, 0.42);
+    flex: 0 0 33px;
+    flex-basis: 29px;
+    aspect-ratio: 3 / 2;
+}
+
+.home-specialty-chip[title="火薬系"] span {
+    background-image: url("/assets/ui/icons/special-chili.png?v=20260602");
+}
+
+.home-specialty-chip[title="石材系"] span {
+    background-image: url("/assets/ui/icons/special-rock.png?v=20260602");
+}
+
+.home-specialty-chip[title="キノコ系"] span {
+    background-image: url("/assets/ui/icons/special-mushroom.png?v=20260602");
+}
+
+.home-specialty-chip[title="水系"] span {
+    background-image: url("/assets/ui/icons/special-vial.png?v=20260602");
+}
+
+.nav-button span:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+.home-exploration-btn {
+    width: min(224px, 100%);
+    margin: 6px auto 0;
+    min-height: 40px;
+    margin-top: 14px;
+    font-size: clamp(18px, 5vw, 24px);
+    grid-area: button;
+    padding: 8px 12px;
+    color: #211208;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.08;
+    text-shadow: 0 1px 0 rgba(255, 236, 179, 0.58);
+    cursor: pointer;
+    --button-icon: var(--icon-compass);
+}
+
+.home-exp-actions {
+    grid-area: button;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-top: 14px;
+}
+
+.home-exp-actions .home-exploration-btn {
+    grid-area: auto;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(14px, 3.8vw, 18px);
+}
+
+.home-exp-actions .home-plunder-btn {
+    --button-icon: var(--icon-pirate-flag);
+    border-image-source: url("/assets/ui/buttons/button-dark-large.png");
+    background: linear-gradient(180deg, rgba(254, 202, 202, 0.2), rgba(127, 29, 29, 0.16)),
+        linear-gradient(180deg, #8f352d, #3e1715);
+    color: #fff0d2;
+    text-shadow: 0 2px 0 rgba(54, 8, 8, 0.82);
+}
+
+.home-exp-actions .home-plunder-btn[hidden] {
+    display: none;
+}
+
+.home-exp-actions .home-rescue-btn {
+    --button-icon: var(--icon-action-crew);
+    border-image-source: url("/assets/ui/buttons/button-dark-large.png");
+    background: radial-gradient(circle at 50% 0%, rgba(80, 220, 190, 0.24), transparent 58%),
+        linear-gradient(180deg, #196c68, #0c343d);
+    color: #effff8;
+    text-shadow: 0 2px 0 rgba(0, 25, 28, 0.88);
+}
+
+.home-exp-actions .home-rescue-btn[hidden] {
+    display: none !important;
+}
+
+.home-exp-actions:has(.home-rescue-btn[hidden]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-rescue-overlay[hidden] {
+    display: none;
+}
+
+.home-rescue-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10120;
+    display: grid;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top, 0px))
+        14px
+        max(18px, env(safe-area-inset-bottom, 0px));
+    background: radial-gradient(circle at 50% 28%, rgba(26, 116, 113, 0.22), transparent 36%),
+        rgba(2, 5, 8, 0.82);
+    backdrop-filter: blur(4px);
+}
+
+.home-rescue-dialog {
+    width: min(440px, 100%);
+    max-height: min(680px, calc(100dvh - 36px));
+    overflow: hidden;
+    padding: 16px;
+    border: 1px solid transparent;
+    border-image: url("/assets/ui/panels/panel-dark-square.png") 24 fill / 12px / 0 stretch;
+    background: radial-gradient(ellipse at 50% 0%, rgba(49, 184, 170, 0.14), transparent 45%),
+        linear-gradient(180deg, rgba(15, 18, 20, 0.98), rgba(5, 7, 9, 0.99));
+    box-shadow: 0 0 0 1px rgba(234, 199, 112, 0.24),
+        0 18px 50px rgba(0, 0, 0, 0.72);
+}
+
+.home-rescue-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 2px 10px;
+    border-bottom: 1px solid rgba(221, 183, 94, 0.32);
+}
+
+.home-rescue-head small {
+    display: block;
+    margin-bottom: 2px;
+    color: #64d8ca;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+}
+
+.home-rescue-head h2 {
+    margin: 0;
+    color: #fff0bd;
+    font-size: 22px;
+    line-height: 1.1;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.home-rescue-lead {
+    margin: 12px 2px 9px;
+    color: #d9cba8;
+    font-size: 12px;
+}
+
+.home-rescue-list {
+    display: grid;
+    gap: 8px;
+    max-height: min(470px, calc(100dvh - 230px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px;
+}
+
+.home-rescue-status {
+    min-height: 110px;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    border: 1px dashed rgba(121, 204, 192, 0.32);
+    color: #c7d7d1;
+    font-size: 13px;
+    text-align: center;
+}
+
+.home-rescue-status.is-loading::before {
+    content: "";
+    width: 22px;
+    height: 22px;
+    margin-right: 8px;
+    border: 2px solid rgba(100, 216, 202, 0.22);
+    border-top-color: #64d8ca;
+    border-radius: 50%;
+    animation: home-rescue-spin 0.8s linear infinite;
+}
+
+.home-rescue-status.is-empty {
+    color: #a9a18e;
+}
+
+.home-rescue-status.is-error {
+    color: #ffc7b7;
+    border-color: rgba(239, 111, 82, 0.34);
+}
+
+.home-rescue-room {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 74px;
+    align-items: center;
+    gap: 10px;
+    min-height: 104px;
+    padding: 11px 10px 11px 13px;
+    border: 1px solid rgba(85, 197, 183, 0.42);
+    background: linear-gradient(90deg, rgba(18, 76, 77, 0.54), rgba(10, 13, 17, 0.92) 62%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 9px);
+    box-shadow: inset 3px 0 0 rgba(92, 220, 201, 0.72);
+}
+
+.home-rescue-room-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.home-rescue-room-stage {
+    color: #6bddd0;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+}
+
+.home-rescue-room-copy strong {
+    overflow: hidden;
+    color: #fff0c6;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-room-monster {
+    overflow: hidden;
+    color: #f2e5c4;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-room-copy small {
+    overflow: hidden;
+    margin-top: 3px;
+    color: #9eb2ad;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-rescue-join,
+.home-rescue-footer button {
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-image: url("/assets/ui/buttons/button-gold-large.png") 24 fill / 10px / 0 stretch;
+    background: linear-gradient(180deg, rgba(255, 235, 173, 0.34), rgba(104, 58, 14, 0.2));
+    color: #2a1708;
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 239, 183, 0.62);
+    cursor: pointer;
+}
+
+.home-rescue-join:disabled,
+.home-rescue-footer button:disabled {
+    filter: grayscale(0.7);
+    opacity: 0.66;
+    cursor: wait;
+}
+
+.home-rescue-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 12px;
+}
+
+.home-rescue-footer button {
+    min-width: 136px;
+    color: #f8efd9;
+    border-image-source: url("/assets/ui/buttons/button-dark-large.png");
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-rescue-status.is-loading::before {
+        animation: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .home-hero-card,
+body[data-sea-tone] .home-hero-card {
+        background-position: center top;
+    }
+
+    .home-ship-stage {
+        min-height: 448px;
+        margin-top: 14px;
+    }
+}
+
+@media (max-width: 380px) {
+    .home-hero-card,
+body[data-sea-tone] .home-hero-card {
+        padding-inline: 10px;
+    }
+
+    .home-ship-stage {
+        margin-top: 8px;
+    }
+}
+
+.home-exploration-btn,
+.nav-button.active {
+    border: 1px solid transparent;
+    border-image: url("/assets/ui/buttons/button-gold-large.png") 24 fill / 11px / 0 stretch;
+    background: linear-gradient(180deg, rgba(255, 239, 176, 0.34), rgba(109, 58, 11, 0.24)),
+        linear-gradient(180deg, #e7b64b, #9c5c1e);
+}
+
+.home-hero-card,
+body[data-sea-tone] .home-hero-card {
+    min-height: 620px;
+    padding: 14px 12px 20px;
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(220, 169, 82, 0.5);
+    background: linear-gradient(180deg, rgba(2, 4, 7, 0.02) 0%, rgba(3, 4, 5, 0.1) 38%, rgba(4, 3, 2, 0.04) 39%, rgba(5, 3, 2, 0.16) 100%),
+        url("/home-ui-sheet.png") calc(50% - 24px) top / auto var(--home-hero-bg-height, 620px) no-repeat;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.44);
+    --home-hero-bg-height: 620px;
+    padding-top: 10px;
+    padding-bottom: 12px;
+}
+
+.home-hero-card::after {
+    display: none;
+}
+
+.home-hero-card .home-ship-bob {
+    width: min(420px, 100%);
+    height: 146px;
+    min-height: 146px;
+    margin-top: 0;
+    animation: none;
+}
+
+.home-hero-card .home-ship-avatar {
+    left: 61%;
+    top: 49%;
+    transform: translate(-50%, -50%) translateY(0) scale(1.62);
+    z-index: 3;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.home-hero-card .home-ship-avatar[data-sea-tone] {
+    background: transparent;
+    box-shadow: none;
+}
+
+.home-hero-card .home-ship-stage.has-pet-companion .home-ship-avatar {
+    left: 49%;
+}
+
+.home-hero-card .home-pet-companion {
+    --pixel-monster-context-scale: 1.62;
+    z-index: 3;
+    top: 49%;
+    left: 68%;
+    transform: translate(-50%, -50%);
+}
+
+.home-hero-card .home-player-ship-frame {
+    position: absolute;
+    right: 9px;
+    top: -108px;
+    transform: none;
+    width: 90px;
+    min-height: 166px;
+    padding: 10px 5px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 4;
+}
+
+.home-player-ship-title {
+    color: rgba(239, 222, 188, 0.84);
+    font-size: 10px;
+    font-weight: 800;
+    text-decoration: none;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.86);
+}
+
+.home-player-ship-head strong,
+.home-player-ship-name {
+    color: #ffe188;
+    font-family: "Noto Sans JP", system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.05;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.92), 0 0 8px rgba(255, 222, 128, 0.22);
+}
+
+.home-player-ship-final,
+.home-player-ship-empty {
+    color: rgba(239, 222, 188, 0.88);
+    font-size: 10px;
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    width: 96px;
+    transform: translateX(-50%);
+    line-height: 1.25;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.86);
+}
+
+.currency-display b {
+    min-width: 0;
+    overflow: visible;
+    color: inherit;
+    font-family: inherit;
+    font-size: clamp(25px, 5vw, 34px);
+    font-weight: 900;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-shadow: inherit;
+}
+
+.currency-display::before,
+.currency-display::after {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 420px) {
+    .home-hero-card,
+body[data-sea-tone] .home-hero-card {
+        min-height: 606px;
+        padding-inline: 10px;
+        --home-hero-bg-height: 606px;
+    }
+
+    .home-hero-top {
+        min-height: 124px;
+    }
+
+    .home-ps-card {
+        width: min(292px, calc(100% - 96px));
+        min-height: 124px;
+        padding: 14px 12px 11px;
+        gap: 8px;
+        grid-template-columns: 52px minmax(0, 1fr);
+        column-gap: 8px;
+    }
+
+    .home-ps-icon {
+        width: 49px;
+        height: 49px;
+        flex-basis: 50px;
+    }
+
+    .home-ps-value {
+        font-size: clamp(48px, 14vw, 62px);
+    }
+
+    .home-specialty-chip {
+        min-width: 32px;
+        font-size: 12px;
+        width: 32px;
+        height: 24px;
+        flex-basis: 32px;
+    }
+
+    .home-hero-card .home-ship-bob {
+        height: 138px;
+        min-height: 138px;
+        margin-top: 2px;
+    }
+
+    .home-hero-card .home-ship-avatar {
+        left: 60%;
+        top: calc(42% + 44px);
+        transform: translate(-50%, -50%) translateY(0) scale(1.36);
+    }
+
+    .home-hero-card .home-ship-stage.has-pet-companion .home-ship-avatar {
+        left: 46%;
+    }
+
+    .home-hero-card .home-pet-companion {
+        --pixel-monster-context-scale: 1.36;
+        top: calc(42% + 47px);
+        left: 66%;
+    }
+
+    .home-hero-card .home-player-ship-frame {
+        right: 4px;
+        top: -104px;
+        width: 84px;
+        min-height: 158px;
+        padding: 9px 4px 6px;
+        gap: 4px;
+    }
+
+    .home-player-ship-icon {
+        width: 58px;
+        height: 58px;
+    }
+
+    .home-exp-card {
+        width: min(344px, calc(100% - 22px));
+        min-height: 204px;
+        margin-top: 18px;
+        grid-template-columns: 90px minmax(0, 1fr);
+        column-gap: 12px;
+        row-gap: 7px;
+        padding: 12px 12px 14px;
+    }
+
+    .currency-display {
+        min-width: 112px;
+        padding-inline: 8px;
+    }
+
+    .currency-display b {
+        font-size: 28px;
+    }
+}
+
+@media (max-width: 360px) {
+    .home-ps-card {
+        width: min(270px, calc(100% - 86px));
+        gap: 6px;
+    }
+
+    .home-ps-icon {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+    }
+
+    .home-ps-value {
+        font-size: 46px;
+    }
+
+    .home-hero-card .home-player-ship-frame {
+        width: 82px;
+        right: 4px;
+    }
+
+    .home-player-ship-title {
+        font-size: 10px;
+    }
+
+    .home-player-ship-head strong,
+.home-player-ship-name {
+        font-size: 14px;
+    }
+}
+
+.home-hero-card .home-player-ship-icon {
+    width: 64px;
+    height: 64px;
+    background: url("/Sprites/Ships/ships.png") var(--player-ship-sprite-x, -64px) var(--player-ship-sprite-y, -64px) / 2048px 1024px no-repeat;
+    transform-origin: center center;
+    filter: drop-shadow(0 0 0 white) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.78));
+}
+
+.home-hero-card .home-player-ship-icon.is-boat {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -64px;
+}
+
+/* --- Header simplification and owned ship motion --- */
+.home-hero-card .home-player-ship-icon.is-explorer {
+    --player-ship-group-x: -384px;
+    --player-ship-sprite-x: -448px;
+}
+
+.home-hero-card .home-player-ship-icon.is-defender {
+    --player-ship-group-x: -768px;
+    --player-ship-sprite-x: -832px;
+}
+
+.home-hero-card .home-player-ship-icon.is-fighter {
+    --player-ship-group-x: -1152px;
+    --player-ship-sprite-x: -1216px;
+}
+
+.home-hero-card .home-player-ship-icon.is-merchant {
+    --player-ship-group-x: -1536px;
+    --player-ship-sprite-x: -1600px;
+}
+
+.home-hero-card .home-player-ship-icon.is-guild {
+    --player-ship-group-x: 0px;
+    --player-ship-sprite-x: -64px;
+    background: none;
+}
+
+.home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite;
+}
+
+.home-hero-card .home-player-ship-icon[data-player-ship-tap] {
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.home-hero-card .home-player-ship-icon[data-player-ship-tap]:focus-visible {
+    outline: 2px solid rgba(255, 237, 151, 0.9);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+@media (max-width: 420px) {
+    .home-hero-card .home-player-ship-icon {
+        width: 64px;
+        height: 64px;
+    }
+
+    .home-specialty-row {
+        margin-left: 0;
+        width: 184px;
+        max-width: 184px;
+        gap: 3px;
+    }
+}
+
+/* --- Home reference tightening --- */
+#tabContentHome {
+    min-height: calc(100vh - var(--nav-height));
+}
+
+.home-announcement-panel {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 8px;
+    width: min(430px, calc(100% - 20px));
+    min-height: 44px;
+    margin: 8px auto 6px;
+    padding: 12px 24px 10px;
+    border: 1px solid transparent;
+    border-image: var(--panel-sheet-plaque-gold) 38 32 30 32 fill / 18px 17px 15px 17px / 0 stretch;
+    background: rgba(7, 6, 5, 0.16);
+    color: #f9edcf;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.34);
+}
+
+.home-announcement-panel[hidden] {
+    display: none;
+}
+
+.home-announcement-title {
+    margin: 0;
+    color: #ffe0a3;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: left;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+    white-space: nowrap;
+}
+
+.home-announcement-list {
+    min-width: 0;
+    display: block;
+}
+
+.home-announcement-item {
+    min-width: 0;
+    display: block;
+}
+
+.home-announcement-message {
+    min-width: 0;
+    display: block;
+    position: relative;
+    color: #fff7df;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-announcement-marquee-text {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-announcement-message.is-marquee {
+    text-overflow: clip;
+}
+
+.home-announcement-message.is-marquee .home-announcement-marquee-text {
+    display: inline-block;
+    min-width: max-content;
+    overflow: visible;
+    text-overflow: clip;
+    animation: homeAnnouncementMarquee var(--home-announcement-marquee-duration, 24s) linear infinite;
+    animation-delay: var(--home-announcement-marquee-delay, -6s);
+    will-change: transform;
+}
+
+.home-hero-card .home-ship-image {
+    display: none;
+}
+
+.home-player-ship-head strong,
+.home-exp-rank {
+    width: 96px;
+    min-height: 134px;
+    display: grid;
+    place-items: center;
+    gap: 3px;
+    padding: 10px 8px;
+    border: 10px solid transparent;
+    border-image: url("/assets/ui/panels/panel-gold-square.png") 24 fill / 10px / 0 stretch;
+    background: linear-gradient(180deg, rgba(20, 16, 12, 0.96), rgba(4, 4, 5, 0.98)),
+        radial-gradient(ellipse at 50% 36%, rgba(255, 206, 91, 0.18), transparent 58%);
+    color: #e8d0a0;
+    font-size: 13px;
+    line-height: 1.1;
+    text-align: center;
+    box-shadow: inset 0 0 0 1px rgba(255, 232, 158, 0.08),
+        0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.home-exp-rank::after {
+    content: "";
+    width: 58px;
+    height: 58px;
+    display: block;
+    background: var(--home-rank-icon, url("/assets/ui/icons/091.png")) center / contain no-repeat;
+    filter: drop-shadow(0 2px 0 #251204)
+        drop-shadow(0 0 10px rgba(235, 186, 74, 0.38));
+}
+
+.home-exp-rank span {
+    display: block;
+    color: #ffe188;
+    font-family: Georgia, "Times New Roman", "Yu Mincho", serif;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.home-exp-rank[data-rank-tier="apprentice"] {
+    --home-rank-icon: url("/assets/ui/icons/091.png");
+}
+
+.home-exp-rank[data-rank-tier="navigator"] {
+    --home-rank-icon: url("/assets/ui/icons/052.png");
+}
+
+.home-exp-rank[data-rank-tier="captain"] {
+    --home-rank-icon: url("/assets/ui/icons/051.png");
+}
+
+.home-exp-rank[data-rank-tier="admiral"] {
+    --home-rank-icon: url("/assets/ui/icons/053.png");
+}
+
+.home-exp-rank[data-rank-tier="pirate-king"] {
+    --home-rank-icon: url("/assets/ui/icons/050.png");
+}
+
+.home-exp-rank[data-rank-tier="king"] {
+    --home-rank-icon: url("/assets/ui/icons/093.png");
+}
+
+.home-stat-panel {
+    grid-area: vitals;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    align-self: stretch;
+}
+
+.home-stat-chip {
+    min-width: 0;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    padding: 5px 3px;
+    border: 1px solid rgba(218, 181, 103, 0.34);
+    border-radius: 7px;
+    background: linear-gradient(180deg, rgba(33, 28, 20, 0.82), rgba(7, 8, 11, 0.9)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 222, 141, 0.12), transparent 58%);
+    box-shadow: inset 0 1px 0 rgba(255, 241, 190, 0.14);
+}
+
+.home-stat-chip span {
+    color: #b9d7ef;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.home-stat-chip b {
+    min-width: 0;
+    color: #fff0bf;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.72);
+}
+
+.home-stat-chip-hp b {
+    font-size: 15px;
+}
+
+@media (max-width: 420px) {
+    .home-ship-stage {
+        min-height: 396px;
+        margin-top: -10px;
+    }
+
+    .home-exp-rank {
+        width: 88px;
+        min-height: 126px;
+        font-size: 12px;
+    }
+
+    .home-exp-rank::after {
+        width: 50px;
+        height: 50px;
+    }
+
+    .home-exp-rank span {
+        font-size: 23px;
+    }
+
+    .home-stat-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .home-stat-chip {
+        min-height: 39px;
+        padding: 4px 2px;
+    }
+
+    .home-stat-chip span {
+        font-size: 11px;
+    }
+
+    .home-stat-chip b {
+        font-size: 16px;
+    }
+
+    .home-stat-chip-hp b {
+        font-size: 12px;
+    }
+
+    .home-exploration-btn {
+        min-height: 42px;
+        font-size: clamp(19px, 5.6vw, 24px);
+    }
+
+    .home-exp-actions .home-exploration-btn {
+        font-size: clamp(14px, 4vw, 17px);
+    }
+}
+
+.home-hero-card .home-player-ship-frame:not(.is-exploring) .home-player-ship-icon {
+    animation: homePlayerShipFrameStep 300ms steps(3) infinite !important;
+}
+
+.home-hero-card .home-player-ship-frame.is-exploring .home-player-ship-icon {
+    animation: none !important;
+}
+
+.home-player-ship-owner {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: calc(100% - 10px);
+    max-height: 24px;
+    overflow: hidden;
+    transform: translateX(-50%);
+    color: #ffffff;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.95),
+        0 0 6px rgba(0, 0, 0, 0.78);
+    z-index: 3;
+}
+
+.home-player-ship-head strong,
+.home-player-ship-name:disabled {
+    cursor: default;
+    text-decoration: none;
+}
+
+.home-player-ship-upgrades button:disabled {
+    border-image: url("/assets/ui/buttons/button-dark-large.png") 24 fill / 10px / 0 stretch;
+    background: linear-gradient(180deg, rgba(94, 101, 112, 0.25), rgba(17, 24, 39, 0.42)),
+        linear-gradient(180deg, #4b5563, #1f2937);
+    color: rgba(255, 255, 255, 0.72);
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+}
+
+.home-player-ship-upgrades button .home-player-ship-evolve-main,
+.home-player-ship-upgrades button .home-player-ship-evolve-cost {
+    display: block;
+    margin-top: 0;
+}
+
+.home-player-ship-upgrades button .home-player-ship-evolve-cost {
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.05;
+    white-space: nowrap;
+    opacity: 0.86;
+}
+
+#navHome {
+    --nav-icon-image: var(--icon-nav-home);
+}
+
+/* --- Shared icon map and final icon placement --- */
+#navTroy {
+    --nav-icon-image: var(--icon-nav-troy);
+}
+
+#navCompanions {
+    --nav-icon-image: var(--icon-nav-companions);
+}
+
+#navInventory {
+    --nav-icon-image: var(--icon-nav-inventory);
+}
+
+#navRanking {
+    --nav-icon-image: var(--icon-nav-ranking);
+}
+
+.nav-button .nav-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 1px;
+    background-image: var(--nav-icon-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    color: transparent;
+    font-size: 0;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.62));
+}
+
+@media (max-width: 640px) {
+    .nav-button .nav-icon {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.nav-button.active .nav-icon {
+    filter: drop-shadow(0 0 7px rgba(255, 219, 120, 0.5))
+        drop-shadow(0 2px 2px rgba(0, 0, 0, 0.66));
+}
+
+.home-social-card {
+    --home-card-icon: var(--icon-pirate-flag);
+}
+
+.home-exploration-btn::before {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+}
+
+.home-exploration-btn[data-plunder-paused="true"] {
+    border-image-source: url("/assets/ui/buttons/button-dark-large.png");
+    color: #d8c8a0;
+    filter: saturate(0.82) brightness(0.92);
+}
+
+.home-exp-actions .home-fortune-btn {
+    --button-icon: var(--icon-tarot);
+    font-size: clamp(14px, 4vw, 16px);
+    gap: 4px;
+    white-space: nowrap;
+    border-image-source: url("/assets/ui/buttons/button-blue-large.png");
+    background: linear-gradient(180deg, rgba(209, 187, 255, 0.3), rgba(57, 29, 104, 0.3)),
+        linear-gradient(180deg, #7250a4, #2b1747);
+    color: #fff4cf;
+    text-shadow: 0 2px 0 rgba(24, 8, 43, 0.82);
+}
+
+.home-exp-actions .home-fortune-btn:disabled {
+    cursor: wait;
+    opacity: 0.72;
+    filter: saturate(0.72);
+}
+
+.home-qr-scan-btn::before {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+}
+
+@media (max-width: 640px) {
+    .home-exploration-btn::before {
+        width: 18px;
+        height: 18px;
+        flex-basis: 18px;
+    }
+}
+
+.home-qr-card,
+.home-social-card {
+    border: 13px solid transparent;
+    border-radius: 8px;
+    border-image-source: var(--panel-sheet-frame);
+    border-image-slice: 28 34 fill;
+    border-image-width: 13px;
+    border-image-outset: 0;
+    border-image-repeat: stretch;
+    background: linear-gradient(180deg, rgba(12, 15, 20, 0.86), rgba(3, 4, 6, 0.96)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+}
+
+.home-ps-lamp,
+.home-ps-card.is-low .home-ps-lamp {
+    display: none !important;
+    animation: none !important;
+    box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer {
+        background-size: 1176px 672px;
+    }
+
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer.is-sail-middle {
+        background-position: var(--guild-sail-frame-x, -56px) calc(var(--guild-top-y, -56px) - 224px);
+    }
+
+    #playerProfileModal .player-profile-ship-icon.is-guild .home-guild-ship-layer.is-sail-bottom {
+        background-position: var(--guild-sail-frame-x, -56px) calc(var(--guild-top-y, -56px) - 448px);
+    }
+}
+
+.home-hero-card .home-player-ship-frame,
+.home-hero-card .home-player-ship-frame.is-exploring {
+    border: 1px solid transparent;
+    border-image: url("/assets/ui/panels/panel-dark-square.png") 24 fill / 10px / 0 stretch;
+    background: linear-gradient(180deg, rgba(13, 18, 24, 0.42), rgba(4, 5, 7, 0.72)),
+        radial-gradient(ellipse at 50% 0%, rgba(255, 225, 136, 0.08), transparent 58%);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+}
+
+body.tarot-kingdom-fullscreen #globalStatusBar,
+body.tarot-kingdom-fullscreen #bottomNav {
+    display: none !important;
+}
+
+.home-points-status {
+    margin-left: 6px;
+    font-size: 10px;
+    color: #e5d4a4;
+}
+
+/* Approved navigator-chart concept, scoped by the home-v3 body feature class. */
 body.home-v3 {
     --nav-height: 82px;
     background:
@@ -221,7 +2320,6 @@ body.home-v3 #tabContentHome .home-ship-bob {
         aspect-ratio: auto;
         background-position: center 25%;
     }
-
 }
 
 body.home-v3 #tabContentHome .home-king-button {
