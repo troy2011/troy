@@ -229,7 +229,7 @@ body {
 .kt-field-empty { padding: 28px 18px; border: 1px dashed rgb(88 43 16 / 55%); border-radius: 6px; color: #40230f; background: rgb(248 214 157 / 75%); font-size: 13px; text-align: center; }
 
 
-/* Only the thin frame carries the suit colour; the compact rank sits over the artwork. */
+/* Suit colours frame both the card and its compact rank overlay. */
 .kt-card {
   --kt-suit-color: #f4f3ef;
   position: relative;
@@ -257,7 +257,7 @@ body {
   min-width: 21px;
   height: 24px;
   padding: 1px 3px;
-  border: 1px solid rgb(255 255 255 / 25%);
+  border: 1px solid var(--kt-suit-color);
   border-radius: 3px;
   color: #fff;
   background: rgb(12 15 18 / 94%);
