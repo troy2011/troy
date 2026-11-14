@@ -26958,64 +26958,6 @@ body.is-new-order-flash::before {
     }
 }
 
-/* --- Home screenshot corrections --- */
-
-.home-player-ship-final,
-
-
-@media (max-width: 420px) {
-
-
-
-    .home-specialty-label {
-        font-size: 12px;
-    }
-
-
-.home-specialty-chip span {
-    width: 32px;
-    height: 21px;
-    flex-basis: 32px;
-    background-position: center;
-    background-size: contain;
-}
-
-    .home-specialty-chip b {
-        min-width: 15px;
-        height: 16px;
-        line-height: 14px;
-        font-size: 10px;
-    }
-
-
-    .home-player-ship-head strong,
-    .home-player-ship-name {
-        font-size: 17px;
-    }
-
-
-    .home-player-ship-upgrades button {
-        min-height: 34px;
-        padding-inline: 6px;
-        font-size: 14px;
-    }
-
-    .home-player-ship-upgrades button .home-player-ship-evolve-cost {
-        font-size: 9px;
-    }
-}
-
-
-
-
-
-
-
-@media (max-width: 420px) {
-
-
-}
-
 .home-card-emoji,
 .tarot-game-select-icon,
 .tarot-mode-icon {
