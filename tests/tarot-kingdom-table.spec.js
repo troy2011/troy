@@ -244,6 +244,44 @@ test('keyboard selection keeps focus and lets the player select the next card', 
     await expect(page.locator('#ktSelection')).toHaveText('2枚を選択中');
 });
 
+for (const input of [
+    { name: '320px touch', width: 320, height: 760, hasTouch: true },
+    { name: '390px touch', width: 390, height: 844, hasTouch: true },
+    { name: 'desktop mouse', width: 1440, height: 1000, hasTouch: false }
+]) {
+    test.describe(input.name, () => {
+        test.use({ viewport: { width: input.width, height: input.height }, hasTouch: input.hasTouch });
+
+        test('selecting a card leaves the neighbouring cards tappable', async ({ page }) => {
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            await sit(page);
+            const cards = page.locator('#ktHand .kt-card');
+            await expect(cards.first()).toBeEnabled();
+            // Use the exposed number strips, where a player taps overlapping cards.
+            const points = await cards.locator('.kt-card-rank').evaluateAll(ranks => ranks.map(rank => {
+                const rect = rank.getBoundingClientRect();
+                return { x: rect.left + 10, y: rect.top + rect.height / 2 };
+            }));
+            const selected = [];
+            for (const index of [3, 4, 2, 5, 1]) {
+                const point = points[index];
+                if (input.hasTouch) await page.touchscreen.tap(point.x, point.y);
+                else await page.mouse.click(point.x, point.y);
+                selected.push(index);
+                for (const chosen of selected) await expect(cards.nth(chosen)).toHaveAttribute('aria-pressed', 'true');
+                await expect(page.locator('#ktSelection')).toHaveText(`${selected.length}枚を選択中`);
+            }
+            await shot(page, `hand-multiselect-${input.width}.png`);
+            // The exposed edge also remains usable to deselect a raised card.
+            const point = points[3];
+            if (input.hasTouch) await page.touchscreen.tap(point.x, point.y);
+            else await page.mouse.click(point.x, point.y);
+            await expect(cards.nth(3)).toHaveAttribute('aria-pressed', 'false');
+            await expect(page.locator('#ktSelection')).toHaveText('4枚を選択中');
+        });
+    });
+}
+
 test('the seat shows the han it would win with: one for going out, one more for the dealer', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 760 });
     await sit(page);

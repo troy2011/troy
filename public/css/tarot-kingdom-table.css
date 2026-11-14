@@ -301,21 +301,22 @@ body {
   background: radial-gradient(ellipse at 50% 85%, rgb(255 173 59 / 18%), transparent 65%);
 }
 .kt-hand .kt-card {
+  --kt-card-lift: 0px;
   flex: none;
+  /* Keep the fan order so raising a card leaves its neighbours tappable. */
   z-index: var(--kt-card-order);
   width: var(--kt-hand-card-width);
   cursor: pointer;
-  transform: translateY(var(--kt-card-offset)) rotate(var(--kt-card-angle));
+  transform: translateY(calc(var(--kt-card-offset) - var(--kt-card-lift))) rotate(var(--kt-card-angle));
   transform-origin: 50% 100%;
   transition: transform 160ms ease-out;
 }
 .kt-hand .kt-card + .kt-card { margin-left: calc(-1 * var(--kt-hand-overlap)); }
 .kt-hand .kt-card:disabled { cursor: default; }
 .kt-hand .kt-card.is-playable { box-shadow: 0 0 10px rgb(246 237 214 / 28%), 0 4px 8px rgb(0 0 0 / 45%); }
-.kt-hand .kt-card.is-selected { z-index: 10; transform: translateY(-14px); box-shadow: 0 0 0 2px #e0b95c, 0 10px 16px rgb(0 0 0 / 55%); }
-.kt-hand .kt-card:focus-visible { z-index: 11; }
+.kt-hand .kt-card.is-selected { --kt-card-lift: 14px; box-shadow: 0 0 0 2px #e0b95c, 0 10px 16px rgb(0 0 0 / 55%); }
 @media (hover: hover) {
-  .kt-hand .kt-card:enabled:hover { z-index: 12; transform: translateY(-18px); }
+  .kt-hand .kt-card:enabled:hover { --kt-card-lift: 18px; }
 }
 
 .kt-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding-top: 2px; }
