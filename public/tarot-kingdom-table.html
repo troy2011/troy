@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24130d">
+<title>タロットキングダム 卓上戦</title>
+<link rel="preload" as="image" href="assets/tarot-kingdom-table/tavern-v1/tavern-room.webp">
+<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=20261114-fx-v1">
+</head>
+<body>
+<main id="ktApp" class="kt-app">
+  <section id="ktSetup" class="kt-setup">
+    <div id="ktHero" class="kt-hero" aria-hidden="true"></div>
+    <p class="kt-eyebrow">TAROT KINGDOM · TABLE</p>
+    <h1>タロットキングダム<span>卓上戦</span></h1>
+    <p class="kt-lead">78枚の海賊タロットで卓を囲み、先に手札を出し切った人がチップを集めます。</p>
+    <fieldset class="kt-choice">
+      <legend>人数</legend>
+      <label><input type="radio" name="ktSeats" value="4" checked><span>4人で4局</span></label>
+      <label><input type="radio" name="ktSeats" value="3"><span>3人で3局</span></label>
+    </fieldset>
+    <label class="kt-check"><input type="checkbox" id="ktFast"><span>相手の手番を速く進める</span></label>
+    <button type="button" id="ktStart" class="kt-button kt-button-main">卓につく</button>
+    <div class="kt-notes">
+      <h2>得点</h2>
+      <ul>
+        <li>各自チップ1000枚から。毎局20枚を場に出し、上がった人が場のチップを取ります。</li>
+        <li>上がりは1翻。5枚役で場を流すたびに翻が増えます。</li>
+        <li>負けた人は「残った手札の枚数 × 上がった人の翻 × 10枚」を払います。</li>
+        <li>小札のAを残していると、1枚につき1翻多く払います。</li>
+        <li>親は上がれば1翻多く受け取り、負ければ1翻多く払います。親が上がると、親を続けます（連荘）。</li>
+      </ul>
+      <table class="kt-han">
+        <caption>5枚役で場を流したときの翻（コールで作った役は1翻少ない）</caption>
+        <tbody>
+          <tr><th scope="row">ストレート・フラッシュ</th><td>2翻</td></tr>
+          <tr><th scope="row">フルハウス</th><td>3翻</td></tr>
+          <tr><th scope="row">フォーカード</th><td>4翻</td></tr>
+          <tr><th scope="row">ストレートフラッシュ</th><td>5翻</td></tr>
+          <tr><th scope="row">ザ・ワールド、ファイブカード</th><td>10翻</td></tr>
+        </tbody>
+      </table>
+      <p>チップはこの画面の中だけのものです。Gや景品とは関係ありません。</p>
+    </div>
+    <p><a href="tarot-kingdom-real.html">札の出し方の説明書を読む</a></p>
+  </section>
+
+  <section id="ktTable" class="kt-table" hidden>
+    <header class="kt-bar">
+      <div class="kt-brand"><strong>タロットキングダム</strong><span>卓上戦</span></div>
+      <div class="kt-bar-status">
+        <span id="ktRound" class="kt-bar-item kt-bar-round"></span>
+        <span id="ktDeck" class="kt-bar-item kt-bar-deck"></span>
+      </div>
+      <button type="button" id="ktSound" class="kt-bar-link kt-sound" aria-pressed="true" aria-label="効果音：オン">♪</button>
+      <a class="kt-bar-link" href="tarot-kingdom-real.html" target="_blank" rel="noopener">ルール</a>
+    </header>
+    <div id="ktFelt" class="kt-felt">
+      <div id="ktSeatTop" class="kt-seat kt-seat-top" hidden></div>
+      <div id="ktSeatLeft" class="kt-seat kt-seat-left" hidden></div>
+      <div id="ktSeatRight" class="kt-seat kt-seat-right" hidden></div>
+      <div class="kt-field">
+        <div class="kt-field-heading">
+          <div class="kt-pot"><span id="ktPot" class="kt-chip"></span></div>
+          <p id="ktFieldOwner" class="kt-field-owner"></p>
+        </div>
+        <div id="ktFieldCards" class="kt-field-cards"></div>
+        <p id="ktFieldState" class="kt-field-state"></p>
+      </div>
+    </div>
+    <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
+    <div id="ktMe" class="kt-me"></div>
+    <div class="kt-hand-header">
+      <span>手札 <strong id="ktHandCount"></strong></span>
+      <span id="ktSelection"></span>
+    </div>
+    <div id="ktHand" class="kt-hand" aria-label="あなたの手札"></div>
+    <div class="kt-actions">
+      <button type="button" id="ktDraw" class="kt-button kt-button-draw">1枚引く</button>
+      <button type="button" id="ktPass" class="kt-button kt-button-pass">パス</button>
+      <button type="button" id="ktPlay" class="kt-button kt-button-main kt-button-play">出す</button>
+    </div>
+  </section>
+
+  <div id="ktDialog" class="kt-dialog" role="dialog" aria-modal="true" aria-labelledby="ktDialogTitle" hidden>
+    <div class="kt-dialog-box">
+      <h2 id="ktDialogTitle"></h2>
+      <div id="ktDialogBody"></div>
+      <div id="ktDialogActions" class="kt-dialog-actions"></div>
+    </div>
+  </div>
+
+  <button type="button" id="ktZoom" class="kt-zoom" aria-label="札を閉じる" hidden></button>
+</main>
+<script type="module" src="js/kingdomTable/ui.js?v=20261114-fx-v1"></script>
+</body>
+</html>
