@@ -1,19 +1,32 @@
-# Daily fortune reward ledger
+# Daily fortune claim
 
-The authenticated status and draw APIs use Firestore `daily_fortune_players/{sha256(normalized PlayFab ID)}` and `daily_fortune_claims/{hash}_{JST day}`. They retain the existing PlayFab `DailyTarotFortune`, `DailyTarotCardFragmentsV1`, `DailyBountyGachaReward`, Economy inventory and statistics. The Firestore journal stores the chosen result, the resulting fragment state, the ranking-bonus item plan and completed steps. No client supplies a reward or outcome.
+The authenticated draw API guards the daily fortune with one Firestore document, `daily_fortune_claims/{sha256(normalized PlayFab ID)}_{JST day}`. This document is the source of truth for "has this player drawn today" and for the day's result. The PlayFab records `DailyTarotFortune`, `DailyTarotCardFragmentsV1` and `DailyBountyGachaReward`, the Economy inventory and the statistics are written as before.
 
-The first draw reserves the player/day in a transaction. A second request cannot choose a different persisted result. The ranking version and bonus item plan are saved before any grant. Economy grants use stable per-day idempotency IDs, and a step is marked started before the SDK is called. A successful SDK response and completed ledger step permit continuing to the next step. Receipt fields, when present, must be valid; the installed SDK defines them as optional. If the process fails before a step starts, a retry can acquire the saved plan and continue, including after the JST date changes. If a PlayFab mutation was started but its result is uncertain, the step remains pending and is not resent; a person must reconcile its ledger row and PlayFab evidence before any intervention. A pending earlier day prevents a later claim from overwriting its fragment state.
+## Draw
 
-When a prior-day claim completes during recovery, status returns `state: recovered` with the original day and result. The current UI displays the result, clears its existing pending marker, refreshes inventory, and then acknowledges it with the authenticated `/api/tarot-fortune-ack-recovery` endpoint. The acknowledgement clears only the recovery marker; saved results and rewards remain. Until it succeeds, a new day's draw stays blocked. The UI's recovered-bonus notice uses the existing display-only notice storage. No change to `tarotPoker.js` or `dailyFortuneReveal.js` is needed.
+1. The server picks the card and builds the result. A reversed major arcana reads the fragment record first.
+2. One transaction creates the claim with the result. If a claim with a result already exists, the stored result is returned with `alreadyClaimed: true` and nothing is granted.
+3. After the claim, the rewards are sent together: the card or G grant (Economy V2, with the per-day idempotency ID), the fragment record, the fortune record, and the ranking bonus (contribution version, leaderboard read, bonus grants, bonus record).
+4. The response is sent. The balance read and the `ps_ranking` update for a G reward run after the response.
 
-The existing authenticated status request is read-only when no claim exists. When a claim already exists, the status request may resume its safe, previously authorized steps so the existing result-check button can recover from a known pre-send failure. Unknown outcomes remain pending. A completed fortune can still be displayed if its independent ranking bonus is uncertain. If the historical ranking version cannot be verified or has expired, the bonus remains pending instead of selecting a different ranking.
+The response no longer carries `balance`; the client refreshes the inventory instead.
 
-If the process failed before saving the ranking version and the daily contribution state has since advanced, recovery derives the original version from the existing one-version-per-day rollover, limited to its 400-day catch-up window. Invalid dates, missing versions and unavailable leaderboards fail closed. This does not reconstruct records that predate the journal.
+## Trade-off chosen for speed
 
-Old same-day fortune records are adopted without a new grant. A complete same-day recorded bonus is returned; if the bonus record is missing or incomplete, the API reports `bountyPending` and does not guess whether an older worker already paid it. Historical partial grants that predate this ledger cannot be reconstructed or safely resent automatically.
+The earlier step-by-step journal (plan, per-step start and finish marks, lease, prior-day recovery, `/api/tarot-fortune-ack-recovery`) was removed on the owner's instruction to favour speed. A draw now waits for about four sequential service calls instead of about twenty.
 
-## Release sequence for review
+The cost: a reward whose send fails after the claim is logged on the server (`[tarot-fortune-draw] <name> was not delivered`) and is not retried. The player keeps the day's result but may miss that reward, and the result screen still names it. A failed ranking read skips that day's ranking bonus.
 
-The ledger cannot serialize an older server process that does not use it. First deploy the separate temporary draw-pause commit `Pause legacy fortune draws for ledger rollout`. Confirm the previous application instances have drained under the ordinary service lifecycle. Keep the pause until the next JST day, then deploy the ledger commit that removes the pause. This prevents new-day draws from overlapping an old same-day writer; it does not resolve previously ambiguous historical payments. The pause temporarily makes the draw API return HTTP 503 while status remains available. No environment variable, new service or player data deletion is required. Rollback after ledger activation must first re-enable the pause and drain ledger writers; an immediate rollback to the old writer would bypass the journal.
+The claim still prevents a second draw on the same day from any device or browser.
 
-Real PlayFab behaviour, existing ambiguous rewards, and already-loaded old clients have not been inspected or tested. A failed SDK call or a response with contradictory receipt fields is held pending rather than treated as a successful grant.
+## Status
+
+`/api/tarot-fortune-status` reads the claim only. It returns the stored result, or `canDraw: true`. It never draws or resumes anything, and no longer returns `state: pending` or `state: recovered`.
+
+## Compatibility and rollback
+
+- Claims written by the earlier ledger count as claimed once they hold `plan.result`; one without a result is replaced by the next draw. `daily_fortune_players` is no longer read or written.
+- New claims use the same shape as a completed claim of the earlier ledger (`state: complete`, `plan.result`, `dailyBountyReward`), so reverting the server still treats them as claimed.
+- The client keeps a display-only copy of today's result in `localStorage` (`troy:fortune-result:v1:{PlayFab ID}`) to reopen the result without a request. It grants nothing and does not decide whether a draw is allowed.
+
+Real PlayFab and Firestore behaviour of this flow has not been exercised against production; it is covered by `tests/daily-fortune-ledger.test.cjs` with stubbed services.

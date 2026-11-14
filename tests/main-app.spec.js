@@ -319,12 +319,12 @@ test('daily tarot fortune checks status on startup and shows clear draw states o
 
   await bootstrapMainApp(page);
   await expect.poll(() => fortuneStatusRequests).toBe(1);
-  expect(tarotModuleRequests).toBe(0);
   await page.locator('#btnDailyFortune').click();
   const overlay = page.locator('#dailyTarotFortuneOverlay');
   const modal = page.locator('#dailyTarotFortuneModal');
   await expect(overlay).toBeVisible();
-  expect(fortuneStatusRequests).toBe(2);
+  // The startup answer is reused, so opening goes straight to the draw.
+  expect(fortuneStatusRequests).toBe(1);
   expect(tarotModuleRequests).toBeGreaterThan(0);
   const closeButtonStyle = await page.locator('.tarot-fortune-close').evaluate((node) => {
     const style = window.getComputedStyle(node);
@@ -390,7 +390,7 @@ test('daily tarot fortune checks status on startup and shows clear draw states o
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#btnDailyFortune')).toBeEnabled();
   await expect(page.locator('#btnDailyFortune')).toHaveText('結果を見る');
-  await expect.poll(() => fortuneStatusRequests).toBe(3);
+  await expect.poll(() => fortuneStatusRequests).toBe(2);
   expect(fortuneDrawRequests).toBe(1);
   await expectNoPageErrors(errors);
 });

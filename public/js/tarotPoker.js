@@ -286,6 +286,25 @@ function dailyFortuneJstDay() {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+// Display-only copy of today's result, so a second look opens without waiting for the server.
+// The server claim alone decides whether a draw is allowed or a reward is granted.
+function dailyFortuneResultKey(playFabId) {
+    return `troy:fortune-result:v1:${playFabId}`;
+}
+
+function readStoredDailyFortuneResult(playFabId) {
+    try {
+        const result = JSON.parse(localStorage.getItem(dailyFortuneResultKey(playFabId)) || 'null');
+        return result?.dayKey === dailyFortuneJstDay() && result.cardId ? result : null;
+    } catch { return null; }
+}
+
+function storeDailyFortuneResult(playFabId, result) {
+    if (!result?.dayKey || !result.cardId) return;
+    try { localStorage.setItem(dailyFortuneResultKey(playFabId), JSON.stringify(result)); }
+    catch { /* The result is fetched from the server next time. */ }
+}
+
 function setDailyFortunePending(playFabId, pending, key = dailyFortunePendingKey(playFabId)) {
     if (pending) dailyFortunePendingDraws.add(key);
     else dailyFortunePendingDraws.delete(key);
@@ -5309,7 +5328,9 @@ function resetDailyFortuneResultDetails() {
     setDailyFortuneBounty(null);
 }
 
-function renderDailyFortuneResult(result, options = {}) {
+// `pending` is the settled draw, or a promise of it: the three face-down cards carry no card data,
+// so they can be shown while the server is still answering. It resolves to null when there is nothing to reveal.
+function renderDailyFortuneResult(pending, options = {}) {
     const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
     const titleEl = document.getElementById(DAILY_FORTUNE_TITLE_ID);
@@ -5318,17 +5339,17 @@ function renderDailyFortuneResult(result, options = {}) {
         ? options.onRevealComplete
         : null;
 
-    const card = getCardDataFromFortuneResult(result);
-    const isReversed = String(result?.orientation || '') === 'reversed';
-    const weatherLevel = getDailyFortuneWeatherStatus(result).level;
+    let settled = false;
+    const settledResult = Promise.resolve(pending).then((value) => { settled = true; return value || null; },
+        () => { settled = true; return null; });
     const playerId = String(window.myPlayFabId || '');
     const session = window.capturePlayerSession?.(playerId);
     const isCurrentSession = () => !!playerId && playerId === String(window.myPlayFabId || '')
         && !!session && window.isPlayerSessionCurrent?.(session) === true;
-    const finalizeReveal = () => {
+    const finalizeReveal = (result) => {
         titleEl.textContent = '本日の運勢';
         const modal = document.getElementById(DAILY_FORTUNE_MODAL_ID);
-        if (modal) modal.dataset.fortuneTier = getDailyFortuneRevealTier(weatherLevel);
+        if (modal) modal.dataset.fortuneTier = getDailyFortuneRevealTier(getDailyFortuneWeatherStatus(result).level);
         setDailyFortuneSubText('風向きと今日のアドバイスを確認してください。');
         if (result?.dayKey && result.dayKey !== dailyFortuneJstDay()) {
             titleEl.textContent = '日付をまたいだ占い結果';
@@ -5342,8 +5363,8 @@ function renderDailyFortuneResult(result, options = {}) {
         setDailyFortuneBounty(result);
     };
 
-    const handleReveal = async () => {
-        finalizeReveal();
+    const handleReveal = async (result) => {
+        finalizeReveal(result);
         if (onRevealComplete) {
             await onRevealComplete(result);
         }
@@ -5354,9 +5375,8 @@ function renderDailyFortuneResult(result, options = {}) {
     cardHost.closest('.tarot-fortune-stage')?.classList.add('has-choice');
     let selected = false;
     for (let index = 0; index < 3; index += 1) {
-        const cardEl = createDailyFortuneCardElement(card, {
-            hidden: true, clickable: true, reversed: isReversed,
-            artworkLabel: result?.cardName || getCardDisplayName(card),
+        const cardEl = createDailyFortuneCardElement(null, {
+            hidden: true, clickable: true,
             onSelect: async (chosen) => {
                 if (selected || !isCurrentSession()) return;
                 selected = true;
@@ -5396,13 +5416,19 @@ function renderDailyFortuneResult(result, options = {}) {
                     if (document.hidden) move?.cancel();
                     if (!isStillOpen()) return;
                 }
+                if (!settled) setDailyFortuneSubText('カードをめくっています…');
+                const result = await settledResult;
+                if (!result || !isStillOpen()) return;
+                const card = getCardDataFromFortuneResult(result);
+                const isReversed = String(result?.orientation || '') === 'reversed';
+                const weatherLevel = getDailyFortuneWeatherStatus(result).level;
                 void playDailyFortuneRevealPresentation(chosen, card, {
                     reversed: isReversed, artworkLabel: result?.cardName || getCardDisplayName(card), weatherLevel, isCurrentSession,
                     onReveal: () => {
                         const stage = cardHost.closest('.tarot-fortune-stage');
                         stage?.classList.remove('has-choice');
                         stage?.classList.add('is-result-entering');
-                        void handleReveal();
+                        void handleReveal(result);
                     }
                 });
             }
@@ -5579,16 +5605,30 @@ async function handleDailyFortuneDraw(playFabId) {
     const generation = dailyFortuneOverlayGeneration;
     const balanceSession = window.capturePlayerSession?.(playFabId);
     const textEl = document.getElementById(DAILY_FORTUNE_TEXT_ID);
+    // The choice is cosmetic, so the cards are offered at once and the draw is sent behind them.
+    let settleChoice = () => {};
+    const clearChoice = () => {
+        settleChoice(null);
+        if (generation !== dailyFortuneOverlayGeneration) return;
+        const cardHost = document.getElementById(DAILY_FORTUNE_CARD_HOST_ID);
+        if (!cardHost) return;
+        cardHost.innerHTML = '';
+        cardHost.classList.remove('is-choice', 'is-selecting');
+        cardHost.closest('.tarot-fortune-stage')?.classList.remove('has-choice');
+    };
     try {
         resetDailyFortuneResultDetails();
-        if (textEl) textEl.textContent = '運勢を読み込み中...';
+        if (document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display === 'flex') {
+            renderDailyFortuneResult(new Promise((resolve) => { settleChoice = resolve; }));
+        } else if (textEl) textEl.textContent = '運勢を読み込み中...';
         const pendingKey = dailyFortunePendingKey(playFabId);
         setDailyFortunePending(playFabId, true, pendingKey);
         const data = await requestDailyFortuneDraw(playFabId);
         let showBountyAfterRefresh = false;
-        if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
+        if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) { clearChoice(); return; }
         if (!data?.result) throw new Error('ResultUnavailable');
         setDailyFortunePending(playFabId, false, pendingKey);
+        storeDailyFortuneResult(playFabId, data.result);
         const canShowResult = generation === dailyFortuneOverlayGeneration
             && document.getElementById(DAILY_FORTUNE_OVERLAY_ID)?.style.display === 'flex';
         if (data?.result) {
@@ -5604,14 +5644,15 @@ async function handleDailyFortuneDraw(playFabId) {
             }
             const isPreviousDay = data.result.dayKey && data.result.dayKey !== dailyFortuneJstDay();
             if (canShowResult && (data.alreadyClaimed || isPreviousDay)) {
+                clearChoice();
                 document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
                 renderDailyFortuneResultLegacy(data.result);
                 if (isPreviousDay && document.getElementById(DAILY_FORTUNE_TITLE_ID)) {
                     document.getElementById(DAILY_FORTUNE_TITLE_ID).textContent = '日付をまたいだ占い結果';
                 }
                 setDailyFortuneSubText(isPreviousDay ? `${data.result.dayKey} の占い結果です。日付が変わりました。` : '本日の占い結果です。');
-            } else if (canShowResult) {
-                renderDailyFortuneResult(data.result);
+            } else {
+                settleChoice(canShowResult ? data.result : null);
             }
             dailyFortuneClaimedSession = true;
             dailyFortuneCanDrawSession = false;
@@ -5635,6 +5676,7 @@ async function handleDailyFortuneDraw(playFabId) {
             setDailyFortuneBounty(data.result);
         }
     } catch (error) {
+        clearChoice();
         if (balanceSession && !window.isPlayerSessionCurrent?.(balanceSession)) return;
         const notStarted = isDailyFortuneDrawNotStarted(error);
         if (notStarted) setDailyFortunePending(playFabId, false);
@@ -5658,7 +5700,7 @@ function setupDailyFortuneOverlay(playFabId) {
     if (titleEl) titleEl.textContent = '本日の運勢';
     if (cardHost) cardHost.innerHTML = '';
     resetDailyFortuneResultDetails();
-    if (textEl) textEl.textContent = '運勢を読み込み中...';
+    if (textEl) textEl.textContent = '';
     return handleDailyFortuneDraw(playFabId);
 }
 
@@ -5898,6 +5940,25 @@ export async function showDailyFortune(playFabId, options = {}) {
     setDailyFortuneSubText('今日の潮目を確かめています。');
     if (textEl) textEl.textContent = '運勢を読み込み中...';
 
+    const hasPending = hasDailyFortunePending(playFabId);
+    const stored = hasPending ? null : readStoredDailyFortuneResult(playFabId);
+    if (stored) {
+        notifyDailyFortuneClaimed(stored);
+        document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
+        renderDailyFortuneResultLegacy(stored);
+        setDailyFortuneSubText('本日の占い結果です。');
+        await refreshDailyFortuneInventory();
+        if (generation === dailyFortuneOverlayGeneration) setDailyFortuneBounty(stored);
+        return;
+    }
+    if (options.knownCanDraw && !hasPending) {
+        // The home screen already asked the server today; the draw itself answers with the stored result if that has changed.
+        dailyFortuneCheckedSession = true;
+        dailyFortuneCanDrawSession = true;
+        await setupDailyFortuneOverlay(playFabId);
+        return;
+    }
+
     try {
         const status = await requestDailyFortuneStatus(playFabId);
         if (session && !window.isPlayerSessionCurrent?.(session)) return;
@@ -5924,6 +5985,7 @@ export async function showDailyFortune(playFabId, options = {}) {
         setDailyFortunePending(playFabId, false);
         notifyDailyFortuneClaimed(status?.result, status?.dayKey);
         if (status?.result) {
+            storeDailyFortuneResult(playFabId, status.result);
             document.getElementById(DAILY_FORTUNE_MODAL_ID)?.classList.add('is-revisit');
             renderDailyFortuneResultLegacy(status.result);
             setDailyFortuneSubText('本日の占い結果です。');

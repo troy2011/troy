@@ -136,136 +136,78 @@ test('successful draw and retry preserve the result and grant each reward once',
   assert.equal(f.grants.filter(g => g.key.startsWith('daily-bounty-gacha')).length, 3);
 });
 
-test('a known ranking-read failure resumes the saved outcome without repeating rewards', async () => {
-  const f = fixture({ failRankingOnce: true, eligible: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const before = f.grants.length;
-  const resumed = await f.call('/api/tarot-fortune-status');
-  assert.equal(resumed.code, 200); assert.equal(resumed.body.dailyBountyReward.items.length, 3);
-  assert.equal(before, 0);
-  assert.equal(f.grants.filter(g => g.key.startsWith('daily-bounty-gacha')).length, 3);
-  assert.equal(new Set(f.grants.map(g => g.key)).size, f.grants.length);
-});
-
-test('an incomplete ranking response is retried instead of treating the player as ineligible', async () => {
-  const f = fixture({ invalidRankingOnce: true, eligible: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 0);
-  const result = await f.call('/api/tarot-fortune-status');
-  assert.equal(result.code, 200); assert.equal(result.body.dailyBountyReward.items.length, 3);
-});
-
-test('an unknown grant outcome is held and never sent twice on retry', async () => {
-  const f = fixture({ failGrant: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal((await f.call('/api/tarot-fortune-status')).body.state, 'pending');
-  assert.equal(f.grants.length, 1);
-});
-
-test('an unverifiable SDK receipt stays pending without repeating a grant', async () => {
-  const f = fixture({ invalidReceipt: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 1);
-});
-
-test('an SDK success without optional receipt fields is accepted', async () => {
-  const f = fixture({ invalidReceipt: 'absent' });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 200);
-  const count = f.grants.length;
-  assert.equal((await f.call('/api/tarot-fortune-draw')).body.alreadyClaimed, true);
-  assert.equal(f.grants.length, count);
-});
-
-test('a success envelope without result data remains pending', async () => {
-  const f = fixture({ invalidReceipt: 'nullData' });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 1);
-});
-
-test('an uncertain bonus grant keeps the confirmed fortune without resending any bonus', async () => {
-  const f = fixture({ eligible: true, failGrantAt: 4 });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
+test('status after a draw returns the stored result without drawing again', async () => {
+  const f = fixture();
+  const drawn = await f.call('/api/tarot-fortune-draw');
   const count = f.grants.length;
   const status = await f.call('/api/tarot-fortune-status');
-  assert.equal(status.code, 200); assert.ok(status.body.result); assert.equal(status.body.bountyPending, true);
+  assert.equal(status.body.canDraw, false);
+  assert.deepEqual(JSON.parse(JSON.stringify(status.body.result)), JSON.parse(JSON.stringify(drawn.body.result)));
   assert.equal(f.grants.length, count);
 });
 
-test('balance display failure cannot undo a completed fortune or repeat rewards', async () => {
-  const f = fixture({ failBalance: true });
-  const first = await f.call('/api/tarot-fortune-draw');
-  assert.equal(first.code, 200); assert.ok(first.body.result);
-  const count = f.grants.length;
-  assert.equal((await f.call('/api/tarot-fortune-draw')).body.alreadyClaimed, true);
-  assert.equal(f.grants.length, count);
-});
-
-test('a preflight failure can retry the same saved result without granting twice', async () => {
-  const f = fixture({ failPreflightOnce: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 0);
+test('a draw is settled by one claim write', async () => {
+  const f = fixture();
   assert.equal((await f.call('/api/tarot-fortune-draw')).code, 200);
-  assert.equal(new Set(f.grants.map(g => g.key)).size, f.grants.length);
+  assert.equal(f.db.rows().size, 1);
+  assert.equal([...f.db.rows().values()][0].state, 'complete');
 });
 
-test('invalid catalog resolution before send permits safe retry', async () => {
-  const f = fixture({ failResolveOnce: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 0);
-  const result = await f.call('/api/tarot-fortune-status');
-  assert.equal(result.code, 200); assert.ok(result.body.result);
-});
-
-test('a failed final ledger confirmation resumes without repeating paid rewards', async () => {
-  const f = fixture({ eligible: true }); f.db.failFinishOnce = true;
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const count = f.grants.length;
-  const result = await f.call('/api/tarot-fortune-status');
-  assert.equal(result.code, 200); assert.ok(result.body.result);
-  assert.equal(f.grants.length, count);
-});
-
-test('concurrent draws cannot send a second reward while the first is in flight', async () => {
+test('concurrent draws grant the reward once', async () => {
   let release; const hold = new Promise(resolve => { release = resolve; });
   const f = fixture({ holdGrant: hold });
   const first = f.call('/api/tarot-fortune-draw');
   while (!f.grants.length) await new Promise(resolve => setImmediate(resolve));
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 1); release();
-  assert.equal((await first).code, 200);
+  await new Promise(resolve => setImmediate(resolve));
+  const count = f.grants.length;
+  const second = await f.call('/api/tarot-fortune-draw');
+  assert.equal(second.body.alreadyClaimed, true);
+  assert.equal(f.grants.length, count); release();
+  const done = await first;
+  assert.equal(done.code, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(second.body.result)), JSON.parse(JSON.stringify(done.body.result)));
 });
 
-test('legacy same-day result is retained without guessing whether bonus was paid', async () => {
-  const legacy = { dayKey: today(), cardId: 'old', fortune: 'existing' };
-  const f = fixture({ legacy });
-  const response = await f.call('/api/tarot-fortune-draw');
-  assert.equal(response.body.result.cardId, 'old');
-  assert.equal(response.body.bountyPending, true);
-  assert.equal(f.grants.length, 0);
+test('a failed reward send keeps the result and is not sent again', async () => {
+  const f = fixture({ failGrant: true });
+  const first = await f.call('/api/tarot-fortune-draw');
+  assert.equal(first.code, 200); assert.ok(first.body.result);
+  const count = f.grants.length;
+  assert.ok(count > 0);
+  assert.equal((await f.call('/api/tarot-fortune-draw')).body.alreadyClaimed, true);
+  assert.equal(f.grants.length, count);
 });
 
-test('a confirmed legacy bonus is adopted without granting again', async () => {
-  const legacy = { dayKey: today(), cardId: 'old', fortune: 'existing' };
-  const f = fixture({ legacy });
-  f.records.set('DailyBountyGachaReward', JSON.stringify({ dayKey: today(), eligible: true, rank: 1, pulls: 1, itemIds: ['already-paid'] }));
-  const response = await f.call('/api/tarot-fortune-draw');
-  assert.equal(response.body.dailyBountyReward.items[0].itemId, 'already-paid');
-  assert.equal(f.grants.length, 0);
+test('an unverifiable SDK receipt does not repeat a grant', async () => {
+  const f = fixture({ invalidReceipt: true });
+  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 200);
+  const count = f.grants.length;
+  assert.ok(count > 0);
+  assert.equal((await f.call('/api/tarot-fortune-draw')).body.alreadyClaimed, true);
+  assert.equal(f.grants.length, count);
 });
 
-test('an incomplete legacy bonus is not guessed to be paid or automatically granted', async () => {
-  const legacy = { dayKey: today(), cardId: 'old', fortune: 'existing' };
-  const f = fixture({ legacy });
-  f.records.set('DailyBountyGachaReward', JSON.stringify({ dayKey: today(), eligible: true, rank: 1, pulls: 3, itemIds: ['maybe-paid'] }));
-  const result = await f.call('/api/tarot-fortune-draw');
-  assert.equal(result.body.bountyPending, true); assert.equal(result.body.dailyBountyReward, undefined);
-  assert.equal(f.grants.length, 0);
+test('a failed ranking read skips the ranking bonus and keeps the fortune', async () => {
+  const f = fixture({ failRankingOnce: true, eligible: true });
+  const first = await f.call('/api/tarot-fortune-draw');
+  assert.equal(first.code, 200); assert.ok(first.body.result);
+  assert.equal(first.body.dailyBountyReward, undefined);
+  const second = await f.call('/api/tarot-fortune-draw');
+  assert.equal(second.body.alreadyClaimed, true);
+  assert.equal(f.grants.filter(g => g.key.startsWith('daily-bounty-gacha')).length, 0);
 });
 
-test('reversed result writes the saved fragment state exactly once', async () => {
+test('a balance read failure after the response changes nothing', async () => {
+  const f = fixture({ failBalance: true });
+  const first = await f.call('/api/tarot-fortune-draw');
+  assert.equal(first.code, 200); assert.ok(first.body.result);
+  await new Promise(resolve => setImmediate(resolve));
+  const count = f.grants.length;
+  assert.equal((await f.call('/api/tarot-fortune-draw')).body.alreadyClaimed, true);
+  assert.equal(f.grants.length, count);
+});
+
+test('reversed result writes the fragment state exactly once', async () => {
   const f = fixture({ reversed: true });
   assert.equal((await f.call('/api/tarot-fortune-draw')).code, 200);
   const fragments = f.records.get('DailyTarotCardFragmentsV1');
@@ -274,122 +216,20 @@ test('reversed result writes the saved fragment state exactly once', async () =>
   assert.equal(f.records.get('DailyTarotCardFragmentsV1'), fragments);
 });
 
-test('a fixed prior-day claim resumes once and is acknowledged before a new draw', async () => {
-  const f = fixture({ failPreflightOnce: true, eligible: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const saved = [...f.db.rows().values()].find(value => value.plan?.result);
-  const planned = JSON.parse(JSON.stringify(saved.plan.result));
-  assert.ok(saved.bountyPlan); assert.equal(f.grants.length, 0);
-  f.advanceDay();
-  const recovered = await f.call('/api/tarot-fortune-status');
-  assert.equal(recovered.body.state, 'recovered');
-  assert.equal(recovered.body.recoveryDay, planned.dayKey);
-  assert.deepEqual(JSON.parse(JSON.stringify(recovered.body.result)), planned);
-  const count = f.grants.length;
-  assert.equal((await f.call('/api/tarot-fortune-status')).body.state, 'recovered');
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, count);
-  assert.equal((await f.call('/api/tarot-fortune-ack-recovery', 'OTHER', 'PLAYER', { dayKey: planned.dayKey })).code, 403);
-  const wrongDay = new Date(Date.parse(`${planned.dayKey}T00:00:00.000Z`) - 86400000).toISOString().slice(0, 10);
-  assert.equal((await f.call('/api/tarot-fortune-ack-recovery', 'PLAYER', 'PLAYER', { dayKey: wrongDay })).code, 503);
-  assert.equal((await f.call('/api/tarot-fortune-ack-recovery', 'PLAYER', 'PLAYER', { dayKey: planned.dayKey })).code, 200);
-  assert.equal((await f.call('/api/tarot-fortune-status')).body.canDraw, true);
-  assert.equal(f.grants.length, count);
-});
-
-test('a completed prior-day payment is not repeated after final confirmation fails', async () => {
-  const f = fixture({ eligible: true }); f.db.failFinishOnce = true;
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const count = f.grants.length; f.advanceDay();
-  const recovered = await f.call('/api/tarot-fortune-status');
-  assert.equal(recovered.body.state, 'recovered');
-  assert.equal(f.grants.length, count);
-});
-
-test('a prior-day ranking read resumes using the stored reward version', async () => {
-  const f = fixture({ failRankingOnce: true, eligible: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const saved = [...f.db.rows().values()].find(value => value.plan?.result);
-  assert.equal(saved.bountyBasis.rewardVersion, 1); assert.equal(f.grants.length, 0);
-  f.advanceDay();
-  assert.equal((await f.call('/api/tarot-fortune-status')).body.state, 'recovered');
-  assert.equal(f.contributionReads(), 1);
-  assert.equal(f.grants.filter(g => g.key.startsWith('daily-bounty-gacha')).length, 3);
-  assert.equal(new Set(f.grants.map(g => g.key)).size, f.grants.length);
-});
-
-test('a prior-day version lookup resumes from the correct historical ranking version', async () => {
-  const f = fixture({ failContributionOnce: true, historyAdvanced: true, eligible: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  const saved = [...f.db.rows().values()].find(value => value.plan?.result);
-  const original = JSON.parse(JSON.stringify(saved.plan.result));
-  assert.equal(f.grants.length, 0); f.advanceDay();
-  const result = await f.call('/api/tarot-fortune-status');
-  assert.equal(result.body.state, 'recovered');
-  assert.deepEqual(JSON.parse(JSON.stringify(result.body.result)), original);
-  assert.deepEqual(f.leaderboardVersions, [1]);
-});
-
-test('a previous-day reservation with no saved outcome and no writes can finish safely', async () => {
-  const f = fixture({ failFragmentReadOnce: true, historyAdvanced: true, reversed: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 0);
-  const saved = [...f.db.rows().values()].find(value => value.state === 'preparing');
-  assert.equal(saved.plan, undefined); const oldDay = saved.day;
-  f.advanceDay();
-  const result = await f.call('/api/tarot-fortune-status');
-  assert.equal(result.body.state, 'recovered'); assert.equal(result.body.result.dayKey, oldDay);
-  assert.deepEqual(f.leaderboardVersions, [1]);
-});
-
-test('an uncertain prior-day grant remains pending across midnight and is never resent', async () => {
-  const f = fixture({ failGrant: true });
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 1); f.advanceDay();
-  assert.equal((await f.call('/api/tarot-fortune-status')).body.state, 'pending');
-  assert.equal((await f.call('/api/tarot-fortune-draw')).code, 503);
-  assert.equal(f.grants.length, 1);
-});
-
-test('a recovery response cannot acknowledge or refresh a different signed-in account', async () => {
-  const source = fs.readFileSync('public/main.js', 'utf8');
-  const start = source.indexOf('async function finishDisplayedFortuneRecovery(');
-  const end = source.indexOf('function setDailyFortuneButtonClaimed(', start);
-  assert.ok(start >= 0 && end > start);
-  let current = true, resolveStatus, calls = 0, refreshes = 0;
-  const response = new Promise(resolve => { resolveStatus = resolve; });
-  const modal = { classList: { contains: () => true }, querySelector: () => ({}) };
-  const context = {
-    Player: { isCurrentPlayerSession: () => current }, hasPendingDailyFortuneToday: () => false,
-    document: { getElementById: id => id === 'dailyTarotFortuneOverlay' ? { style: { display: 'flex' } } : modal },
-    callApiWithLoader: () => { calls++; return response; },
-    Inventory: { getInventory: async () => { refreshes++; } }
-  };
-  vm.runInNewContext(`${source.slice(start, end)}; globalThis.run = finishDisplayedFortuneRecovery;`, context);
-  const running = context.run('OLD', '2026-10-30', {});
-  current = false;
-  resolveStatus({ state: 'recovered', recoveryDay: '2026-10-30', result: { dayKey: '2026-10-30' } });
-  await running;
-  assert.equal(calls, 1); assert.equal(refreshes, 0);
-});
-
-test('a confirmed fortune makes an unresolved ranking bonus visible', async () => {
-  const source = fs.readFileSync('public/main.js', 'utf8');
-  const start = source.indexOf('async function finishDisplayedFortuneRecovery(');
-  const end = source.indexOf('function setDailyFortuneButtonClaimed(', start);
-  assert.ok(start >= 0 && end > start);
-  const sub = { textContent: '' }, modal = { classList: { contains: () => true }, querySelector: () => ({}) };
-  let calls = 0, refreshes = 0;
-  const context = {
-    Player: { isCurrentPlayerSession: () => true }, hasPendingDailyFortuneToday: () => false,
-    document: { getElementById: id => id === 'dailyTarotFortuneOverlay' ? { style: { display: 'flex' } } : id === 'dailyTarotFortuneSub' ? sub : modal },
-    callApiWithLoader: async () => { calls++; return { result: { dayKey: '2026-10-30' }, bountyPending: true }; },
-    queueStatusFortuneBounty: () => null, showStatusFortuneBounty: () => {}, updateStatusFortuneBountyNames: () => {},
-    Inventory: { getInventory: async () => { refreshes++; } }
-  };
-  vm.runInNewContext(`${source.slice(start, end)}; globalThis.run = finishDisplayedFortuneRecovery;`, context);
-  await context.run('PLAYER', '2026-10-30', {});
-  assert.match(sub.textContent, /確認中/); assert.equal(calls, 1); assert.equal(refreshes, 1);
+test('a claim left by the earlier ledger counts as claimed only once it holds a result', async () => {
+  const { createHash } = require('node:crypto');
+  const path = `daily_fortune_claims/${createHash('sha256').update('PLAYER').digest('hex')}_${today()}`;
+  const unfinished = fixture();
+  unfinished.db.rows().set(path, { state: 'preparing', day: today(), owner: 'old', completed: {}, runningStep: null });
+  assert.equal((await unfinished.call('/api/tarot-fortune-status')).body.canDraw, true);
+  assert.equal((await unfinished.call('/api/tarot-fortune-draw')).body.alreadyClaimed, false);
+  const applying = fixture();
+  applying.db.rows().set(path, { state: 'applying', day: today(), owner: 'old', plan: { result: { dayKey: today(), cardId: 'kept' } }, completed: {} });
+  const status = await applying.call('/api/tarot-fortune-status');
+  assert.equal(status.body.canDraw, false); assert.equal(status.body.result.cardId, 'kept');
+  const draw = await applying.call('/api/tarot-fortune-draw');
+  assert.equal(draw.body.alreadyClaimed, true); assert.equal(draw.body.result.cardId, 'kept');
+  assert.equal(applying.grants.length, 0);
 });
 
 test('the fragment route lists only major arcana progress and needs the signed-in player', async () => {

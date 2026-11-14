@@ -63,7 +63,9 @@ let pendingFixedInviteNation = '';
 let lineFriendPromoState = null;
 let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
-const TAROT_MODULE_VERSION = '20261105-fortune-flow-v1';
+// JST day on which the server last answered that today's fortune has not been drawn.
+let dailyFortuneCanDrawDay = '';
+const TAROT_MODULE_VERSION = '20261113-fortune-fast-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261106-kingdom-presentation-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -449,6 +451,7 @@ function setDailyFortuneButtonPending(button) {
 }
 
 function markDailyFortuneClaimed(dayKey = '') {
+    dailyFortuneCanDrawDay = '';
     const todayKey = getJstDayKey();
     const confirmedDayKey = String(dayKey || '').trim() || todayKey;
     if (confirmedDayKey !== todayKey) return;
@@ -477,7 +480,7 @@ async function openDailyFortuneFromButton() {
     dailyFortuneOpenPromise = (async () => {
         const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
         if (Tarot && typeof Tarot.showDailyFortune === 'function') {
-            await Tarot.showDailyFortune(myPlayFabId);
+            await Tarot.showDailyFortune(myPlayFabId, { knownCanDraw: dailyFortuneCanDrawDay === getJstDayKey() });
             return;
         }
         if (Tarot && typeof Tarot.showDailyFortunePromptOnLogin === 'function') {
@@ -519,6 +522,7 @@ async function refreshDailyFortuneStatus() {
         if ((notice || status.state === 'recovered') && Player.isCurrentPlayerSession(Player.capturePlayerSession(playerId))) {
             void Inventory.getInventory(playerId, { force: true, isSilent: true }).catch(() => {});
         }
+        dailyFortuneCanDrawDay = status.canDraw ? day : '';
         if (status.state === 'pending' || status.state === 'recovered') {
             setDailyFortuneButtonPending(button);
         } else if (!status.canDraw) {
@@ -560,6 +564,10 @@ function initDailyFortuneButton() {
     button.addEventListener('click', () => {
         void openDailyFortuneFromButton();
     });
+    // Fetch the fortune module while the home screen is idle, so the first tap does not wait for it.
+    const preloadFortune = () => { void import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`).catch(() => {}); };
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(preloadFortune, { timeout: 4000 });
+    else setTimeout(preloadFortune, 2000);
 }
 
 function clearTroyEntryParamsFromUrl() {
