@@ -8,7 +8,6 @@ import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
 
 const NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
-const SUIT_MARK = { wand: '杖', sword: '剣', cup: '杯', coin: '☆' };
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
 const RANK = { 11: 'P', 12: 'N', 13: 'Q', 14: 'K', 15: 'A' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命', '正義',
@@ -83,12 +82,12 @@ function artImage(src, className) {
     image.alt = '';
     image.decoding = 'async';
     image.draggable = false;
-    // The separate rank and suit label stays readable if the picture cannot load.
+    // The rank overlay stays readable if the picture cannot load.
     image.addEventListener('error', () => image.remove(), { once: true });
     return image;
 }
 
-// Keep the labels outside the artwork. The thin frame alone carries the suit colour.
+// Fill the frame with artwork and keep only a compact rank over its top-left corner.
 function cardNode(card, tag = 'div') {
     const node = el(tag, 'kt-card');
     node.dataset.suit = card.major ? 'major' : card.suit;
@@ -97,7 +96,6 @@ function cardNode(card, tag = 'div') {
     image.width = 160;
     image.height = 240;
     const rank = el('span', 'kt-card-rank', rankText(card));
-    rank.append(el('span', 'kt-card-corner-suit', card.major ? '大' : SUIT_MARK[card.suit]));
     node.append(image, rank);
     if (tag === 'button') node.type = 'button';
     node.setAttribute('aria-label', cardName(card));

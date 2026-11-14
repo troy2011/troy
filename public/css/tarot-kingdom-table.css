@@ -229,10 +229,9 @@ body {
 .kt-field-empty { padding: 28px 18px; border: 1px dashed rgb(88 43 16 / 55%); border-radius: 6px; color: #40230f; background: rgb(248 214 157 / 75%); font-size: 13px; text-align: center; }
 
 
-/* Suit colours belong to the thin frame; the neutral label leaves the artwork clear. */
+/* Only the thin frame carries the suit colour; the compact rank sits over the artwork. */
 .kt-card {
   --kt-suit-color: #f4f3ef;
-  --kt-rank-height: 18px;
   position: relative;
   display: block;
   aspect-ratio: 2 / 3;
@@ -247,22 +246,27 @@ body {
   line-height: 1;
   overflow: hidden;
 }
-.kt-card-art { position: absolute; inset: var(--kt-rank-height) 0 0; width: 100%; height: calc(100% - var(--kt-rank-height)); object-fit: contain; }
+.kt-card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .kt-card-rank {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 2px;
+  left: 2px;
   display: flex;
   align-items: center;
-  gap: 3px;
-  width: 100%;
-  height: var(--kt-rank-height);
+  justify-content: center;
+  min-width: 21px;
+  height: 24px;
   padding: 1px 3px;
-  background: #181c20;
-  font-size: 14px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 3px;
+  color: #fff;
+  background: rgb(12 15 18 / 94%);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 65%);
+  font-size: 18px;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
-.kt-card-corner-suit { display: block; color: #deded8; font-size: 9px; font-weight: 500; }
 .kt-card[data-suit="wand"] { --kt-suit-color: #eb7068; }
 .kt-card[data-suit="cup"] { --kt-suit-color: #70b3f5; }
 .kt-card[data-suit="coin"] { --kt-suit-color: #77cd92; }

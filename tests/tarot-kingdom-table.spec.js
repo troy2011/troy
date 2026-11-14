@@ -96,6 +96,18 @@ for (const width of [320, 390, 430]) {
         await expect.poll(() => page.locator('#ktHand .kt-card-art').evaluateAll((list) => list.length === 8 && list.every((img) => img.complete && img.naturalWidth > 0))).toBe(true);
         await expect.poll(() => page.locator('.kt-seat:visible .kt-seat-portrait').evaluateAll((list) => list.length === 3 && list.every((img) => img.complete && img.naturalWidth > 0))).toBe(true);
         await expect(page.locator('#ktHand .kt-card-rank')).toHaveCount(8);
+        const labels = await page.locator('#ktHand .kt-card-rank').allTextContents();
+        expect(labels.every(label => /^(?:\d+|[PNQKA])$/.test(label))).toBe(true);
+        const artworkFillsFrames = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-card').evaluateAll(cards => cards.every(card => {
+            const image = card.querySelector('.kt-card-art');
+            const rank = card.querySelector('.kt-card-rank');
+            return image.offsetLeft === 0 && image.offsetTop === 0
+                && image.offsetWidth === card.clientWidth && image.offsetHeight === card.clientHeight
+                && rank.offsetLeft >= 0 && rank.offsetTop >= 0
+                && rank.offsetLeft + rank.offsetWidth <= image.offsetWidth
+                && rank.offsetTop + rank.offsetHeight <= image.offsetHeight;
+        }));
+        expect(artworkFillsFrames).toBe(true);
         await shot(page, `table-${width}.png`);
         expect(seen.errors).toEqual([]);
         expect(seen.unexpected).toEqual([]);
