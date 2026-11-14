@@ -87,7 +87,7 @@ for (const width of [320, 390, 430]) {
         await expect(page.locator('#ktRound')).toHaveText('第1局 / 4');
         await expect(page.locator('#ktPot')).toHaveText('場 80');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        const box = await page.locator('.kt-actions').boundingBox();
+        const box = await page.locator('#ktActions').boundingBox();
         expect(box.y + box.height).toBeLessThanOrEqual(700);
         for (const button of await page.locator('.kt-actions .kt-button:visible').all()) {
             expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
@@ -291,15 +291,104 @@ for (const input of [
             await expect(cards.nth(3)).toHaveAttribute('aria-pressed', 'false');
             await expect(page.locator('#ktSelection')).toHaveText('4枚を選択中');
         });
+
+        test('mixed numeric order supports manual drag, arrows and restoring order', async ({ page, context }) => {
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            const seen = await observe(page);
+            const time = new Date('2026-11-15T00:00:00Z');
+            await page.clock.install({ time });
+            await page.clock.pauseAt(new Date(time.getTime() + 1000));
+            await sit(page, { seed: 6 });
+            const cards = page.locator('#ktHand .kt-card');
+            const order = () => cards.evaluateAll(nodes => nodes.map(node => node.dataset.card));
+            const before = await order();
+            expect(before[0]).toBe('major-1');
+            const numbers = before.map(id => Number(id.split('-').at(-1)));
+            expect(numbers).toEqual([...numbers].sort((a, b) => a - b));
+            // The computer has the turn; arranging must still be available.
+            await expect(cards.first()).toBeDisabled();
+            await page.locator('#ktArrange').click();
+            await expect(cards.first()).toBeEnabled();
+            const source = await cards.last().locator('.kt-card-rank').boundingBox();
+            const target = await cards.first().locator('.kt-card-rank').boundingBox();
+            const start = { x: source.x + 10, y: source.y + source.height / 2 };
+            const end = { x: Math.max(1, target.x - 10), y: start.y };
+            if (input.hasTouch) {
+                const cdp = await context.newCDPSession(page);
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x - 25, y: start.y, id: 1 }] });
+                await expect(page.locator('.kt-hand-drag-card')).toBeVisible();
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+                expect(await order()).toEqual(before);
+                await expect(page.locator('.kt-hand-drag-card, .kt-hand-drop-marker')).toHaveCount(0);
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+                for (let step = 1; step <= 8; step += 1) {
+                    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x + (end.x - start.x) * step / 8, y: start.y, id: 1 }] });
+                }
+                await expect(page.locator('.kt-hand-drag-card')).toBeVisible();
+                await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+                await cdp.detach();
+            } else {
+                await page.mouse.move(start.x, start.y);
+                await page.mouse.down();
+                await page.mouse.move(end.x, end.y, { steps: 8 });
+                await expect(page.locator('.kt-hand-drag-card')).toBeVisible();
+                await page.mouse.up();
+            }
+            const moved = [before.at(-1), ...before.slice(0, -1)];
+            expect(await order()).toEqual(moved);
+            await expect(page.locator('.kt-hand-drag-card, .kt-hand-drop-marker')).toHaveCount(0);
+            await expect(page.locator('#ktMoveLeft')).toBeDisabled();
+            await page.locator('#ktMoveRight').click();
+            expect(await order()).toEqual([moved[1], moved[0], ...moved.slice(2)]);
+            if (!input.hasTouch) {
+                const node = cards.nth(1);
+                await node.focus();
+                await page.keyboard.press('ArrowRight');
+                await expect(cards.nth(2)).toBeFocused();
+            }
+            await shot(page, `manual-order-${input.width}.png`);
+            await page.locator('#ktSortHand').click();
+            expect(await order()).toEqual(before);
+            await page.locator('#ktArrange').click();
+            await expect(page.locator('#ktActions')).toBeVisible();
+            await expect(page.locator('#ktHand .is-selected')).toHaveCount(0);
+            await expect(page.locator('#ktSelection')).toHaveText('相手の手番');
+            expect(seen.errors).toEqual([]);
+            expect(seen.unexpected).toEqual([]);
+        });
     });
 }
+
+test('manual order and selected cards survive drawing and returning to play', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await sit(page);
+    await playOn(page, async () => await page.locator('#ktDialog').isHidden()
+        && await page.locator('#ktDraw').isEnabled());
+    const cards = page.locator('#ktHand .kt-card');
+    const order = () => cards.evaluateAll(nodes => nodes.map(node => node.dataset.card));
+    const chosen = await cards.first().getAttribute('data-card');
+    await cards.first().focus();
+    await page.keyboard.press('Space');
+    await page.locator('#ktArrange').click();
+    const last = cards.last();
+    await last.focus();
+    await page.keyboard.press('ArrowLeft');
+    const manual = await order();
+    await page.locator('#ktArrange').click();
+    await expect(page.locator(`#ktHand [data-card="${chosen}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#ktDraw').click();
+    expect((await order()).slice(0, -1)).toEqual(manual);
+    await expect(page.locator(`#ktHand [data-card="${chosen}"]`)).toHaveAttribute('aria-pressed', 'true');
+});
 
 test('the seat shows the han it would win with: one for going out, one more for the dealer', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 760 });
     await sit(page);
     const dealer = await page.locator('#ktMe .kt-badge-dealer').count();
     await expect(page.locator('#ktMe .kt-han-pill')).toHaveText(`${1 + dealer}翻`);
-    await expect(page.locator('.kt-actions .kt-button')).toHaveCount(3);
+    await expect(page.locator('.kt-actions .kt-button:visible')).toHaveCount(3);
     await expect(page.locator('.kt-badge-dealer')).toHaveCount(1);
 });
 

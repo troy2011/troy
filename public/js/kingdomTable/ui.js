@@ -6,6 +6,7 @@ import { chooseAction } from './ai.js';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
+import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=20261115-order-v1';
 
 const NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
@@ -48,6 +49,9 @@ const seatObserver = new ResizeObserver((entries) => {
 
 let match = null;
 let selected = new Set();
+let manualHandOrder = null;
+let arranging = false;
+let movingCard = null;
 let timer = 0;
 let fast = false;
 let seenEvents = 0;
@@ -67,7 +71,7 @@ function makeRng() {
 
 const rankText = (card) => (card.major ? String(card.num) : (RANK[card.num] || String(card.num)));
 const cardName = (card) => (card.major ? `大札${card.num} ${MAJOR[card.num]}` : `${SUIT_NAME[card.suit]}の${rankText(card)}`);
-const sortHand = (hand) => [...hand].sort((a, b) => (a.major - b.major) || (a.num - b.num) || String(a.suit).localeCompare(String(b.suit)));
+const sortHand = sortByNumber;
 
 function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -281,13 +285,21 @@ function renderHand() {
     const round = match.round;
     const myTurn = round.turn === ME && round.phase !== 'over';
     const choosing = myTurn && round.phase === 'play';
-    const hand = sortHand(round.players[ME].hand);
+    const hand = displayHand(round.players[ME].hand, manualHandOrder);
+    if (manualHandOrder) manualHandOrder = hand.map(card => card.id);
+    if (round.phase === 'over' || round.phase === 'retrieve') arranging = false;
+    if (!arranging) cancelHandDrag();
+    if (!hand.some(card => card.id === movingCard)) movingCard = null;
     const host = $('ktHand');
     const handKey = hand.map((card) => card.id).join(',');
     // Keep the actual buttons while selecting: replacing them drops keyboard focus
     // and restarts the card movement before the selection can be seen.
     if (host.dataset.cards !== handKey) {
-        host.replaceChildren(...hand.map((card) => cardNode(card, 'button')));
+        cancelHandDrag();
+        const existing = new Map([...host.children].map(node => [node.dataset.card, node]));
+        const focus = host.contains(document.activeElement) ? document.activeElement : null;
+        host.replaceChildren(...hand.map(card => existing.get(card.id) || cardNode(card, 'button')));
+        focus?.focus({ preventScroll: true });
         host.dataset.cards = handKey;
     }
     const playable = new Set();
@@ -299,14 +311,37 @@ function renderHand() {
         node.style.setProperty('--kt-card-offset', `${Math.abs(offset) * HAND_FAN_CURVE_STEP}px`);
         node.style.setProperty('--kt-card-order', String(index));
         node.classList.toggle('is-selected', selected.has(card.id));
+        node.classList.toggle('is-arrange-picked', arranging && movingCard === card.id);
         node.classList.toggle('is-playable', playable.has(card.id));
         node.classList.toggle('is-dim', choosing && !playable.has(card.id));
-        node.setAttribute('aria-pressed', String(selected.has(card.id)));
-        node.disabled = !myTurn || round.phase === 'retrieve';
+        node.setAttribute('aria-pressed', String(arranging ? movingCard === card.id : selected.has(card.id)));
+        node.disabled = round.phase === 'over' || round.phase === 'retrieve' || (!arranging && !myTurn);
     });
     $('ktHandCount').textContent = `${hand.length}枚`;
-    $('ktSelection').textContent = selected.size ? `${selected.size}枚を選択中` : myTurn ? 'タップして選択' : '相手の手番';
+    $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : myTurn ? 'タップして選択' : '相手の手番';
+    $('ktArrange').textContent = arranging ? '並べ替え完了' : '並べ替え';
+    $('ktArrange').setAttribute('aria-pressed', String(arranging));
+    $('ktArrange').disabled = round.phase === 'over' || round.phase === 'retrieve';
+    $('ktActions').hidden = arranging;
+    $('ktArrangeActions').hidden = !arranging;
+    const index = hand.findIndex(card => card.id === movingCard);
+    $('ktMoveLeft').disabled = index <= 0;
+    $('ktMoveRight').disabled = index < 0 || index >= hand.length - 1;
 }
+
+function moveHandCard(id, index) {
+    const hand = displayHand(match.round.players[ME].hand, manualHandOrder);
+    if (!arranging || !hand.some(card => card.id === id)) return;
+    manualHandOrder = moveCard(hand, id, index);
+    movingCard = id;
+    renderHand();
+}
+
+const cancelHandDrag = installHandDrag($('ktHand'), {
+    enabled: () => arranging,
+    pick: id => { movingCard = id; renderHand(); },
+    move: moveHandCard
+});
 
 function renderMe() {
     const round = match.round;
@@ -761,6 +796,10 @@ function after() {
 }
 
 function beginRound() {
+    cancelHandDrag();
+    manualHandOrder = null;
+    arranging = false;
+    movingCard = null;
     selected = new Set();
     seenEvents = 0;
     hint = '';
@@ -823,11 +862,42 @@ $('ktHand').addEventListener('click', (event) => {
     const node = event.target.closest('.kt-card');
     if (!node || node.disabled) return;
     const id = node.dataset.card;
+    if (arranging) { movingCard = id; renderHand(); return; }
     if (match.round.phase === 'trash') selected = new Set(selected.has(id) ? [] : [id]);
     else if (selected.has(id)) selected.delete(id);
     else selected.add(id);
     hint = '';
     render();
+});
+
+$('ktArrange').addEventListener('click', () => {
+    cancelHandDrag();
+    arranging = !arranging;
+    movingCard = null;
+    renderHand();
+});
+$('ktSortHand').addEventListener('click', () => {
+    cancelHandDrag();
+    manualHandOrder = null;
+    renderHand();
+});
+function shiftMovingCard(direction) {
+    const hand = displayHand(match.round.players[ME].hand, manualHandOrder);
+    const index = hand.findIndex(card => card.id === movingCard);
+    if (index >= 0) moveHandCard(movingCard, index + direction);
+}
+$('ktMoveLeft').addEventListener('click', () => shiftMovingCard(-1));
+$('ktMoveRight').addEventListener('click', () => shiftMovingCard(1));
+$('ktHand').addEventListener('keydown', event => {
+    if (!arranging) return;
+    if (event.key === 'Escape') { event.preventDefault(); $('ktArrange').click(); $('ktArrange').focus(); return; }
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const node = event.target.closest('.kt-card');
+    if (!node || node.disabled) return;
+    event.preventDefault();
+    movingCard = node.dataset.card;
+    shiftMovingCard(event.key === 'ArrowLeft' ? -1 : 1);
+    node.focus({ preventScroll: true });
 });
 
 $('ktStart').addEventListener('click', () => {

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/tavern-v1/tavern-room.webp">
-<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=20261115-artwork-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=20261115-order-v1">
 </head>
 <body>
 <main id="ktApp" class="kt-app">
@@ -74,12 +74,18 @@
     <div class="kt-hand-header">
       <span>手札 <strong id="ktHandCount"></strong></span>
       <span id="ktSelection"></span>
+      <button type="button" id="ktArrange" class="kt-hand-arrange" aria-pressed="false" aria-controls="ktArrangeActions">並べ替え</button>
     </div>
-    <div id="ktHand" class="kt-hand" aria-label="あなたの手札"></div>
-    <div class="kt-actions">
+    <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktSelection"></div>
+    <div id="ktActions" class="kt-actions">
       <button type="button" id="ktDraw" class="kt-button kt-button-draw">1枚引く</button>
       <button type="button" id="ktPass" class="kt-button kt-button-pass">パス</button>
       <button type="button" id="ktPlay" class="kt-button kt-button-main kt-button-play">出す</button>
+    </div>
+    <div id="ktArrangeActions" class="kt-actions" hidden>
+      <button type="button" id="ktMoveLeft" class="kt-button">← 左へ</button>
+      <button type="button" id="ktSortHand" class="kt-button">数字順</button>
+      <button type="button" id="ktMoveRight" class="kt-button">右へ →</button>
     </div>
   </section>
 
@@ -93,6 +99,6 @@
 
   <button type="button" id="ktZoom" class="kt-zoom" aria-label="札を閉じる" hidden></button>
 </main>
-<script type="module" src="js/kingdomTable/ui.js?v=20261115-artwork-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=20261115-order-v1"></script>
 </body>
 </html>
