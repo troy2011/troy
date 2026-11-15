@@ -66,7 +66,7 @@ let dailyFortuneClaimEventBound = false;
 // JST day on which the server last answered that today's fortune has not been drawn.
 let dailyFortuneCanDrawDay = '';
 const TAROT_MODULE_VERSION = '20261113-fortune-fast-v1';
-const TAROT_KINGDOM_RESCUE_VERSION = '20261106-kingdom-presentation-v1';
+const TAROT_KINGDOM_RESCUE_VERSION = '20261116-kingdom-table-rules-v1';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
     'code',

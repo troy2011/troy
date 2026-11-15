@@ -225,6 +225,8 @@ const SUIT_HARMONY = Object.freeze({
   Pentacle: 'Cup'
 });
 const SUIT_HARMONY_LABEL = 'ワンド↔ソード / カップ↔ペンタクル';
+// Ordinary card matches use field suit -> answering suit; combat keeps its own harmony effects.
+const KINGDOM_CARD_COUNTER_SUIT = Object.freeze({ Wand: 'Cup', Cup: 'Sword', Sword: 'Pentacle', Pentacle: 'Wand' });
 const KINGDOM_HARMONY_DAMAGE_MULTIPLIER = 1.15;
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#9b72e6', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = {
@@ -494,7 +496,7 @@ const LEGACY_HAND_SIZE = 6;
 const KINGDOM_FORCED_DRAW_DEATH_THRESHOLD = 3;
 const KINGDOM_ENEMY_DEFEAT_MODE_HP_ZERO = 'hp-zero';
 const KINGDOM_ENEMY_DEFEAT_MODE_HAND_EMPTY = 'hand-empty';
-const KINGDOM_RULES_VERSION = 29;
+const KINGDOM_RULES_VERSION = 30;
 const TOTAL_HANDS = 4;
 const START_CHIPS = 100;
 const A_PENALTY = 1;
@@ -561,6 +563,7 @@ const ROLE_LABEL = {
   FiveKind: 'ファイブカード'
 };
 const ROLE_RATE = { Straight: 1, Flush: 1, FullHouse: 2, FourKind: 3, TheWorld: 3, StraightFlush: 4, FiveKind: 5 };
+const KINGDOM_CARD_MATCH_ROLE_HAN = Object.freeze({ Straight: 2, Flush: 2, FullHouse: 3, FourKind: 4, TheWorld: 5, StraightFlush: 5, FiveKind: 10 });
 const KINGDOM_ROLE_ATTACK_PROFILES = Object.freeze({
   Straight: Object.freeze({ targetScope: 'single', rangeLabel: '単体中攻撃', damageScale: 1 }),
   Flush: Object.freeze({ targetScope: 'stage', rangeLabel: '全体小攻撃', damageScale: 0.65 }),
@@ -7171,6 +7174,18 @@ function isKingdomFinalCardOpening(play, mode = 'normal') {
     && (s.leadRequiredOwner == null || Number(s.leadRequiredOwner) === owner)
     && s.players?.[owner]?.hand?.length === 1
     && play.cardsHand?.length === 1;
+}
+
+function areKingdomTableRulesEnabled(state = s) {
+  return Number(state?.rules?.tableRulesVersion || 0) >= 1
+    && !state?.stage && !state?.raid && state?.tutorialEnabled !== true
+    && (state !== s || !kingdomExplorationSession);
+}
+
+function isKingdomLastOpeningHan(play) {
+  const card = play?.cardsHand?.[0];
+  return areKingdomTableRulesEnabled() && isKingdomFinalCardOpening(play)
+    && card?.kind === 'major' && [15, 16, 17, 18, 19, 21].includes(Number(card.number));
 }
 
 function getKingdomSkillAttackDuration(_effectCount = 0, state = s) {
@@ -14217,6 +14232,7 @@ function normalizeKingdomRules(
   );
   return {
     version: KINGDOM_RULES_VERSION,
+    tableRulesVersion: Math.max(0, Math.min(1, Math.floor(Number(incoming.tableRulesVersion) || 0))),
     openingRescueVersion: Math.max(0, Math.min(1, Math.floor(Number(incoming.openingRescueVersion) || 0))),
     initialHandSize,
     handLimit,
@@ -14375,6 +14391,8 @@ function createKingdomPresentationEpoch() {
 function initState() {
   const playerTemplates = getKingdomInitialPlayerTemplates();
   const rules = normalizeKingdomRules({
+    // Existing online rooms have no client-capability handshake. Their rules stay pinned.
+    tableRulesVersion: !kingdomExplorationSession && !isNetModeActive() ? 1 : 0,
     openingRescueVersion: kingdomExplorationSession ? 0 : 1,
     ...(isNetModeActive() && !isKingdomVersionedRoom(tkNet.roomId) ? { majorArcanaGateVersion: 1 } : {}),
     playerCount: playerTemplates.length
@@ -17843,6 +17861,7 @@ function buildTarotKingdomDebugBattleState(options = {}) {
   s.tutorialEnabled = options.tutorialEnabled === true;
   // Existing combat fixtures describe legacy combat rules; match tests opt in explicitly.
   s.rules.openingRescueVersion = 0;
+  s.rules.tableRulesVersion = 0;
   if (options.rules) s.rules = normalizeKingdomRules(options.rules);
   if (options.stage && typeof options.stage === 'object') {
     s.stage = normalizeKingdomExplorationStageState(options.stage);
@@ -20658,7 +20677,7 @@ function getAceAbilityPlayViolation(play, mode) {
     && isMinorAceCard(fieldCards[0])
   ) {
     // 16〜19は同スートの場に出すルールで判定する。Aもその対象に含む。
-    if (Number(s.rules?.majorArcanaGateVersion || 0) >= 2
+    if (!areKingdomTableRulesEnabled() && Number(s.rules?.majorArcanaGateVersion || 0) >= 2
       && played.length === 1 && isMajorSuitGateCard(played[0])) return null;
     return 'Aの能力：大アルカナでは返せません。';
   }
@@ -20758,6 +20777,7 @@ function getMajorSuitGateViolation(play, mode) {
 }
 
 function getKingdomPlayHarmony(play, trick) {
+  if (areKingdomTableRulesEnabled()) return null;
   if (!play || !trick || play.call === true || play.type !== trick.type) return null;
   const playCards = Array.isArray(play.cardsTable) ? play.cardsTable.filter(Boolean) : [];
   const trickCards = Array.isArray(trick.cardsTable) ? trick.cardsTable.filter(Boolean) : [];
@@ -20856,6 +20876,11 @@ function validatePlay(play, mode) {
     if (playHasMajor && !trickHasMajor) {
       return { ok: true };
     }
+    if (areKingdomTableRulesEnabled()) {
+      if (playHasMajor) return { ok: true };
+      const compatible = trickCards.some(field => playCards.some(card => KINGDOM_CARD_COUNTER_SUIT[field.suit] === card.suit));
+      return compatible ? { ok: true } : { ok: false, reason: '同数字はワンド←カップ←ソード←ペンタクル←ワンドの相性で返します。' };
+    }
     const playMask = getPlaySuitMask(play);
     const trickMask = getPlaySuitMask(s.trick);
     return isSuitHarmonyCompatible(playMask, trickMask)
@@ -20865,6 +20890,7 @@ function validatePlay(play, mode) {
   const roleCmp = compareRole(play.role, s.trick.role);
   if (roleCmp > 0) return { ok: true };
   if (roleCmp < 0) return { ok: false, reason: '場より強い役が必要です。' };
+  if (areKingdomTableRulesEnabled()) return { ok: false, reason: '同じ役・同じ強さの5枚役では返せません。' };
   const playMask = getPlaySuitMask(play);
   const trickMask = getPlaySuitMask(s.trick);
   return isSuitHarmonyCompatible(playMask, trickMask)
@@ -20898,11 +20924,14 @@ function applyRoleRewardOnClear(playerIndex) {
   if (!play || play.type !== 'role' || play.owner !== playerIndex) return;
   const p = s.players[playerIndex];
   const roleLabel = getRoleDisplayLabel(play);
-  const add = Number(play.role?.effectiveRate ?? play.role?.baseRate ?? 0);
+  const combatAdd = Number(play.role?.effectiveRate ?? play.role?.baseRate ?? 0);
+  const add = areKingdomTableRulesEnabled()
+    ? Math.max(0, (KINGDOM_CARD_MATCH_ROLE_HAN[play.role?.key] || 0) - (play.call ? 1 : 0))
+    : combatAdd;
   if (add <= 0) { log(`${p.name}: ${roleLabel}（星加算なし）`); return; }
   p.stars = Math.max(0, Number(p.stars) || 0) + add;
   if (areKingdomArcanaPointRulesEnabled()) {
-    p.arcanaPoints = Math.max(0, Number(p.arcanaPoints) || 0) + add;
+    p.arcanaPoints = Math.max(0, Number(p.arcanaPoints) || 0) + combatAdd;
   }
   log(`${p.name}: ${roleLabel}成立 +${add}⭐`);
   playKingdomCoinEffect(playerIndex, Math.min(8, Math.max(3, add + 2)), '🪙');
@@ -22385,6 +22414,11 @@ function continueAfterPlay(pi, play) {
 
 function finishKingdomEmptyHandPlay(playerIndex, play) {
   const player = s.players[playerIndex];
+  if (areKingdomTableRulesEnabled() && play?.lastOpeningHan === 1 && !play.lastOpeningHanAwarded) {
+    play.lastOpeningHanAwarded = true;
+    player.stars = Math.max(0, Number(player.stars) || 0) + 1;
+    log(`${player.name}: ラスト上がり +1翻`);
+  }
   if (play?.type === 'role') {
     player.stars = Math.max(0, Number(player.stars) || 0) + 1;
     if (areKingdomArcanaPointRulesEnabled()) {
@@ -22398,6 +22432,7 @@ function finishKingdomEmptyHandPlay(playerIndex, play) {
 
 function getRoundFinishActionLabel(play) {
   if (!play) return '出し切り';
+  if (play.lastOpeningHanAwarded) return 'ラスト上がり +1翻';
   if (play.type === 'role') return getRoleDisplayLabel(play);
   const count = Math.max(1, Number(play?.count) || Number(play?.cardsTable?.length) || 1);
   return `${count}枚出し`;
@@ -22472,6 +22507,7 @@ function applyPlay(pi, play, retryDepth = 0) {
   const prevLeadCard = s?.trick?.cardsTable?.[0] || null;
   const prevLeadSuit = prevLeadCard ? (suitsForCard(prevLeadCard, false)[0] || 'None') : null;
   const prevLeadOwner = Number.isInteger(s?.trick?.owner) ? s.trick.owner : null;
+  const lastOpeningHan = isKingdomLastOpeningHan(play) ? 1 : 0;
   const selectedIds = Array.isArray(play?.selectedIds) ? play.selectedIds.filter(Boolean) : [];
   const selectedCount = selectedIds.length > 0
     ? selectedIds.length
@@ -22510,6 +22546,9 @@ function applyPlay(pi, play, retryDepth = 0) {
     return;
   }
   resetKingdomForcedDrawStreak(pi);
+  // Capture the empty field before removing the last card; never trust a submitted bonus.
+  play.lastOpeningHan = lastOpeningHan;
+  play.lastOpeningHanAwarded = false;
   const tutorialProgressResult = tutorialObjectivePending
     ? completeKingdomTutorialObjective(pi)
     : 'unchanged';
@@ -30339,13 +30378,21 @@ let kingdomRulebookPreviousFocus = null;
 
 function setKingdomRulebookOpen(open, { restoreFocus = true } = {}) {
   if (!ui.rulebook || !ui.rulebookButton) return;
+  const tableRules = areKingdomTableRulesEnabled();
+  ui.rulebook.querySelectorAll('[data-table-rules-copy]').forEach((node) => {
+    if (!node.dataset.legacyCopy) node.dataset.legacyCopy = node.innerHTML;
+    if (tableRules) node.textContent = node.dataset.tableRulesCopy;
+    else node.innerHTML = node.dataset.legacyCopy;
+  });
+  ui.rulebook.querySelectorAll('[data-legacy-harmony]').forEach((node) => node.toggleAttribute('hidden', tableRules));
+  ui.rulebook.querySelector('[data-table-card-rules]')?.toggleAttribute('hidden', !tableRules);
   ui.rulebook.querySelector('[data-opening-rescue-rules]')?.toggleAttribute('hidden', !areKingdomOpeningRescueRulesEnabled());
   const aceRule = ui.rulebook.querySelector('[data-ace-reply-rule]');
-  if (aceRule) aceRule.textContent = Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
+  if (aceRule) aceRule.textContent = !tableRules && Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
     ? '数字1とは別物です。対応スートに出せる塔・星・月・太陽は、同スートのAも対象です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。'
     : '数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。';
   const majorSuitRule = ui.rulebook.querySelector('[data-major-suit-rule]');
-  if (majorSuitRule) majorSuitRule.textContent = Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
+  if (majorSuitRule) majorSuitRule.textContent = !tableRules && Number(s?.rules?.majorArcanaGateVersion || 0) >= 2
     ? '対応する同スートの1枚場専用（Aを含む）。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。通常の初手には出せませんが、最後の1枚の特例があります。11バックやロックなど他の制限も適用されます。'
     : '対応する同スートの1枚場専用（Aを除く）。塔＝ソード、星＝カップ、月＝ペンタクル、太陽＝ワンド。通常の初手には出せませんが、最後の1枚の特例があります。';
   const shouldOpen = open === true;
@@ -30488,7 +30535,7 @@ function ensureKingdomRulebookUi() {
             <span class="tarot-kingdom-rulebook-role-condition">${description}</span>
             <span class="tarot-kingdom-rulebook-role-cards" aria-label="${roleLabel}のカード例">${cards.map((card) => rulebookCardMarkup(card, { showRank: true })).join('')}</span>
           </td>
-          <td><span>×${ROLE_RATE[roleKey] || 1}</span><small>${attackLabel}</small></td>
+          <td data-table-rules-copy="${KINGDOM_CARD_MATCH_ROLE_HAN[roleKey]}翻（コール${KINGDOM_CARD_MATCH_ROLE_HAN[roleKey] - 1}翻）"><span>×${ROLE_RATE[roleKey] || 1}</span><small>${attackLabel}</small></td>
         </tr>
       `;
     }).join('');
@@ -30559,7 +30606,7 @@ function ensureKingdomRulebookUi() {
               <li><span>1</span><div><strong>枚数</strong><small>場と同じ1〜3枚</small></div></li>
               <li><span>2</span><div><strong>数字</strong><small>複数枚ならすべて同じ</small></div></li>
               <li><span>3</span><div><strong>強さ</strong><small>場より大きい数字</small></div></li>
-              <li><span>4</span><div><strong>同値</strong><small>大アルカナか調和スート</small></div></li>
+              <li><span>4</span><div><strong>同値</strong><small data-table-rules-copy="大アルカナか弱点スート">大アルカナか調和スート</small></div></li>
             </ol>
             <div class="tarot-kingdom-rulebook-copy-grid">
               <div>
@@ -30568,7 +30615,7 @@ function ensureKingdomRulebookUi() {
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p>同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
+                <p data-table-rules-copy="同数字はワンド←カップ←ソード←ペンタクル←ワンド。矢印の右の札で左の札に返します。複数枚は1組でも相性が合えば返せます。大アルカナ入りなら同数字のすべてに返せます。小札だけでは同数字の大札に返せません。">同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>
@@ -30583,14 +30630,15 @@ function ensureKingdomRulebookUi() {
                 <p>オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。</p>
               </div>
             </div>
-            <p class="tarot-kingdom-rulebook-suits-caption">線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。</p>
+            <div class="tarot-kingdom-rulebook-note" data-table-card-rules hidden><strong>通常対戦の新ルール</strong><p>同じ強さの5枚役には返せません。場を流した役はストレート・フラッシュ2翻、フルハウス3翻、フォーカード4翻、ザ・ワールド・ストレートフラッシュ5翻、ファイブカード10翻。コールは1翻少なくなります。</p><p>大札15〜19・21が最後の1枚で、自分が親かつ場が空のときは出して上がれます。この上がりだけ+1翻。場に札があるときは専用条件・数字・ロックなどを満たす必要があります。小札Aに大札は返せません。</p></div>
+            <p class="tarot-kingdom-rulebook-suits-caption" data-legacy-harmony>線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。</p>
             <div class="tarot-kingdom-rulebook-suits" aria-label="調和スート。ワンドとソード、カップとペンタクル">
               <div class="is-wand">${rulebookCardMarkup(rulebookMinorCard('Wand', 5))}<strong>ワンド</strong></div>
               <div class="is-cup">${rulebookCardMarkup(rulebookMinorCard('Cup', 5))}<strong>カップ</strong></div>
               <div class="is-sword">${rulebookCardMarkup(rulebookMinorCard('Sword', 5))}<strong>ソード</strong></div>
               <div class="is-pentacle">${rulebookCardMarkup(rulebookMinorCard('Pentacle', 5))}<strong>ペンタクル</strong></div>
             </div>
-            <svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" aria-label="スート調和図。ワンドとソード、カップとペンタクル">
+            <div data-legacy-harmony><svg class="tarot-kingdom-rulebook-suits-diagram" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" aria-label="スート調和図。ワンドとソード、カップとペンタクル">
               <path d="M82 52 H198" fill="none" stroke="#e7bd58" stroke-width="3" stroke-linecap="round" />
               <text x="140" y="47" text-anchor="middle" fill="#ffe39a" font-size="22" font-weight="900">↔</text>
               <circle cx="54" cy="52" r="24" fill="#a83232" opacity="0.42" />
@@ -30609,16 +30657,16 @@ function ensureKingdomRulebookUi() {
               <text x="226" y="160" text-anchor="middle" fill="#fff4c5" font-size="18" font-weight="900">P</text>
               <text x="226" y="190" text-anchor="middle" fill="#fff4c5" font-size="11" font-weight="700">ペンタクル</text>
               <text x="140" y="216" text-anchor="middle" fill="#ffe39a" font-size="12" font-weight="900">HARMONY ×1.15</text>
-            </svg>
+            </svg></div>
           </section>
 
           <section id="tarotKingdomRulesRoles" class="tarot-kingdom-rulebook-section" tabindex="-1">
             <span class="tarot-kingdom-rulebook-section-no">03 / FIVE-CARD ROLES</span>
             <h3>5枚役の強さ</h3>
-            <p>下へ行くほど上位。同じ役・同じ主数字なら調和スートで返せます。成立時はHARMONYで攻撃×1.15。役が連続するとチェイン倍率が上がり、最大×1.75です。</p>
+            <p data-table-rules-copy="下へ行くほど上位。同じ役・同じ強さでは返せません。場を流した役の翻数を加えます。コールは通常より1翻少なくなります。">下へ行くほど上位。同じ役・同じ主数字なら調和スートで返せます。成立時はHARMONYで攻撃×1.15。役が連続するとチェイン倍率が上がり、最大×1.75です。</p>
             <div class="tarot-kingdom-rulebook-table-wrap">
               <table>
-                <thead><tr><th>役</th><th>成立条件</th><th>倍率・範囲</th></tr></thead>
+                <thead><tr><th>役</th><th>成立条件</th><th data-table-rules-copy="翻数">倍率・範囲</th></tr></thead>
                 <tbody>${roleRows}</tbody>
               </table>
             </div>
