@@ -1,10 +1,9 @@
 // Tarot Kingdom, table version: the card rules of one round.
-// Source of the rules: public/tarot-kingdom-real.html (2026-10-23 edition).
+// Table rules: public/tarot-kingdom-table-rules.html.
 // Pure logic: no DOM, no storage, no network. Chips are handled in match.js.
 
 export const SUITS = ['wand', 'sword', 'cup', 'coin'];
 export const HAND_LIMIT = 8;
-const HARMONY = { wand: 'sword', sword: 'wand', cup: 'coin', coin: 'cup' };
 const MAJOR_SUITS = { 1: SUITS, 16: ['sword'], 17: ['cup'], 18: ['coin'], 19: ['wand'] };
 const OPENING_BARRED = new Set([15, 16, 17, 18, 19, 21]);
 // Han earned when a five-card role clears the field (or goes out), by role rank. A role made by a call earns one less.
@@ -34,10 +33,6 @@ export const numberKey = (card) => (!card.major && card.num === 15 ? 'A' : card.
 export const suitsOf = (card) => (card.major ? (MAJOR_SUITS[card.num] || []) : [card.suit]);
 const isMinor = (card, num) => !card.major && card.num === num;
 const isMajor = (card, num) => card.major && card.num === num;
-
-function hasHarmony(a, b) {
-    return a.some((x) => suitsOf(x).some((suit) => b.some((y) => suitsOf(y).includes(HARMONY[suit]))));
-}
 
 function compareLists(a, b) {
     for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
@@ -130,7 +125,7 @@ export function checkNormal(state, p, cards) {
         return YES;
     }
     if (isMajor(card, 15)) {
-        return !top[0].major && top[0].num >= 11 && top[0].num <= 14 ? YES : no('悪魔はP・N・Q・Kの1枚場に出します');
+        return !top[0].major && top[0].num >= 11 && top[0].num <= 14 ? YES : no('悪魔は小札11〜14の1枚場に出します');
     }
     if (special && !suitsOf(top[0]).includes(MAJOR_SUITS[card.num][0])) return no('この大札は対応するスートの1枚場に出します');
     const mine = card.num;
@@ -141,7 +136,7 @@ export function checkNormal(state, p, cards) {
     }
     if (playHasMajor && !fieldHasMajor) return YES;
     if (fieldHasMajor && !playHasMajor) return no('大札入りの同値には小札だけで返せません');
-    return hasHarmony(cards, top) ? YES : no('同じ数字は調和のスートがあれば返せます');
+    return no('同じ数字では、大札で小札に返す場合だけ出せます');
 }
 
 // Five hand cards as a role: led, or laid on a weaker role.
@@ -152,7 +147,7 @@ export function checkRole(state, p, cards) {
     if (!state.field.kind) return { ok: true, role };
     if (state.field.kind !== 'role') return no('通常出しの場に手札だけの5枚役は重ねられません');
     const d = compareRoles(role, state.field.role);
-    if (d > 0 || (d === 0 && hasHarmony(cards, fieldCards(state).slice(-5)))) return { ok: true, role };
+    if (d > 0) return { ok: true, role };
     return no('場より強い役が必要です');
 }
 

@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js';
-import { ROLE_NAMES, ROLE_HAN } from './rules.js';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js';
-import { chooseAction } from './ai.js';
+import * as Rules from './rules.js?v=20261115-major-ties-v1';
+import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-major-ties-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-major-ties-v1';
+import { chooseAction } from './ai.js?v=20261115-major-ties-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
@@ -102,7 +102,8 @@ function cardNode(card, tag = 'div') {
     const image = artImage(artUrl(card, 'thumbs'), 'kt-card-art');
     image.width = 160;
     image.height = 240;
-    const rank = el('span', 'kt-card-rank', rankText(card));
+    const rank = el('span', 'kt-card-rank');
+    rank.append(el('span', 'kt-card-value', rankText(card)));
     node.append(image, rank);
     if (tag === 'button') node.type = 'button';
     node.setAttribute('aria-label', cardName(card));

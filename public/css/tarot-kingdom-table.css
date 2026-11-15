@@ -272,7 +272,7 @@ body {
   border-style: solid;
   border-color: var(--kt-frame-top) var(--kt-frame-right) var(--kt-frame-bottom) var(--kt-frame-left);
   border-radius: 3px;
-  color: #fff;
+  color: var(--kt-rank-color, var(--kt-suit-color));
   background: rgb(12 15 18 / 94%);
   box-shadow: 0 1px 3px rgb(0 0 0 / 65%);
   font-size: 18px;
@@ -284,15 +284,20 @@ body {
 .kt-card[data-suit="cup"] { --kt-suit-color: var(--kt-cup-color); }
 .kt-card[data-suit="coin"] { --kt-suit-color: var(--kt-coin-color); }
 .kt-card[data-suit="sword"] { --kt-suit-color: var(--kt-sword-color); }
-.kt-card[data-suit="major"][data-suits="wand"] { --kt-frame-left: var(--kt-wand-color); --kt-frame-right: var(--kt-wand-color); }
-.kt-card[data-suit="major"][data-suits="cup"] { --kt-frame-left: var(--kt-cup-color); --kt-frame-right: var(--kt-cup-color); }
-.kt-card[data-suit="major"][data-suits="coin"] { --kt-frame-left: var(--kt-coin-color); --kt-frame-right: var(--kt-coin-color); }
-.kt-card[data-suit="major"][data-suits="sword"] { --kt-frame-left: var(--kt-sword-color); --kt-frame-right: var(--kt-sword-color); }
+.kt-card[data-suit="major"][data-suits="wand"] { --kt-rank-color: var(--kt-wand-color); --kt-frame-left: var(--kt-wand-color); --kt-frame-right: var(--kt-wand-color); }
+.kt-card[data-suit="major"][data-suits="cup"] { --kt-rank-color: var(--kt-cup-color); --kt-frame-left: var(--kt-cup-color); --kt-frame-right: var(--kt-cup-color); }
+.kt-card[data-suit="major"][data-suits="coin"] { --kt-rank-color: var(--kt-coin-color); --kt-frame-left: var(--kt-coin-color); --kt-frame-right: var(--kt-coin-color); }
+.kt-card[data-suit="major"][data-suits="sword"] { --kt-rank-color: var(--kt-sword-color); --kt-frame-left: var(--kt-sword-color); --kt-frame-right: var(--kt-sword-color); }
 .kt-card[data-suit="major"][data-suit-count="4"] {
   --kt-frame-top: var(--kt-wand-color);
   --kt-frame-right: var(--kt-cup-color);
   --kt-frame-bottom: var(--kt-coin-color);
   --kt-frame-left: var(--kt-sword-color);
+}
+.kt-card[data-suit="major"][data-suit-count="4"] .kt-card-value {
+  color: transparent;
+  background: linear-gradient(180deg, var(--kt-wand-color) 0% 25%, var(--kt-cup-color) 25% 50%, var(--kt-coin-color) 50% 75%, var(--kt-sword-color) 75% 100%);
+  background-clip: text;
 }
 .kt-card.is-zoomable { cursor: zoom-in; }
 

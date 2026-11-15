@@ -1,6 +1,6 @@
 // Tarot Kingdom, table version: a plain computer player. It only uses what a player at the table can see:
 // its own hand, the field and the public state.
-import { listMoves, options, numberKey } from './rules.js';
+import { listMoves, options, numberKey } from './rules.js?v=20261115-major-ties-v1';
 
 const BARRED = new Set([15, 16, 17, 18, 19, 21]);
 const strength = (state, card) => (state.back ? 21 - card.num : card.num);

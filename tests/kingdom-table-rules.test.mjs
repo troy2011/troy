@@ -1,4 +1,4 @@
-// Rules of the table version of Tarot Kingdom, checked against public/tarot-kingdom-real.html.
+// Rules of the table version of Tarot Kingdom, checked against public/tarot-kingdom-table-rules.html.
 // Run: node --test tests/kingdom-table-rules.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,11 +55,33 @@ test('a stronger number of the same count answers the field', () => {
     assert.equal(state.turn, 1);
 });
 
-test('an equal number needs a harmony pair, and a major card beats minors of the same number', () => {
-    ok(R.checkNormal(table(['W7', 'W2'], { field: 'S7' }), 0, cards('W7')));
+test('an equal number is allowed only when a major card answers minor cards', () => {
+    refused(R.checkNormal(table(['W7', 'W2'], { field: 'S7' }), 0, cards('W7')));
     refused(R.checkNormal(table(['C7', 'W2'], { field: 'S7' }), 0, cards('C7')));
     ok(R.checkNormal(table(['M7', 'W2'], { field: 'S7' }), 0, cards('M7')));
     refused(R.checkNormal(table(['S7', 'W2'], { field: 'M7' }), 0, cards('S7')));
+});
+
+test('no minor suit pairing can answer the same number, including during back', () => {
+    for (const mine of ['W', 'S', 'C', 'O']) for (const field of ['W', 'S', 'C', 'O']) {
+        if (mine === field) continue;
+        const state = table([`${mine}7 W2`, 'W3'], { field: `${field}7` });
+        refused(R.checkNormal(state, 0, cards(`${mine}7`)));
+        state.back = true;
+        refused(R.checkNormal(state, 0, cards(`${mine}7`)));
+    }
+    const major = table(['M7 W2', 'W3'], { field: 'S7' });
+    major.back = true;
+    ok(R.checkNormal(major, 0, cards('M7')));
+});
+
+test('an equal-number pair must contain a major and answer a minor-only pair', () => {
+    refused(R.checkNormal(table(['W7 O7 W2', 'W3'], { field: 'S7 C7' }), 0, cards('W7 O7')));
+    ok(R.checkNormal(table(['M7 W7 W2', 'W3'], { field: 'S7 C7' }), 0, cards('M7 W7')));
+    refused(R.checkNormal(table(['W7 C7 W2', 'W3'], { field: 'M7 S7' }), 0, cards('W7 C7')));
+    const state = table(['W7 C7 M7 W9', 'W2'], { field: 'S7' });
+    const equal = R.listMoves(state, 0).filter(move => move.type === 'normal' && move.cards[0].num === 7);
+    assert.deepEqual(equal.map(move => move.cards.map(c => c.id)), [['major-7']]);
 });
 
 test('the ace is the strongest minor and a lone ace cannot be answered by a major card', () => {
@@ -232,6 +254,16 @@ test('a role is led or laid on a weaker role, never on a normal field', () => {
     refused(R.play(lead, 1, ids('W2')));
     const over = table(['S3 C4 W5 O6 S7 W9', 'W2', 'W3'], { field: 'C2' });
     refused(R.play(over, 0, ids('S3 C4 W5 O6 S7'), 'role'));
+});
+
+test('an equal-strength role cannot answer even with a former harmony pair or a major', () => {
+    const flush = table(['S3 S4 S5 S6 S7 W9', 'W3 W4 W5 W6 W7 W8', 'C2']);
+    ok(R.play(flush, 0, ids('S3 S4 S5 S6 S7')));
+    refused(R.checkRole(flush, 1, cards('W3 W4 W5 W6 W7')));
+    ok(R.checkRole(flush, 1, cards('W4 W5 W6 W7 W8')));
+    const straight = table(['S3 C4 W5 O6 S7 W9', 'M3 W4 S5 C6 O7', 'C2']);
+    ok(R.play(straight, 0, ids('S3 C4 W5 O6 S7')));
+    refused(R.checkRole(straight, 1, cards('M3 W4 S5 C6 O7')));
 });
 
 test('a call joins four hand cards to a single field card and lifts cut, back and lock', () => {

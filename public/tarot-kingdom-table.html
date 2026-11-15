@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/tavern-v1/tavern-room.webp">
-<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=20261115-arcana-suits-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=20261115-major-ties-v1">
 </head>
 <body>
 <main id="ktApp" class="kt-app">
@@ -15,6 +15,7 @@
     <p class="kt-eyebrow">TAROT KINGDOM · TABLE</p>
     <h1>タロットキングダム<span>卓上戦</span></h1>
     <p class="kt-lead">78枚の海賊タロットで卓を囲み、先に手札を出し切った人がチップを集めます。</p>
+    <p class="kt-lead">同じ数字で返せるのは、大札で小札に返す場合だけです。</p>
     <fieldset class="kt-choice">
       <legend>人数</legend>
       <label><input type="radio" name="ktSeats" value="4" checked><span>4人で4局</span></label>
@@ -43,7 +44,7 @@
       </table>
       <p>チップはこの画面の中だけのものです。Gや景品とは関係ありません。</p>
     </div>
-    <p><a href="tarot-kingdom-real.html">札の出し方の説明書を読む</a></p>
+    <p><a href="tarot-kingdom-table-rules.html">札の出し方の説明書を読む</a></p>
   </section>
 
   <section id="ktTable" class="kt-table" hidden>
@@ -54,7 +55,7 @@
         <span id="ktDeck" class="kt-bar-item kt-bar-deck"></span>
       </div>
       <button type="button" id="ktSound" class="kt-bar-link kt-sound" aria-pressed="true" aria-label="効果音：オン">♪</button>
-      <a class="kt-bar-link" href="tarot-kingdom-real.html" target="_blank" rel="noopener">ルール</a>
+      <a class="kt-bar-link" href="tarot-kingdom-table-rules.html" target="_blank" rel="noopener">ルール</a>
     </header>
     <div id="ktFelt" class="kt-felt">
       <div id="ktSeatTop" class="kt-seat kt-seat-top" hidden></div>
@@ -99,6 +100,6 @@
 
   <button type="button" id="ktZoom" class="kt-zoom" aria-label="札を閉じる" hidden></button>
 </main>
-<script type="module" src="js/kingdomTable/ui.js?v=20261115-arcana-suits-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=20261115-major-ties-v1"></script>
 </body>
 </html>

@@ -124,6 +124,24 @@ test('three players sit left and right and play three rounds', async ({ page }) 
     await expect(page.locator('.kt-seat:visible .kt-seat-portrait')).toHaveCount(2);
 });
 
+test('the table links to its current major-only equal-number rules', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 760 });
+    const seen = await observe(page);
+    await page.goto('/tarot-kingdom-table.html');
+    await expect(page.locator('#ktSetup')).toContainText('同じ数字で返せるのは、大札で小札に返す場合だけです');
+    const guide = page.getByRole('link', { name: '札の出し方の説明書を読む' });
+    await expect(guide).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
+    await expect(page.locator('#ktTable a')).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
+    await guide.click();
+    await expect(page).toHaveTitle('卓上戦のルール — タロットキングダム');
+    await expect(page.locator('h1')).toHaveText('卓上戦のルール');
+    await expect(page.locator('main')).toContainText('小札同士や大札入り同士は、同じ数字では返せません');
+    await expect(page.locator('main')).toContainText('役も強さも同じなら返せません');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(seen.errors).toEqual([]);
+    expect(seen.unexpected).toEqual([]);
+});
+
 test('only aces use letters and major arcana show their suit memberships on both frames', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -148,7 +166,8 @@ test('only aces use letters and major arcana show their suit memberships on both
                 const style = getComputedStyle(element);
                 return [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor];
             };
-            return { id: node.dataset.card, suit: node.dataset.suit, label: rank.textContent, cardFrame: sides(node), rankFrame: sides(rank) };
+            const value = getComputedStyle(rank.querySelector('.kt-card-value'));
+            return { id: node.dataset.card, suit: node.dataset.suit, label: rank.textContent, cardFrame: sides(node), rankFrame: sides(rank), textColor: value.color, textGradient: value.backgroundImage, textClip: value.backgroundClip };
         }));
         for (const card of cards) {
             const num = Number(card.id.split('-').at(-1));
@@ -157,6 +176,14 @@ test('only aces use letters and major arcana show their suit memberships on both
             const expected = major ? majorFrames[num] || Array(4).fill(white) : Array(4).fill(palette[card.suit]);
             expect(card.cardFrame).toEqual(expected);
             expect(card.rankFrame).toEqual(expected);
+            if (major && num === 1) {
+                expect(card.textColor).toBe('rgba(0, 0, 0, 0)');
+                expect(card.textClip).toBe('text');
+                for (const colour of [red, blue, green, yellow]) expect(card.textGradient).toContain(colour);
+            } else {
+                const majorText = { 16: yellow, 17: blue, 18: green, 19: red };
+                expect(card.textColor).toBe(major ? majorText[num] || white : palette[card.suit]);
+            }
             if (major && majorFrames[num]) coveredMajors.add(num);
             if (!major && num >= 11) coveredRanks.add(num);
             if (major && num === 15) coveredRanks.add('major-15');
