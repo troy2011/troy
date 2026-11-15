@@ -83,7 +83,7 @@ for (const width of [320, 390, 430]) {
         await page.locator('#ktStart').click();
         await expect(page.locator('#ktHand .kt-card')).toHaveCount(8);
         await expect(page.locator('.kt-seat:visible')).toHaveCount(3);
-        await expect(page.locator('#ktFieldCards .kt-card')).not.toHaveCount(0);
+        await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).not.toHaveCount(0);
         await expect(page.locator('#ktRound')).toHaveText('第1局 / 4');
         await expect(page.locator('#ktPot')).toHaveText('場 80');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -98,7 +98,7 @@ for (const width of [320, 390, 430]) {
         await expect(page.locator('#ktHand .kt-card-rank')).toHaveCount(8);
         const labels = await page.locator('#ktHand .kt-card-rank').allTextContents();
         expect(labels.every(label => /^(?:\d+|A)$/.test(label))).toBe(true);
-        const artworkFillsFrames = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-card').evaluateAll(cards => cards.every(card => {
+        const artworkFillsFrames = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-field-top .kt-card').evaluateAll(cards => cards.every(card => {
             const image = card.querySelector('.kt-card-art');
             const rank = card.querySelector('.kt-card-rank');
             return image.offsetLeft === 0 && image.offsetTop === 0
@@ -157,7 +157,7 @@ test('the field shows the correct counter suit and excludes majors from an ace r
         { seed: 21, field: 'sword-15', hint: '同じA：ペンタクル' }
     ]) {
         await sit(page, { seed: sample.seed });
-        await expect(page.locator('#ktFieldCards .kt-card')).toHaveAttribute('data-card', sample.field);
+        await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).toHaveAttribute('data-card', sample.field);
         await expect(page.locator('#ktFieldState')).toContainText(sample.hint);
         await shot(page, `counter-hint-${sample.seed}.png`);
     }
@@ -186,7 +186,7 @@ test('only aces use letters and major arcana show their suit memberships on both
     const coveredMajors = new Set(), coveredRanks = new Set();
     for (const seed of [36, 201, 628, 381]) {
         await sit(page, { seed });
-        const cards = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-card').evaluateAll(nodes => nodes.map(node => {
+        const cards = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-field-top .kt-card').evaluateAll(nodes => nodes.map(node => {
             const rank = node.querySelector('.kt-card-rank');
             const sides = element => {
                 const style = getComputedStyle(element);
@@ -504,20 +504,138 @@ test('a field card opens its full artwork and closes again', async ({ page }) =>
     await page.setViewportSize({ width: 390, height: 760 });
     await sit(page);
     await expect(page.locator('#ktHand .kt-card').first()).toBeEnabled();
-    await page.locator('#ktFieldCards .kt-card').first().click();
+    await page.locator('#ktFieldCards .kt-field-top .kt-card').first().click();
     const zoom = page.locator('#ktZoom');
     await expect(zoom).toBeVisible();
     await expect.poll(() => zoom.locator('img').evaluate((img) => img.complete && img.naturalWidth)).toBe(640);
     await zoom.click();
     await expect(zoom).toBeHidden();
-    await expect(page.locator('#ktFieldCards .kt-card').first()).toBeFocused();
+    await expect(page.locator('#ktFieldCards .kt-field-top .kt-card').first()).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(zoom).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(zoom).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(zoom).toBeHidden();
-    await expect(page.locator('#ktFieldCards .kt-card').first()).toBeFocused();
+    await expect(page.locator('#ktFieldCards .kt-field-top .kt-card').first()).toBeFocused();
+});
+
+// Replace only the initial deal. The real rules still clear the field and move its cards.
+async function installPileFixture(page, { call = false } = {}) {
+    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-last-card-v1$/, route => route.fulfill({
+        contentType: 'text/javascript',
+        body: `
+            export * from '/js/kingdomTable/rules.js?fixture=pile-real';
+            import { createRound as realRound, buildDeck, evaluateRole } from '/js/kingdomTable/rules.js?fixture=pile-real';
+            export function createRound(options) {
+                const state = realRound(options), deck = buildDeck();
+                const card = id => deck.find(item => item.id === id);
+                const hands = [['wand-9', 'major-21'], ['cup-10', 'coin-13'], ['coin-11', 'major-19'], ['sword-10', 'wand-11']];
+                state.players = hands.map(hand => ({ hand: hand.map(card), grave: [], exiled: [] }));
+                const plays = ${call ? JSON.stringify([
+                    { by: 0, ids: ['sword-3'], start: true }, { by: 1, ids: ['wand-4'] },
+                    { by: 3, ids: ['wand-5', 'wand-6', 'wand-7', 'wand-8'], call: true }
+                ]) : JSON.stringify([
+                    { by: 0, ids: ['wand-3'], start: true }, { by: 1, ids: ['major-4'] },
+                    { by: 2, ids: ['cup-6'] }, { by: 3, ids: ['sword-8'] }
+                ])}.map(({ ids, ...play }) => ({ ...play, cards: ids.map(card) }));
+                const role = ${call} ? evaluateRole([...plays[1].cards, ...plays[2].cards]) : null;
+                state.field = { kind: role ? 'role' : 'normal', count: role ? 5 : 1, role, plays };
+                state.players[1].exiled = [card('cup-2')];
+                const used = new Set([...hands.flat(), ...plays.flatMap(play => play.cards.map(card => card.id)), 'cup-2']);
+                state.deck = deck.filter(card => !used.has(card.id)); state.aside = [];
+                state.back = false; state.lock = null; state.cut = ${!call}; state.passed = [1, 2];
+                state.trashBy = null; state.judgement = false; state.han = hands.map(() => 0); state.lastCardHan = 0;
+                state.dealer = 0; state.last = 3; state.turn = 0; state.drew = false; state.ceded = 0;
+                state.phase = 'play'; state.winner = null; state.lastPlay = { by: 3, type: role ? 'call' : 'normal', role };
+                state.events = [];
+                return state;
+            }
+        `
+    }));
+}
+
+for (const width of [320, 390, 1440]) {
+    test(`the ${width}px field keeps a stable pile and the graveyard shows cleared cards without advancing play`, async ({ page }) => {
+        await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const seen = await observe(page);
+        await page.clock.install();
+        await page.clock.pauseAt(new Date());
+        await installPileFixture(page);
+        await sit(page);
+        await expect(page.locator('#ktFieldCards .kt-field-past')).toHaveCount(3);
+        await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).toHaveAttribute('data-card', 'sword-8');
+        await expect(page.locator('#ktFieldCards button')).toHaveCount(1);
+        const transforms = () => page.locator('.kt-field-play').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).transform));
+        const before = await transforms();
+        expect(new Set(before).size).toBeGreaterThan(1);
+        await page.locator('#ktHand [data-card="wand-9"]').click();
+        expect(await transforms()).toEqual(before);
+        await page.locator('#ktFieldCards button').click();
+        await expect(page.locator('#ktZoom')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await shot(page, `natural-pile-${width}.png`);
+        await page.locator('#ktGrave').click();
+        await expect(page.locator('#ktGraveBody [data-zone="grave-0"]')).toContainText('まだありません');
+        await expect(page.locator('#ktGraveBody [data-zone="exiled-1"] .kt-card')).toHaveAttribute('data-card', 'cup-2');
+        await page.locator('#ktGraveClose').click();
+        await expect(page.locator('#ktHand [data-card="wand-9"]')).toHaveClass(/is-selected/);
+        await page.locator('#ktPass').click();
+        await expect(page.locator('#ktFieldCards .kt-card')).toHaveCount(0);
+        await expect(page.locator('#ktGrave')).toHaveText('墓地・除外 5枚');
+        await page.locator('#ktGrave').click();
+        const grave = page.locator('#ktGraveDialog');
+        await expect(grave).toBeVisible();
+        await expect(page.locator('#ktGraveClose')).toBeFocused();
+        for (const [zone, id] of [['grave-0', 'wand-3'], ['grave-2', 'cup-6'], ['grave-3', 'sword-8'], ['aside', 'major-4'], ['exiled-1', 'cup-2']]) {
+            await expect(grave.locator(`[data-zone="${zone}"] .kt-card`)).toHaveAttribute('data-card', id);
+        }
+        await expect(grave.locator('.kt-card')).toHaveCount(5);
+        const publicState = await page.locator('#ktTable').textContent();
+        await page.clock.runFor(5000);
+        expect(await page.locator('#ktTable').textContent()).toBe(publicState);
+        await page.keyboard.press('Shift+Tab');
+        await expect(grave.locator('.kt-card').last()).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(page.locator('#ktGraveClose')).toBeFocused();
+        await shot(page, `graveyard-${width}.png`);
+        const card = grave.locator('[data-zone="aside"] .kt-card');
+        await card.click();
+        await expect(page.locator('#ktZoom')).toBeVisible();
+        await expect.poll(() => page.locator('#ktZoom img').evaluate(img => img.complete && img.naturalWidth)).toBe(640);
+        await page.keyboard.press('Escape');
+        await expect(grave).toBeVisible();
+        await expect(card).toBeFocused();
+        await page.keyboard.press('Escape');
+        await expect(grave).toBeHidden();
+        await expect(page.locator('#ktGrave')).toBeFocused();
+        await page.clock.runFor(60);
+        await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).not.toHaveCount(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        expect(seen.errors).toEqual([]);
+        expect(seen.unexpected).toEqual([]);
+    });
+}
+
+test('a called field card appears once in its five-card role and all six cards reach their own graveyard', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.clock.install();
+    await page.clock.pauseAt(new Date());
+    await installPileFixture(page, { call: true });
+    await sit(page);
+    await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).toHaveCount(5);
+    await expect(page.locator('#ktFieldCards [data-card="wand-4"]')).toHaveCount(1);
+    await expect(page.locator('#ktFieldCards .kt-field-past .kt-card')).toHaveCount(1);
+    await shot(page, 'natural-pile-call-320.png');
+    await page.locator('#ktPass').click();
+    await page.locator('#ktGrave').click();
+    await expect(page.locator('#ktGraveBody [data-zone="grave-0"] .kt-card')).toHaveCount(1);
+    await expect(page.locator('#ktGraveBody [data-zone="grave-1"] .kt-card')).toHaveAttribute('data-card', 'wand-4');
+    await expect(page.locator('#ktGraveBody [data-zone="grave-3"] .kt-card')).toHaveCount(4);
+    await expect(page.locator('#ktGraveBody .kt-card')).toHaveCount(7);
+    await page.locator('#ktGraveClose').click();
 });
 
 test('the result explains each payment as cards x han x rate', async ({ page }) => {
@@ -525,6 +643,8 @@ test('the result explains each payment as cards x han x rate', async ({ page }) 
     await page.setViewportSize({ width: 390, height: 760 });
     await sit(page);
     await playOn(page, async () => /結果/.test(await page.locator('#ktDialogTitle').textContent()) && await page.locator('#ktDialog').isVisible());
+    await page.keyboard.press('Tab');
+    await expect(page.locator('#ktDialogActions button').last()).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.locator('#ktDialogBody .kt-card').first()).toBeFocused();
     await page.keyboard.press('Shift+Tab');
@@ -536,6 +656,14 @@ test('the result explains each payment as cards x han x rate', async ({ page }) 
         expect(paid).toBe(cards * han * rate);
     }
     await expect(page.locator('#ktDialogBody .kt-han-pill-big')).toHaveText(/^\d+翻$/);
+    const note = await page.locator('#ktDialogBody').textContent();
+    await page.getByRole('button', { name: '墓地・除外を見る', exact: true }).click();
+    await expect(page.locator('#ktGraveDialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#ktGraveDialog')).toBeHidden();
+    await expect(page.locator('#ktDialog')).toBeVisible();
+    expect(await page.locator('#ktDialogBody').textContent()).toBe(note);
+    await expect(page.getByRole('button', { name: '墓地・除外を見る', exact: true })).toBeFocused();
 });
 
 test('a final conditional major previews its bonus privately and explains the extra han in the result', async ({ page }) => {
@@ -631,14 +759,14 @@ test('your played card flies from the hand, lands on the field and nothing is le
     const seen = await observe(page);
     await sitWithEffects(page);
     // The deal: the first field card arrives from the deck.
-    await expect(page.locator('#ktFieldCards .kt-card.is-landed')).toHaveCount(1, { timeout: 4000 });
+    await expect(page.locator('#ktFieldCards .kt-field-top .kt-card.is-landed')).toHaveCount(1, { timeout: 4000 });
     await waitForPlayable(page);
     await expect.poll(() => fxSeen(page, 'kt-fx-light').then((list) => list.length)).toBeGreaterThan(0);
     const playable = page.locator('#ktHand .kt-card.is-playable').first();
     const id = await playable.getAttribute('data-card');
     await playable.click();
     await page.locator('#ktPlay').click();
-    const landed = page.locator(`#ktFieldCards .kt-card[data-card="${id}"]`);
+    const landed = page.locator(`#ktFieldCards .kt-field-top .kt-card[data-card="${id}"]`);
     await expect(landed).toHaveClass(/is-arriving/);
     await expect(page.locator('.kt-fx .kt-fx-card')).not.toHaveCount(0);
     await expect(landed).toHaveClass(/is-landed/, { timeout: 2000 });
@@ -679,7 +807,7 @@ test('with reduced motion nothing flies or shakes, but passes and stamps are sti
     const id = await playable.getAttribute('data-card');
     await playable.click();
     await page.locator('#ktPlay').click();
-    await expect(page.locator(`#ktFieldCards .kt-card[data-card="${id}"]`)).not.toHaveClass(/is-arriving/);
+    await expect(page.locator(`#ktFieldCards .kt-field-top .kt-card[data-card="${id}"]`)).not.toHaveClass(/is-arriving/);
     await page.waitForTimeout(1500);
     expect(await fxSeen(page, 'kt-fx-card')).toEqual([]);
     expect(await fxSeen(page, 'kt-fx-ring')).toEqual([]);

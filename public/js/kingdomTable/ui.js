@@ -23,6 +23,7 @@ const OPPONENT_HAND_POSES = {
 const OPPONENT_FAN = { minWidth: 20, maxWidth: 34, portraitWidthRatio: 0.16, angleStep: 10, spacingRatio: 0.18, plateOverlap: 7 };
 const HAND_FAN_ANGLE_STEP = 1.5;
 const HAND_FAN_CURVE_STEP = 2;
+const VISIBLE_FIELD_PLAYS = 6;
 // How long a computer seat thinks when nothing is being shown, and the pause after an effect before it moves.
 const AI_STEP_MS = 850;
 const AI_STEP_REDUCED_MS = 400;
@@ -57,6 +58,7 @@ let seenEvents = 0;
 let hint = '';
 let fieldKey = '';
 let zoomTrigger = null;
+let graveTrigger = null;
 // Where your played cards were in the hand, so they can fly from there to the field.
 let playOrigins = new Map();
 let lastTurn = -1;
@@ -128,7 +130,8 @@ function zoomableCard(card) {
 
 function closeZoom() {
     $('ktZoom').hidden = true;
-    const fallback = $('ktDialog').hidden ? $('ktFieldCards').querySelector('button') : $('ktDialogActions').querySelector('button');
+    const fallback = !$('ktGraveDialog').hidden ? $('ktGraveClose')
+        : $('ktDialog').hidden ? $('ktFieldCards').querySelector('button') : $('ktDialogActions').querySelector('button');
     (zoomTrigger?.isConnected ? zoomTrigger : fallback)?.focus({ preventScroll: true });
     zoomTrigger = null;
 }
@@ -256,10 +259,28 @@ function renderField() {
     if (key !== fieldKey) {
         // Rebuilt only when the field changes, so the arrival movement plays once per play.
         fieldKey = key;
-        // A call is shown together with the field card it was joined to.
-        const shown = !top ? [] : top.call ? [...plays[plays.length - 2].cards, ...top.cards] : top.cards;
-        host.replaceChildren(...(shown.length ? shown.map(zoomableCard) : [el('span', 'kt-field-empty', '最初の札を出してください')]));
-        host.classList.toggle('is-wide', shown.length > 3);
+        // A called field card moves into that role; do not draw it twice underneath.
+        const layers = plays.map((play, index) => ({
+            cards: play.call ? [...plays[index - 1].cards, ...play.cards] : play.cards,
+            index
+        })).filter(({ index }) => !plays[index + 1]?.call).slice(-VISIBLE_FIELD_PLAYS);
+        host.replaceChildren(...layers.map(({ cards, index }, layer) => {
+            const current = index === plays.length - 1;
+            const group = el('div', `kt-field-play ${current ? 'kt-field-top' : 'kt-field-past'}`);
+            group.classList.toggle('is-wide', cards.length > 3);
+            group.style.zIndex = String(layer);
+            // Stable offsets keep a pile still while selecting a card or opening a dialog.
+            const seed = cards.reduce((sum, card) => sum + card.num + (card.major ? 7 : Rules.SUITS.indexOf(card.suit)), 0);
+            const depth = layers.length - layer - 1;
+            const angle = current ? (seed % 5 - 2) * 0.6 : (seed % 7 - 3) * (cards.length > 3 ? 0.7 : 2.4);
+            group.style.setProperty('--kt-pile-angle', `${angle}deg`);
+            group.style.setProperty('--kt-pile-x', `${current ? 0 : (seed * 7 % 11 - 5) * 2.6}px`);
+            group.style.setProperty('--kt-pile-y', `${current ? 0 : depth * 1.5}px`);
+            if (!current) group.setAttribute('aria-hidden', 'true');
+            group.append(...cards.map(card => current ? zoomableCard(card) : cardNode(card)));
+            return group;
+        }));
+        if (!layers.length) host.append(el('span', 'kt-field-empty', '最初の札を出してください'));
     }
     if (!top) {
         $('ktFieldOwner').textContent = round.phase === 'over' ? '' : `${NAMES[round.turn]} の初手`;
@@ -279,6 +300,49 @@ function renderField() {
         state.push(`${card.num === 15 ? '同じA' : '同数字'}：${replies.join('・')}`);
     }
     $('ktFieldState').replaceChildren(...state.map((text) => el('span', 'kt-state-pill', text)));
+    const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
+    $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
+    $('ktGrave').disabled = round.phase === 'over';
+}
+
+function openGraveyard() {
+    if (!match || !$('ktGraveDialog').hidden) return;
+    cancelHandDrag();
+    clearTimeout(timer);
+    timer = 0;
+    graveTrigger = document.activeElement;
+    const round = match.round;
+    const sections = [];
+    function addSection(label, cards, zone) {
+        const section = el('section', 'kt-grave-section');
+        section.dataset.zone = zone;
+        section.append(el('h3', '', `${label} · ${cards.length}枚`));
+        if (cards.length) {
+            const row = el('div', 'kt-grave-cards');
+            row.append(...sortHand(cards).map(zoomableCard));
+            section.append(row);
+        } else section.append(el('p', 'kt-grave-empty', 'まだありません'));
+        sections.push(section);
+    }
+    round.players.forEach((player, seat) => addSection(`${NAMES[seat]}の墓地`, player.grave, `grave-${seat}`));
+    addSection('大札の除外', round.aside, 'aside');
+    round.players.forEach((player, seat) => {
+        if (player.exiled.length) addSection(`${NAMES[seat]}が手札から除外`, player.exiled, `exiled-${seat}`);
+    });
+    $('ktGraveBody').replaceChildren(...sections);
+    $('ktGraveDialog').hidden = false;
+    $('ktTable').inert = true;
+    $('ktDialog').inert = true;
+    $('ktGraveClose').focus();
+}
+
+function closeGraveyard() {
+    $('ktGraveDialog').hidden = true;
+    $('ktTable').inert = false;
+    $('ktDialog').inert = false;
+    if (graveTrigger?.isConnected) graveTrigger.focus({ preventScroll: true });
+    graveTrigger = null;
+    if (match && match.round.phase !== 'over') after();
 }
 
 // The play the current selection would make, with the reason when it is not allowed.
@@ -476,7 +540,7 @@ function backCard() {
 function flyPlay(event, at, floating) {
     const nodes = event.cards.map((card) => $('ktFieldCards').querySelector(`[data-card="${card.id}"]`));
     const source = event.by === ME ? null : handBox(event.by);
-    const fieldWidth = rectOf($('ktFieldCards').querySelector('.kt-card'))?.width || 72;
+    const fieldWidth = rectOf($('ktFieldCards').querySelector('.kt-field-top .kt-card'))?.width || 72;
     const centre = fieldCentre();
     event.cards.forEach((card, index) => {
         const node = nodes[index];
@@ -539,7 +603,7 @@ function playEffects(events, fieldBefore) {
             const hand = [...$('ktHand').children];
             const dealt = Fx.deal(hand, deckBox());
             hand.forEach((_, index) => Sfx.play('deal', (120 + index * 55) / 1000));
-            const first = $('ktFieldCards').querySelector('.kt-card');
+            const first = $('ktFieldCards').querySelector('.kt-field-top .kt-card');
             if (first) {
                 first.classList.add('is-arriving');
                 Fx.fly(backCard(), deckBox(), rectOf(first), { duration: 320, delay: dealt }).then(() => {
@@ -741,7 +805,10 @@ function showResult(result) {
     }));
     if (!match.over) {
         if (result.repeat) body.push(el('p', 'kt-dialog-label', `親の ${NAMES[result.winner]} が上がったので、親を続けます（連荘）。`));
-        openDialog(`${result.label}の結果`, body, [[result.repeat ? '連荘：次へ' : '次の局へ', () => { closeDialog(); beginRound(); }, true]]);
+        openDialog(`${result.label}の結果`, body, [
+            [result.repeat ? '連荘：次へ' : '次の局へ', () => { closeDialog(); beginRound(); }, true],
+            ['墓地・除外を見る', openGraveyard]
+        ]);
         return;
     }
     const order = ranking(match);
@@ -758,7 +825,8 @@ function showResult(result) {
     }
     openDialog(order[0].seat === ME ? 'あなたの勝ち' : `${NAMES[order[0].seat]} の勝ち`, body, [
         ['もう一度', () => { closeDialog(); begin(match.seats); }, true],
-        ['人数を選び直す', () => { closeDialog(); $('ktTable').hidden = true; $('ktSetup').hidden = false; }]
+        ['人数を選び直す', () => { closeDialog(); $('ktTable').hidden = true; $('ktSetup').hidden = false; }],
+        ['墓地・除外を見る', openGraveyard]
     ]);
 }
 
@@ -774,6 +842,7 @@ function act(seat, action) {
 
 function step() {
     timer = 0;
+    if (!$('ktGraveDialog').hidden) return;
     const round = match.round;
     if (round.phase === 'over') return;
     const seat = round.turn;
@@ -838,6 +907,11 @@ $('ktHero').append(...[{ major: true, num: 10 }, { major: true, num: 21 }, { maj
     .map((card) => artImage(artUrl(card, 'thumbs'), 'kt-hero-card')));
 
 $('ktZoom').addEventListener('click', closeZoom);
+$('ktGrave').addEventListener('click', openGraveyard);
+$('ktGraveClose').addEventListener('click', closeGraveyard);
+$('ktGraveDialog').addEventListener('click', event => {
+    if (event.target === $('ktGraveDialog')) closeGraveyard();
+});
 
 function renderSoundButton() {
     const on = Sfx.isOn();
@@ -857,7 +931,12 @@ document.addEventListener('keydown', (event) => {
         closeZoom();
         return;
     }
-    const modal = !$('ktZoom').hidden ? $('ktZoom') : !$('ktDialog').hidden ? $('ktDialog') : null;
+    if (event.key === 'Escape' && !$('ktGraveDialog').hidden) {
+        event.preventDefault();
+        closeGraveyard();
+        return;
+    }
+    const modal = !$('ktZoom').hidden ? $('ktZoom') : !$('ktGraveDialog').hidden ? $('ktGraveDialog') : !$('ktDialog').hidden ? $('ktDialog') : null;
     if (event.key !== 'Tab' || !modal) return;
     const buttons = modal.id === 'ktZoom' ? [modal] : [...modal.querySelectorAll('button:not(:disabled)')];
     const first = buttons[0];

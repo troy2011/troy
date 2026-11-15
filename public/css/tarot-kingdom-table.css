@@ -220,15 +220,21 @@ body {
 
 .kt-field { position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 2px 0; }
 .kt-field-heading { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.kt-field-tools { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.kt-grave-button { min-height: 36px; padding: 3px 9px; border: 1px solid #ba8b4c; border-radius: 5px; color: var(--kt-ink); background: #352014; font: inherit; font-size: 12px; cursor: pointer; }
+.kt-grave-button:disabled { opacity: 0.6; cursor: default; }
 .kt-pot { position: relative; padding: 1px 20px; border: 3px double #dcac5b; border-radius: 8px; background: linear-gradient(#44291b, #24130e); font-family: var(--kt-serif); font-size: 18px; line-height: 24px; box-shadow: 0 3px 8px rgb(0 0 0 / 45%); }
 .kt-pot::before { content: ""; position: absolute; bottom: calc(100% - 1px); left: 50%; width: 64px; height: 32px; background: url("../assets/tarot-kingdom-table/tavern-v1/chips.webp") center bottom / contain no-repeat; transform: translateX(-50%); pointer-events: none; }
 .kt-field-owner, .kt-field-state { position: relative; margin: 0; min-height: 18px; font-size: 12px; text-align: center; }
 .kt-field-owner { padding: 1px 10px; border: 1px solid #ba8b4c; border-radius: 3px; color: #35200e; background: linear-gradient(#f1d9a5, #d3ad70); font-family: var(--kt-serif); font-weight: 700; }
 .kt-field-state { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 .kt-state-pill { padding: 0 8px; border: 1px solid #d8ac5d; border-radius: 4px; color: #ffe3a1; background: rgb(36 19 12 / 90%); font-size: 11px; font-weight: 700; line-height: 18px; }
-.kt-field-cards { position: relative; display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 108px; transform: perspective(650px) rotateX(27deg); transform-origin: 50% 55%; }
-.kt-field-cards .kt-card { flex: none; width: clamp(72px, min(22vw, 11dvh), 104px); box-shadow: 0 4px 1px #3d2415, 0 7px 8px rgb(0 0 0 / 60%); animation: kt-drop 200ms ease-out both; }
-.kt-field-cards.is-wide .kt-card { width: clamp(48px, 16vw, 88px); }
+.kt-field-cards { position: relative; display: grid; place-items: center; width: 100%; min-height: 108px; transform: perspective(650px) rotateX(27deg); transform-origin: 50% 55%; }
+.kt-field-play { position: relative; grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: 5px; transform: translate(var(--kt-pile-x), var(--kt-pile-y)) rotate(var(--kt-pile-angle)); }
+.kt-field-play .kt-card { flex: none; width: clamp(72px, min(22vw, 11dvh), 104px); box-shadow: 0 1px 1px #3d2415, 0 4px 6px rgb(0 0 0 / 48%); }
+.kt-field-play.is-wide .kt-card { width: clamp(48px, 16vw, 88px); }
+.kt-field-past { pointer-events: none; }
+.kt-field-top .kt-card { animation: kt-drop 200ms ease-out both; }
 .kt-field-cards .kt-card.is-arriving { visibility: hidden; }
 .kt-field-cards .kt-card.is-landed { animation: kt-land 300ms cubic-bezier(.2,.9,.3,1.4) both; }
 .kt-field-empty { padding: 28px 18px; border: 1px dashed rgb(88 43 16 / 55%); border-radius: 6px; color: #40230f; background: rgb(248 214 157 / 75%); font-size: 13px; text-align: center; }
@@ -369,6 +375,7 @@ body {
   max-width: 440px;
   max-height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
   border: 2px solid var(--kt-gold);
   border-radius: 14px;
@@ -394,6 +401,16 @@ body {
 .kt-score-final li:first-child { color: #ffe9a8; font-family: var(--kt-serif); font-size: 18px; font-weight: 700; }
 .kt-dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .kt-dialog-actions .kt-button { flex: 1; }
+
+.kt-grave-dialog { z-index: 12; }
+.kt-grave-dialog .kt-dialog-box { max-width: 520px; }
+.kt-grave-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.kt-grave-heading h2 { margin: 0; padding: 0; border: 0; text-align: left; }
+.kt-grave-section { padding: 12px 0; border-top: 1px solid #745133; }
+.kt-grave-section h3 { margin: 0 0 8px; color: var(--kt-gold); font-size: 14px; }
+.kt-grave-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 8px; }
+.kt-grave-cards .kt-card { width: 100%; }
+.kt-grave-empty { color: var(--kt-dim); }
 
 /* Full artwork of one card */
 .kt-zoom {
@@ -494,7 +511,7 @@ body {
   .kt-fx-rays { animation: none; }
   .kt-fan-card { transition: none; animation: none; }
   .kt-hand .kt-card { transition: none; }
-  .kt-field-cards .kt-card { animation: none; }
+  .kt-field-top .kt-card { animation: none; }
   .kt-field-cards .kt-card.is-landed { animation: none; }
   .kt-button:active:not(:disabled) { transform: none; }
 }
