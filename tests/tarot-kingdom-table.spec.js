@@ -124,20 +124,46 @@ test('three players sit left and right and play three rounds', async ({ page }) 
     await expect(page.locator('.kt-seat:visible .kt-seat-portrait')).toHaveCount(2);
 });
 
-test('the table links to its current major-only equal-number rules', async ({ page }) => {
+test('the table links to its current one-way equal-number suit cycle', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 760 });
     const seen = await observe(page);
     await page.goto('/tarot-kingdom-table.html');
-    await expect(page.locator('#ktSetup')).toContainText('同じ数字で返せるのは、大札で小札に返す場合だけです');
+    await expect(page.locator('#ktSetup')).toContainText('同数字は弱点のスート、または大札で返せます');
     const guide = page.getByRole('link', { name: '札の出し方の説明書を読む' });
     await expect(guide).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
     await expect(page.locator('#ktTable a')).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
     await guide.click();
     await expect(page).toHaveTitle('卓上戦のルール — タロットキングダム');
     await expect(page.locator('h1')).toHaveText('卓上戦のルール');
-    await expect(page.locator('main')).toContainText('小札同士や大札入り同士は、同じ数字では返せません');
+    await expect(page.locator('main')).toContainText('ワンド←カップ←ソード←ペンタクル←ワンド');
+    await expect(page.locator('main')).toContainText('大札入りの組は、スートを問わず返せます');
     await expect(page.locator('main')).toContainText('役も強さも同じなら返せません');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(seen.errors).toEqual([]);
+    expect(seen.unexpected).toEqual([]);
+});
+
+test('the field shows the correct counter suit and excludes majors from an ace reply', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const seen = await observe(page);
+    const time = new Date('2026-11-15T00:00:00Z');
+    await page.clock.install({ time });
+    await page.clock.pauseAt(new Date(time.getTime() + 1000));
+    for (const sample of [
+        { seed: 3, field: 'wand-13', hint: '同数字：カップ・大札' },
+        { seed: 11, field: 'coin-4', hint: '同数字：ワンド・大札' },
+        { seed: 13, field: 'cup-15', hint: '同じA：ソード' },
+        { seed: 21, field: 'sword-15', hint: '同じA：ペンタクル' }
+    ]) {
+        await sit(page, { seed: sample.seed });
+        await expect(page.locator('#ktFieldCards .kt-card')).toHaveAttribute('data-card', sample.field);
+        await expect(page.locator('#ktFieldState')).toContainText(sample.hint);
+        await shot(page, `counter-hint-${sample.seed}.png`);
+    }
+    await sit(page, { seed: 6 });
+    await expect(page.locator('#ktFieldState')).toContainText('8カット');
+    await expect(page.locator('#ktFieldState')).not.toContainText('同数字');
     expect(seen.errors).toEqual([]);
     expect(seen.unexpected).toEqual([]);
 });

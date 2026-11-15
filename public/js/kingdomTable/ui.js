@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=20261115-major-ties-v1';
-import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-major-ties-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-major-ties-v1';
-import { chooseAction } from './ai.js?v=20261115-major-ties-v1';
+import * as Rules from './rules.js?v=20261115-suit-cycle-v1';
+import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-suit-cycle-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-suit-cycle-v1';
+import { chooseAction } from './ai.js?v=20261115-suit-cycle-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
@@ -272,6 +272,12 @@ function renderField() {
     if (round.lock) state.push(`ロック ${SUIT_NAME[round.lock]}`);
     if (round.cut) state.push('8カット');
     if (plays.length > 1) state.push(`重ね ${plays.length}`);
+    if (round.field.kind === 'normal' && top?.cards.length === 1 && !top.cards[0].major && !round.cut && !round.lock) {
+        const card = top.cards[0];
+        const replies = [SUIT_NAME[Rules.EQUAL_NUMBER_COUNTER[card.suit]]];
+        if (card.num !== 15) replies.push('大札');
+        state.push(`${card.num === 15 ? '同じA' : '同数字'}：${replies.join('・')}`);
+    }
     $('ktFieldState').replaceChildren(...state.map((text) => el('span', 'kt-state-pill', text)));
 }
 
