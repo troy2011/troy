@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=20261115-last-card-v1';
-import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-last-card-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-last-card-v1';
-import { chooseAction } from './ai.js?v=20261115-last-card-v1';
+import * as Rules from './rules.js?v=20261115-last-opening-v1';
+import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-last-opening-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-last-opening-v1';
+import { chooseAction } from './ai.js?v=20261115-last-opening-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
