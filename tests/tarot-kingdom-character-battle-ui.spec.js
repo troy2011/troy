@@ -329,20 +329,20 @@ test('rulebook explains the current rules and returns to the same battle on mobi
   await expect(rulebook.getByRole('button', { name: /カードが出せない/ })).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-judge-flow > li')).toHaveCount(4);
   await expect(rulebook.getByText('Aは通常時の最強の小アルカナ（15）')).toBeVisible();
-  await expect(rulebook.getByText('数字1とは別物です。対応スートに出せる塔・星・月・太陽は、同スートのAも対象です。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
-  await expect(rulebook.locator('[data-major-suit-rule]')).toContainText('対応する同スートの1枚場専用（Aを含む）');
+  await expect(rulebook.getByText('数字1とは別物で、大アルカナでは返せません。Aを1として使えるのは、A–2–3–4–5のストレートだけ。')).toBeVisible();
+  await expect(rulebook.locator('[data-major-suit-rule]')).toContainText('対応する同スートの1枚場専用（Aを除く）');
   await expect(rulebook.getByText('通常のパスでは反撃を受ける場合があります。ただし局開始の公開札だけが場にある間は、反撃も全員パス時の全体攻撃もありません。「防御」は場が流れるまで自動で守り、被害を抑えます。')).toBeVisible();
   await expect(rulebook.getByText('1枚なら次の応答をコールかパスに限定、2枚以上なら場を即クリア。場が流れるまで敵を石化。力VIIIの1枚場には世界XXIでも返せます。')).toBeVisible();
   await expect(rulebook.getByText('小アルカナ12を1枚で通常の場流しにすると、残り手札から好きな1枚を除外。除外だけで手札0にはできません。')).toBeVisible();
   await expect(rulebook.getByText('13または14を場札と同じスートで出すと、そのスートだけに固定。節制XIVで解除します。')).toBeVisible();
   await expect(rulebook.getByText('通常の出し方で使えます。11バックを切り替え、この札で場を流したプレイヤーが墓地の小アルカナ1枚を回収します。')).toBeVisible();
   await expect(rulebook.getByText('オフラインではプレイヤーが毎局の親です。オンラインでは素早さが最も高いプレイヤーが親になり、同値は座席順で決まります。局の勝者は次局の親を決めません。')).toBeVisible();
-  await expect(rulebook.getByText('線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。')).toBeVisible();
+  await expect(rulebook.getByText('線で結ばれた2つのスートは互いに調和し、同じ強さで返せます。')).toBeHidden();
   await expect(rulebook.getByText('ワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（地）が互いの弱点です。対になる属性は「WEAK」×1.5、敵と同じ属性は「RESIST」×0.6になります。')).toBeVisible();
   await expect(rulebook.getByText('進化前はHP50%、攻撃・防御・賢さ70%、素早さ85%。ペットの進化は探索終了まで続き、小アルカナを維持して固定の大アルカナだけが進化後へ変わります。')).toBeVisible();
   await expect(rulebook.getByText('チュロ→コバット ／ ラムネロ→ツキバネ ／ ホタルビ→フェリカ ／ フロス→モスガン')).toBeVisible();
   await expect(rulebook.getByText('コールできない3つの例')).toBeVisible();
-  await expect(rulebook.getByText('コール時の役倍率は、フルハウスが表の倍率−2、その他は−1（最低×0）です。')).toBeVisible();
+  await expect(rulebook.getByText('コールで作った役は、通常の翻数より1翻少なくなります。')).toBeVisible();
   await expect(rulebook.getByText('ここでは出札の裁定だけを掲載。戦闘効果と現在の効果値は、各カードの詳細画面で確認できます。')).toBeVisible();
   await expect(rulebook.locator('.tarot-kingdom-rulebook-suits-diagram')).toHaveAttribute(
     'aria-label',

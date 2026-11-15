@@ -1,5 +1,7 @@
 # タロットキングダム 卓上戦
 
+> 2026-11-16に独立Siteへ移転済み。以下はTROY内にあった旧実装の履歴。現在のソース・試験は独立リポジトリで管理し、TROY内の旧URLは移転案内のみ。現行境界は [kingdom-independent-site.md](kingdom-independent-site.md) を参照。
+
 2026-11-14。`/tarot-kingdom-table.html`。モンスターや人物を使わず、78枚のタロットだけで3〜4人が卓を囲み、チップをやり取りする独立したカードゲーム。自分1人とコンピューター2〜3人で遊ぶ。
 
 既存の `tarotKingdom.js`（探索・戦闘つき）とは別物で、コードも共有していない。認証・API・PlayFab・Firestore・localStorage は使わない。チップはこの画面の中だけの数字で、G・報酬・ランキングとは無関係。

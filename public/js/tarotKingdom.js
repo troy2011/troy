@@ -30681,7 +30681,7 @@ function ensureKingdomRulebookUi() {
                 <li><strong>フラッシュ</strong><span>手札内に場札と同スートが5枚以上ある</span></li>
                 <li><strong>フラッシュ</strong><span>完成した5枚で場札が最強札になる</span></li>
               </ul>
-              <p>コール時の役倍率は、フルハウスが表の倍率−2、その他は−1（最低×0）です。</p>
+              <p data-table-rules-copy="コールで作った役は、通常の翻数より1翻少なくなります。">コール時の役倍率は、フルハウスが表の倍率−2、その他は−1（最低×0）です。</p>
             </div>
           </section>
 
