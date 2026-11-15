@@ -10,7 +10,6 @@ import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrde
 
 const NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
-const RANK = { 11: 'P', 12: 'N', 13: 'Q', 14: 'K', 15: 'A' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命', '正義',
     '吊人', '死神', '節制', '悪魔', '塔', '星', '月', '太陽', '審判', '世界'];
 const ME = 0;
@@ -69,7 +68,7 @@ function makeRng() {
     return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 }
 
-const rankText = (card) => (card.major ? String(card.num) : (RANK[card.num] || String(card.num)));
+const rankText = card => !card.major && card.num === 15 ? 'A' : String(card.num);
 const cardName = (card) => (card.major ? `大札${card.num} ${MAJOR[card.num]}` : `${SUIT_NAME[card.suit]}の${rankText(card)}`);
 const sortHand = sortByNumber;
 
@@ -95,6 +94,10 @@ function artImage(src, className) {
 function cardNode(card, tag = 'div') {
     const node = el(tag, 'kt-card');
     node.dataset.suit = card.major ? 'major' : card.suit;
+    // Use the rule engine's suit membership, including the magician's four suits.
+    const suits = Rules.suitsOf(card);
+    node.dataset.suits = suits.join(' ');
+    node.dataset.suitCount = String(suits.length);
     node.dataset.card = card.id;
     const image = artImage(artUrl(card, 'thumbs'), 'kt-card-art');
     image.width = 160;

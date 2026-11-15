@@ -6,6 +6,11 @@
   --kt-dim: #dbc39b;
   --kt-gold: #efc66d;
   --kt-gold-deep: #a26b2d;
+  --kt-wand-color: #eb7068;
+  --kt-cup-color: #70b3f5;
+  --kt-coin-color: #77cd92;
+  --kt-sword-color: #efd164;
+  --kt-major-color: #f4f3ef;
   --kt-wood: #60331b;
   --kt-wood-dark: #29140c;
   --kt-panel: #2a1912;
@@ -231,13 +236,19 @@ body {
 
 /* Suit colours frame both the card and its compact rank overlay. */
 .kt-card {
-  --kt-suit-color: #f4f3ef;
+  --kt-suit-color: var(--kt-major-color);
+  --kt-frame-top: var(--kt-suit-color);
+  --kt-frame-right: var(--kt-suit-color);
+  --kt-frame-bottom: var(--kt-suit-color);
+  --kt-frame-left: var(--kt-suit-color);
   position: relative;
   display: block;
   aspect-ratio: 2 / 3;
   min-width: 0;
   padding: 0;
-  border: 1.5px solid var(--kt-suit-color);
+  border-width: 1.5px;
+  border-style: solid;
+  border-color: var(--kt-frame-top) var(--kt-frame-right) var(--kt-frame-bottom) var(--kt-frame-left);
   border-radius: 5px;
   color: #f9f7f1;
   background: #181c20;
@@ -257,7 +268,9 @@ body {
   min-width: 21px;
   height: 24px;
   padding: 1px 3px;
-  border: 1px solid var(--kt-suit-color);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--kt-frame-top) var(--kt-frame-right) var(--kt-frame-bottom) var(--kt-frame-left);
   border-radius: 3px;
   color: #fff;
   background: rgb(12 15 18 / 94%);
@@ -267,11 +280,20 @@ body {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-.kt-card[data-suit="wand"] { --kt-suit-color: #eb7068; }
-.kt-card[data-suit="cup"] { --kt-suit-color: #70b3f5; }
-.kt-card[data-suit="coin"] { --kt-suit-color: #77cd92; }
-.kt-card[data-suit="sword"] { --kt-suit-color: #efd164; }
-.kt-card[data-suit="major"] { --kt-suit-color: #f4f3ef; }
+.kt-card[data-suit="wand"] { --kt-suit-color: var(--kt-wand-color); }
+.kt-card[data-suit="cup"] { --kt-suit-color: var(--kt-cup-color); }
+.kt-card[data-suit="coin"] { --kt-suit-color: var(--kt-coin-color); }
+.kt-card[data-suit="sword"] { --kt-suit-color: var(--kt-sword-color); }
+.kt-card[data-suit="major"][data-suits="wand"] { --kt-frame-left: var(--kt-wand-color); --kt-frame-right: var(--kt-wand-color); }
+.kt-card[data-suit="major"][data-suits="cup"] { --kt-frame-left: var(--kt-cup-color); --kt-frame-right: var(--kt-cup-color); }
+.kt-card[data-suit="major"][data-suits="coin"] { --kt-frame-left: var(--kt-coin-color); --kt-frame-right: var(--kt-coin-color); }
+.kt-card[data-suit="major"][data-suits="sword"] { --kt-frame-left: var(--kt-sword-color); --kt-frame-right: var(--kt-sword-color); }
+.kt-card[data-suit="major"][data-suit-count="4"] {
+  --kt-frame-top: var(--kt-wand-color);
+  --kt-frame-right: var(--kt-cup-color);
+  --kt-frame-bottom: var(--kt-coin-color);
+  --kt-frame-left: var(--kt-sword-color);
+}
 .kt-card.is-zoomable { cursor: zoom-in; }
 
 .kt-message {

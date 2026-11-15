@@ -97,7 +97,7 @@ for (const width of [320, 390, 430]) {
         await expect.poll(() => page.locator('.kt-seat:visible .kt-seat-portrait').evaluateAll((list) => list.length === 3 && list.every((img) => img.complete && img.naturalWidth > 0))).toBe(true);
         await expect(page.locator('#ktHand .kt-card-rank')).toHaveCount(8);
         const labels = await page.locator('#ktHand .kt-card-rank').allTextContents();
-        expect(labels.every(label => /^(?:\d+|[PNQKA])$/.test(label))).toBe(true);
+        expect(labels.every(label => /^(?:\d+|A)$/.test(label))).toBe(true);
         const artworkFillsFrames = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-card').evaluateAll(cards => cards.every(card => {
             const image = card.querySelector('.kt-card-art');
             const rank = card.querySelector('.kt-card-rank');
@@ -122,6 +122,51 @@ test('three players sit left and right and play three rounds', async ({ page }) 
     await expect(page.locator('#ktRound')).toHaveText('第1局 / 3');
     await expect(page.locator('#ktPot')).toHaveText('場 60');
     await expect(page.locator('.kt-seat:visible .kt-seat-portrait')).toHaveCount(2);
+});
+
+test('only aces use letters and major arcana show their suit memberships on both frames', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const seen = await observe(page);
+    const time = new Date('2026-11-15T00:00:00Z');
+    await page.clock.install({ time });
+    await page.clock.pauseAt(new Date(time.getTime() + 1000));
+    const red = 'rgb(235, 112, 104)', blue = 'rgb(112, 179, 245)', green = 'rgb(119, 205, 146)';
+    const yellow = 'rgb(239, 209, 100)', white = 'rgb(244, 243, 239)';
+    const palette = { wand: red, cup: blue, coin: green, sword: yellow };
+    const majorFrames = {
+        1: [red, blue, green, yellow],
+        16: [white, yellow, white, yellow], 17: [white, blue, white, blue],
+        18: [white, green, white, green], 19: [white, red, white, red]
+    };
+    const coveredMajors = new Set(), coveredRanks = new Set();
+    for (const seed of [36, 201, 628, 381]) {
+        await sit(page, { seed });
+        const cards = await page.locator('#ktHand .kt-card, #ktFieldCards .kt-card').evaluateAll(nodes => nodes.map(node => {
+            const rank = node.querySelector('.kt-card-rank');
+            const sides = element => {
+                const style = getComputedStyle(element);
+                return [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor];
+            };
+            return { id: node.dataset.card, suit: node.dataset.suit, label: rank.textContent, cardFrame: sides(node), rankFrame: sides(rank) };
+        }));
+        for (const card of cards) {
+            const num = Number(card.id.split('-').at(-1));
+            const major = card.suit === 'major';
+            expect(card.label).toBe(!major && num === 15 ? 'A' : String(num));
+            const expected = major ? majorFrames[num] || Array(4).fill(white) : Array(4).fill(palette[card.suit]);
+            expect(card.cardFrame).toEqual(expected);
+            expect(card.rankFrame).toEqual(expected);
+            if (major && majorFrames[num]) coveredMajors.add(num);
+            if (!major && num >= 11) coveredRanks.add(num);
+            if (major && num === 15) coveredRanks.add('major-15');
+        }
+        await shot(page, `compound-suits-seed-${seed}.png`);
+    }
+    expect([...coveredMajors].sort((a, b) => a - b)).toEqual([1, 16, 17, 18, 19]);
+    expect([...coveredRanks].sort()).toEqual([11, 12, 13, 14, 15, 'major-15'].sort());
+    expect(seen.errors).toEqual([]);
+    expect(seen.unexpected).toEqual([]);
 });
 
 test('opponent cards, counts and last-card emphasis stay in sync through a match', async ({ page }) => {
