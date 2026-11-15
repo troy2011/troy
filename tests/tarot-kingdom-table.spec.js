@@ -538,6 +538,66 @@ test('the result explains each payment as cards x han x rate', async ({ page }) 
     await expect(page.locator('#ktDialogBody .kt-han-pill-big')).toHaveText(/^\d+翻$/);
 });
 
+test('a final conditional major previews its bonus privately and explains the extra han in the result', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const seen = await observe(page);
+    // Only replace the deal in this browser fixture; validation and settlement
+    // still use the real module. No state-changing test hook is shipped.
+    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-last-card-v1$/, route => route.fulfill({
+        contentType: 'text/javascript',
+        body: `
+            export * from '/js/kingdomTable/rules.js?fixture=last-card-real';
+            import { createRound as realRound, buildDeck } from '/js/kingdomTable/rules.js?fixture=last-card-real';
+            export function createRound(options) {
+                const state = realRound(options);
+                const deck = buildDeck(), card = id => deck.find(item => item.id === id);
+                const hands = [['major-16'], ['major-17'], ['wand-3', 'cup-15'], ['wand-4', 'sword-3']];
+                state.players = hands.map(hand => ({ hand: hand.map(card), grave: [], exiled: [] }));
+                const field = card('cup-9');
+                const used = new Set([...hands.flat(), field.id]);
+                const unused = deck.filter(item => !used.has(item.id));
+                state.deck = unused.slice(0, 45);
+                state.aside = unused.slice(45).filter(item => item.major);
+                state.players[1].grave = unused.slice(45).filter(item => !item.major);
+                state.field = { kind: 'normal', count: 1, role: null, plays: [{ by: 1, cards: [field] }] };
+                state.back = false; state.lock = null; state.cut = false;
+                state.passed = [2, 3]; state.trashBy = null; state.judgement = false;
+                state.han = hands.map(() => 0); state.lastCardHan = 0;
+                state.dealer = 0; state.last = 1; state.turn = 0; state.drew = false; state.ceded = 0;
+                state.phase = 'play'; state.winner = null;
+                state.lastPlay = { by: 1, type: 'normal', role: null };
+                state.events = [{ type: 'play', by: 1, kind: 'normal', cards: [field], role: null }];
+                return state;
+            }
+        `
+    }));
+    await sit(page);
+    await expect(page.locator('#ktHand .kt-card')).toHaveCount(1);
+    await expect(page.locator('#ktMe .kt-han-pill')).toHaveText('3翻');
+    // The opponent also holds a conditional last card, which must not leak via its han counter.
+    await expect(page.locator('#ktSeatRight .kt-han-pill')).toHaveText('1翻');
+    await page.locator('#ktHand .kt-card').click();
+    await expect(page.locator('#ktPlay')).toBeEnabled();
+    await expect(page.locator('#ktMessage')).toContainText('ラスト上がり +1翻');
+    await page.locator('#ktPlay').click();
+    await expect(page.locator('#ktDialog')).toBeVisible();
+    await expect(page.locator('#ktDialogBody .kt-han-pill-big')).toHaveText('3翻');
+    await expect(page.locator('#ktDialogBody .kt-result-note')).toContainText('上がり1 ＋ ラスト上がり1 ＋ 親1');
+    const rows = await page.locator('#ktDialogBody .kt-result-row > p').allTextContents();
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+        const [, count, han, rate, paid] = row.match(/(\d+)枚 × (\d+)翻.* × (\d+) ＝ (\d+)/).map(Number);
+        expect(paid).toBe(count * han * rate);
+    }
+    await expect(page.locator('#ktMe .kt-me-chips')).toHaveText('1230');
+    await expect(page.locator('#ktPlay')).toBeDisabled();
+    await expect.poll(() => page.locator('#ktDialog img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0))).toBe(true);
+    await shot(page, 'last-card-bonus-result-390.png');
+    expect(seen.errors).toEqual([]);
+    expect(seen.unexpected).toEqual([]);
+});
+
 // Effects run only without ?fast=1. The page records every effect node it adds so the test can check them afterwards.
 async function sitWithEffects(page, { seed = 3, reduced = false } = {}) {
     if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });

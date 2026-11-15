@@ -8,6 +8,7 @@ export const HAND_LIMIT = 8;
 export const EQUAL_NUMBER_COUNTER = Object.freeze({ wand: 'cup', cup: 'sword', sword: 'coin', coin: 'wand' });
 const MAJOR_SUITS = { 1: SUITS, 16: ['sword'], 17: ['cup'], 18: ['coin'], 19: ['wand'] };
 const OPENING_BARRED = new Set([15, 16, 17, 18, 19, 21]);
+export const LAST_CARD_HAN = 1;
 // Han earned when a five-card role clears the field (or goes out), by role rank. A role made by a call earns one less.
 export const ROLE_HAN = [0, 2, 2, 3, 4, 10, 5, 10];
 export const CALL_HAN_PENALTY = 1;
@@ -101,14 +102,26 @@ function ownCards(state, p, cards) {
     return new Set(cards.map((c) => c.id)).size === cards.length && cards.every((c) => hand.some((h) => h.id === c.id));
 }
 
+function isLastConditionalCard(state, p, cards) {
+    return cards.length === 1 && handOf(state, p).length === 1
+        && cards[0].major && OPENING_BARRED.has(cards[0].num);
+}
+
+// Before going out this is a private preview; afterwards use the recorded bonus.
+export function lastCardHan(state, p) {
+    if (state.phase === 'over') return state.winner === p ? (state.lastCardHan || 0) : 0;
+    return isLastConditionalCard(state, p, handOf(state, p)) ? LAST_CARD_HAN : 0;
+}
+
 // One to three cards of the same number, led or laid on a field of the same size.
 export function checkNormal(state, p, cards) {
     if (!cards.length || cards.length > 3) return no('通常出しは同じ数字を1〜3枚です');
     if (!ownCards(state, p, cards)) return no('手札にない札です');
     if (new Set(cards.map(numberKey)).size !== 1) return no('同じ数字の札をそろえてください');
     const special = cards.find((c) => c.major && OPENING_BARRED.has(c.num));
+    const lastConditional = isLastConditionalCard(state, p, cards);
     if (!state.field.kind) {
-        if (special && handOf(state, p).length !== 1) return no('この大札は初手に出せません');
+        if (special && !lastConditional) return no('この大札は初手に出せません');
         return YES;
     }
     if (state.field.kind === 'role') return no('5枚役の場には5枚役で返します');
@@ -122,14 +135,15 @@ export function checkNormal(state, p, cards) {
     if (playHasMajor && top.every((c) => isMinor(c, 15))) return no('小札Aには大札で返せません');
     if (state.lock && !cards.every((c) => suitsOf(c).includes(state.lock) || isMajor(c, 14))) return no('ロック中はそのスートで返します');
     if (world) {
-        if (!top[0].major) return no('世界は大札1枚の場に出します');
-        if (state.back) return no('11バック中は世界を出せません');
+        if (!lastConditional && !top[0].major) return no('世界は大札1枚の場に出します');
+        if (!lastConditional && state.back) return no('11バック中は世界を出せません');
         return YES;
     }
     if (isMajor(card, 15)) {
+        if (lastConditional) return YES;
         return !top[0].major && top[0].num >= 11 && top[0].num <= 14 ? YES : no('悪魔は小札11〜14の1枚場に出します');
     }
-    if (special && !suitsOf(top[0]).includes(MAJOR_SUITS[card.num][0])) return no('この大札は対応するスートの1枚場に出します');
+    if (special && !lastConditional && !suitsOf(top[0]).includes(MAJOR_SUITS[card.num][0])) return no('この大札は対応するスートの1枚場に出します');
     const mine = card.num;
     const theirs = top[0].num;
     if (mine !== theirs) {
@@ -329,6 +343,7 @@ export function play(state, p, ids, type) {
     const kind = type || (cards.length === 5 ? 'role' : cards.length === 4 ? 'call' : 'normal');
     const res = kind === 'role' ? checkRole(state, p, cards) : kind === 'call' ? checkCall(state, p, cards) : checkNormal(state, p, cards);
     if (!res.ok) return res;
+    const finishingConditional = kind === 'normal' && isLastConditionalCard(state, p, cards);
     const prevTop = state.field.kind ? fieldTop(state) : null;
     takeFromHand(state, p, cards);
     state.field.plays.push({ by: p, cards, call: kind === 'call' });
@@ -350,7 +365,8 @@ export function play(state, p, ids, type) {
         awardRoleHan(state);
         state.phase = 'over';
         state.winner = p;
-        note(state, { type: 'win', by: p });
+        state.lastCardHan = finishingConditional ? LAST_CARD_HAN : 0;
+        note(state, { type: 'win', by: p, lastCardHan: state.lastCardHan });
         return YES;
     }
     if (kind === 'normal') {
@@ -437,7 +453,7 @@ export function createRound({ players = 4, dealer = 0, rng = Math.random, deck =
         aside: [], dealer,
         field: { kind: null, count: 0, role: null, plays: [] },
         back: false, lock: null, cut: false, passed: [], trashBy: null, judgement: false,
-        han: Array.from({ length: players }, () => 0),
+        han: Array.from({ length: players }, () => 0), lastCardHan: 0,
         last: dealer, turn: dealer, drew: false, ceded: 0, phase: 'play', winner: null, lastPlay: null, events: []
     };
     for (let i = 0; i < HAND_LIMIT; i += 1) {

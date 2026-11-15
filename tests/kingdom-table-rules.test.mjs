@@ -23,7 +23,7 @@ function table(hands, { field = '', by = hands.length - 1, turn = 0, deck = '' }
         players: hands.map((hand) => ({ hand: cards(hand), grave: [], exiled: [] })),
         deck: cards(deck), aside: [], dealer: 0,
         field: { kind: null, count: 0, role: null, plays: [] },
-        back: false, lock: null, cut: false, passed: [], trashBy: null, judgement: false, han: hands.map(() => 0),
+        back: false, lock: null, cut: false, passed: [], trashBy: null, judgement: false, han: hands.map(() => 0), lastCardHan: 0,
         last: by, turn, drew: false, ceded: 0, phase: 'play', winner: null, lastPlay: null, events: []
     };
     if (field) {
@@ -211,6 +211,97 @@ test('going out comes before the effect of the cards, the World included', () =>
     const world = table(['M21', 'W2', 'W3']);
     ok(R.play(world, 0, ids('M21')));
     assert.equal(world.winner, 0);
+});
+
+test('a final conditional major waives its dedicated target condition, but not with another card left', () => {
+    for (const [last, field] of [['M15', 'M10'], ['M16', 'C9'], ['M17', 'S9'], ['M18', 'W9'], ['M19', 'O9'], ['M21', 'C9']]) {
+        refused(R.checkNormal(table([`${last} W2`, 'W3', 'W4'], { field }), 0, cards(last)));
+        const state = table([last, 'W3', 'W4'], { field });
+        ok(R.checkNormal(state, 0, cards(last)));
+        ok(R.play(state, 0, ids(last)));
+        assert.equal(state.winner, 0);
+        assert.equal(state.lastCardHan, 1);
+        assert.equal(R.lastCardHan(state, 0), 1);
+        assert.equal(state.events.at(-1).lastCardHan, 1);
+    }
+    const world = table(['M21', 'W2', 'W3'], { field: 'M10' });
+    world.back = true;
+    ok(R.play(world, 0, ids('M21')));
+    const tower = table(['M16', 'W2', 'W3'], { field: 'M20' });
+    tower.back = true;
+    ok(R.play(tower, 0, ids('M16')));
+});
+
+test('a final conditional major still respects count, role, cut, lock, ace and numeric rules', () => {
+    refused(R.play(table(['M21', 'W2', 'W3'], { field: 'S7 C7' }), 0, ids('M21')));
+    const role = table(['M21', 'W2', 'W3'], { field: 'W3 W4 W5 W6 W7' });
+    role.field.kind = 'role';
+    role.field.role = R.evaluateRole(role.field.plays[0].cards);
+    refused(R.play(role, 0, ids('M21')));
+    const cut = table(['M21', 'W2', 'W3'], { field: 'S8' });
+    cut.cut = true;
+    refused(R.play(cut, 0, ids('M21')));
+    const lock = table(['M17', 'W2', 'W3'], { field: 'S9' });
+    lock.lock = 'sword';
+    refused(R.play(lock, 0, ids('M17')));
+    refused(R.play(table(['M21', 'W2', 'W3'], { field: 'SA' }), 0, ids('M21')));
+    refused(R.play(table(['M16', 'W2', 'W3'], { field: 'M20' }), 0, ids('M16')));
+    const unowned = table(['M16', 'W2', 'W3'], { field: 'C9' });
+    refused(R.play(unowned, 0, ids('M21')));
+    assert.equal(unowned.lastCardHan, 0);
+});
+
+test('the bonus also counts on a legal lead or matching target and is not a five-card role bonus', () => {
+    for (const last of ['M15', 'M16', 'M17', 'M18', 'M19', 'M21']) {
+        const state = table([last, last === 'M17' ? 'M16' : 'M17', 'W3']);
+        ok(R.play(state, 0, ids(last)));
+        assert.equal(R.lastCardHan(state, 0), 1);
+        assert.equal(R.lastCardHan(state, 1), 0);
+    }
+    const matching = table(['M16', 'W2', 'W3'], { field: 'S9' });
+    ok(R.play(matching, 0, ids('M16')));
+    assert.equal(matching.lastCardHan, 1);
+    const normal = table(['M7', 'W2', 'W3'], { field: 'C4' });
+    ok(R.play(normal, 0, ids('M7')));
+    assert.equal(normal.lastCardHan, 0);
+    const role = table(['M21 M3 M9 M10 M13', 'W2', 'W3']);
+    ok(R.play(role, 0, ids('M21 M3 M9 M10 M13'), 'role'));
+    assert.equal(role.han[0], 10);
+    assert.equal(role.lastCardHan, 0);
+});
+
+test('the computer takes a final conditional major win and receives its bonus', () => {
+    const state = table(['M16', 'W2', 'W3'], { field: 'C9' });
+    const action = chooseAction(state, 0);
+    assert.equal(action.type, 'play');
+    assert.deepEqual(action.ids, ['major-16']);
+    ok(R.play(state, 0, action.ids, action.kind));
+    assert.equal(state.winner, 0);
+    assert.equal(state.lastCardHan, 1);
+});
+
+test('last-card han is private until played, adds once to payments, and resets on the next round', () => {
+    const match = M.createMatch({ players: 3 });
+    M.startRound(match);
+    match.round = table(['M16', 'M17', 'W3 CA SA'], { field: 'C9' });
+    match.round.han[0] = 2;
+    assert.equal(M.seatHan(match, 0), 4);
+    assert.equal(M.seatHan(match, 0, { preview: true }), 5);
+    assert.equal(M.seatHan(match, 1), 1);
+    ok(R.play(match.round, 0, ids('M16')));
+    const result = M.settleRound(match);
+    assert.equal(result.lastCardHan, 1);
+    assert.equal(result.winnerHan, 5);
+    assert.equal(match.round.han[0], 2);
+    assert.deepEqual(result.payments.map(pay => [pay.cards, pay.han, pay.paid]), [[1, 5, 50], [3, 7, 210]]);
+    assert.equal(match.chips.reduce((sum, value) => sum + value, 0), 3000);
+    const balances = [...match.chips];
+    refused(R.play(match.round, 0, ids('M16')));
+    assert.equal(M.settleRound(match), result);
+    assert.deepEqual(match.chips, balances);
+    M.startRound(match);
+    assert.equal(match.round.lastCardHan, 0);
+    assert.equal(R.lastCardHan(match.round, 0), 0);
 });
 
 test('a parent on an empty field cannot pass, may draw once, and hands the lead on when unable to open', () => {

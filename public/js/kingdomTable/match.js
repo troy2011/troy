@@ -1,6 +1,6 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips exist only inside this page. They are not G, are never sent anywhere and buy nothing.
-import { createRound } from './rules.js?v=20261115-suit-cycle-v1';
+import { createRound, lastCardHan } from './rules.js?v=20261115-last-card-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,
@@ -34,10 +34,11 @@ export function startRound(match, deck = null) {
     return match.round;
 }
 
-// The han a seat would win with if it went out now:
-// one for going out, the roles it cleared the field with, and one more for the dealer.
-export function seatHan(match, p) {
-    return match.rules.baseHan + match.round.han[p] + extraHan(match, p);
+// Only preview a hidden last card for the player's own seat. Public counters must
+// not reveal an opponent's conditional card before it is played.
+export function seatHan(match, p, { preview = false } = {}) {
+    const bonus = preview || match.round.phase === 'over' ? lastCardHan(match.round, p) : 0;
+    return match.rules.baseHan + match.round.han[p] + extraHan(match, p) + bonus;
 }
 
 // Han a seat carries whether it wins or loses: the dealer's seat.
@@ -57,9 +58,10 @@ export function roundLabel(match) {
 export function settleRound(match) {
     const round = match.round;
     if (!round || round.phase !== 'over' || match.lastResult) return match.lastResult;
-    const result = { winner: round.winner, winnerHan: 0, payments: [], pot: 0, delta: match.chips.map(() => 0), label: roundLabel(match), repeat: false };
+    const result = { winner: round.winner, winnerHan: 0, lastCardHan: 0, payments: [], pot: 0, delta: match.chips.map(() => 0), label: roundLabel(match), repeat: false };
     if (round.winner !== null) {
         const w = round.winner;
+        result.lastCardHan = lastCardHan(round, w);
         result.winnerHan = seatHan(match, w);
         for (let p = 0; p < match.seats; p += 1) {
             if (p === w) continue;

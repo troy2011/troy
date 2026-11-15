@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=20261115-suit-cycle-v1';
-import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-suit-cycle-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-suit-cycle-v1';
-import { chooseAction } from './ai.js?v=20261115-suit-cycle-v1';
+import * as Rules from './rules.js?v=20261115-last-card-v1';
+import { ROLE_NAMES, ROLE_HAN } from './rules.js?v=20261115-last-card-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=20261115-last-card-v1';
+import { chooseAction } from './ai.js?v=20261115-last-card-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js';
 import * as Sfx from './sfx.js';
@@ -154,7 +154,7 @@ function describe(event) {
     case 'skip': return `スキップ ${event.count}人`;
     case 'trash': return `${who} が手札1枚を除外`;
     case 'retrieve': return `${who} が ${NAMES[event.from]} の墓地から1枚回収`;
-    case 'win': return `${who} が上がり`;
+    case 'win': return `${who} が上がり${event.lastCardHan ? `：ラスト上がり +${event.lastCardHan}翻` : ''}`;
     case 'drawn': return '全員が出せず、引き分け';
     default: return '';
     }
@@ -176,7 +176,7 @@ function badges(seat) {
     return host;
 }
 
-const hanPill = (seat) => el('span', 'kt-han-pill', `${seatHan(match, seat)}翻`);
+const hanPill = (seat) => el('span', 'kt-han-pill', `${seatHan(match, seat, { preview: seat === ME })}翻`);
 
 // Match the grip in the actual contained image, including the empty space around it.
 function positionOpponentHand(host) {
@@ -390,9 +390,11 @@ function renderMessage(events) {
     let text = box.dataset.last || '';
     if (round.phase !== 'over' && round.turn === ME) {
         const pick = selectionPlay();
+        const bonus = Rules.lastCardHan(round, ME);
         if (round.phase === 'trash') text = 'ナイトが通りました。手札を1枚除外できます。';
         else if (hint) text = hint;
         else if (pick.cards.length && !pick.res.ok) text = pick.res.reason;
+        else if (pick.cards.length === 1 && bonus) text = `この大札で上がると、ラスト上がり +${bonus}翻`;
         else if (!pick.cards.length) text = `${text ? `${text} ／ ` : ''}あなたの番です`;
     }
     box.textContent = text;
@@ -701,6 +703,7 @@ function showResult(result) {
         const w = result.winner;
         const parts = [`上がり${rules.baseHan}`];
         if (round.han[w]) parts.push(`役${round.han[w]}`);
+        if (result.lastCardHan) parts.push(`ラスト上がり${result.lastCardHan}`);
         if (round.dealer === w) parts.push(`親${rules.dealerHan}`);
         const head = el('p', 'kt-result-head');
         head.append(el('strong', '', `${NAMES[w]} の上がり`), el('span', 'kt-han-pill kt-han-pill-big', `${result.winnerHan}翻`));
