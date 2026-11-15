@@ -1,6 +1,6 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips exist only inside this page. They are not G, are never sent anywhere and buy nothing.
-import { createRound, lastCardHan } from './rules.js?v=20261115-last-opening-v1';
+import { createRound, lastCardHan } from './rules.js?v=20261115-world-five-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,

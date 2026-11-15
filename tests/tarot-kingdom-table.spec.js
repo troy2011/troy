@@ -129,12 +129,16 @@ test('the table links to its current one-way equal-number suit cycle', async ({ 
     const seen = await observe(page);
     await page.goto('/tarot-kingdom-table.html');
     await expect(page.locator('#ktSetup')).toContainText('同数字は弱点のスート、または大札で返せます');
+    await expect(page.getByRole('row', { name: 'ザ・ワールド 5翻', exact: true })).toBeVisible();
+    await expect(page.getByRole('row', { name: 'ファイブカード 10翻', exact: true })).toBeVisible();
     const guide = page.getByRole('link', { name: '札の出し方の説明書を読む' });
     await expect(guide).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
     await expect(page.locator('#ktTable a')).toHaveAttribute('href', 'tarot-kingdom-table-rules.html');
     await guide.click();
     await expect(page).toHaveTitle('卓上戦のルール — タロットキングダム');
     await expect(page.locator('h1')).toHaveText('卓上戦のルール');
+    await expect(page.getByRole('row', { name: 'ザ・ワールド 5翻', exact: true })).toBeVisible();
+    await expect(page.getByRole('row', { name: 'ファイブカード 10翻', exact: true })).toBeVisible();
     await expect(page.locator('main')).toContainText('ワンド←カップ←ソード←ペンタクル←ワンド');
     await expect(page.locator('main')).toContainText('大札入りの組は、スートを問わず返せます');
     await expect(page.locator('main')).toContainText('役も強さも同じなら返せません');
@@ -522,7 +526,7 @@ test('a field card opens its full artwork and closes again', async ({ page }) =>
 
 // Replace only the initial deal. The real rules still clear the field and move its cards.
 async function installPileFixture(page, { call = false } = {}) {
-    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-last-opening-v1$/, route => route.fulfill({
+    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-world-five-v1$/, route => route.fulfill({
         contentType: 'text/javascript',
         body: `
             export * from '/js/kingdomTable/rules.js?fixture=pile-real';
@@ -669,7 +673,7 @@ test('the result explains each payment as cards x han x rate', async ({ page }) 
 async function installLastCardFixture(page, fieldId = null) {
     // Only replace the deal in this browser fixture; validation and settlement
     // still use the real module. No state-changing test hook is shipped.
-    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-last-opening-v1$/, route => route.fulfill({
+    await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-world-five-v1$/, route => route.fulfill({
         contentType: 'text/javascript',
         body: `
             export * from '/js/kingdomTable/rules.js?fixture=last-card-real';
@@ -731,6 +735,49 @@ test('a final barred major can lead onto an empty field and privately previews i
     expect(seen.errors).toEqual([]);
     expect(seen.unexpected).toEqual([]);
 });
+
+for (const called of [false, true]) {
+    test(`a World ${called ? 'call' : 'role'} win displays ${called ? 4 : 5} role han in the settlement`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const seen = await observe(page);
+        await page.route(/\/js\/kingdomTable\/rules\.js\?v=20261115-world-five-v1$/, route => route.fulfill({
+            contentType: 'text/javascript',
+            body: `
+                export * from '/js/kingdomTable/rules.js?fixture=world-score-real';
+                import { createRound as realRound, buildDeck } from '/js/kingdomTable/rules.js?fixture=world-score-real';
+                export function createRound(options) {
+                    const state = realRound(options), deck = buildDeck(), card = id => deck.find(item => item.id === id);
+                    const own = ${JSON.stringify(called ? ['major-21', 'major-3', 'major-9', 'major-13'] : ['major-21', 'major-3', 'major-9', 'major-10', 'major-13'])};
+                    const hands = [own, ['wand-2', 'major-5'], ['wand-3', 'cup-15'], ['sword-4', 'sword-3']];
+                    state.players = hands.map(hand => ({ hand: hand.map(card), grave: [], exiled: [] }));
+                    const field = ${called} ? card('major-10') : null;
+                    const used = new Set([...hands.flat(), ...(field ? [field.id] : [])]);
+                    const unused = deck.filter(card => !used.has(card.id));
+                    state.deck = unused.slice(0, 45); state.aside = unused.slice(45).filter(card => card.major);
+                    state.players[1].grave = unused.slice(45).filter(card => !card.major);
+                    state.field = field ? { kind: 'normal', count: 1, role: null, plays: [{ by: 1, cards: [field] }] }
+                        : { kind: null, count: 0, role: null, plays: [] };
+                    state.back = false; state.lock = null; state.cut = false; state.passed = [];
+                    state.trashBy = null; state.judgement = false; state.han = hands.map(() => 0); state.lastCardHan = 0;
+                    state.dealer = 0; state.last = field ? 1 : 0; state.turn = 0; state.drew = false; state.ceded = 0;
+                    state.phase = 'play'; state.winner = null; state.lastPlay = null; state.events = [];
+                    return state;
+                }
+            `
+        }));
+        await sit(page);
+        for (const card of await page.locator('#ktHand .kt-card').all()) await card.locator('.kt-card-rank').click();
+        await expect(page.locator('#ktPlay')).toBeEnabled();
+        await page.locator('#ktPlay').click();
+        await expect(page.locator('#ktDialog')).toBeVisible();
+        await expect(page.locator('#ktDialogBody .kt-han-pill-big')).toHaveText(`${called ? 6 : 7}翻`);
+        await expect(page.locator('#ktDialogBody .kt-result-note')).toHaveText(`上がり1 ＋ 役${called ? 4 : 5} ＋ 親1`);
+        await shot(page, `world-${called ? 'call' : 'role'}-result-390.png`);
+        expect(seen.errors).toEqual([]);
+        expect(seen.unexpected).toEqual([]);
+    });
+}
 
 test('a final tower still cannot answer a cup field and does not preview an extra han', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

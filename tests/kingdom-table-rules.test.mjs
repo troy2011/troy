@@ -274,7 +274,7 @@ test('only a final barred major led onto an empty field earns the extra han', ()
     assert.equal(normal.lastCardHan, 0);
     const role = table(['M21 M3 M9 M10 M13', 'W2', 'W3']);
     ok(R.play(role, 0, ids('M21 M3 M9 M10 M13'), 'role'));
-    assert.equal(role.han[0], 10);
+    assert.equal(role.han[0], 5);
     assert.equal(role.lastCardHan, 0);
 });
 
@@ -416,19 +416,20 @@ function hanFor(five, field = '') {
     return state.han[0];
 }
 
-test('a role that clears the field adds han: 2, 2, 3, 4, 5, and 10 for the rest', () => {
+test('clearing a role awards five han for the World and ten for five of a kind', () => {
     assert.equal(hanFor('S3 C4 W5 O6 S7'), 2);
     assert.equal(hanFor('S3 S9 S5 SK S7'), 2);
     assert.equal(hanFor('S3 C3 W3 O6 S6'), 3);
     assert.equal(hanFor('S3 C3 W3 O3 S6'), 4);
     assert.equal(hanFor('S3 S4 S5 S6 S7'), 5);
-    assert.equal(hanFor('M21 M3 M9 M10 M13'), 10);
+    assert.equal(hanFor('M21 M3 M9 M10 M13'), 5);
     assert.equal(hanFor('S3 C3 W3 O3 M3'), 10);
 });
 
 test('a role made by a call earns one han less, and a beaten role earns nothing', () => {
     assert.equal(hanFor('S3 C4 W5 O7', 'C6'), 1);
     assert.equal(hanFor('S3 C3 W3 O6', 'S6'), 2);
+    assert.equal(hanFor('M2 M3 M4 M21', 'M10'), 4);
     const state = table(['S3 C4 W5 O6 S7 W9', 'S4 C5 W6 O7 S8 W2', 'W3']);
     ok(R.play(state, 0, ids('S3 C4 W5 O6 S7')));
     ok(R.play(state, 1, ids('S4 C5 W6 O7 S8')));
@@ -447,6 +448,26 @@ test('going out with a role counts its han', () => {
     ok(R.play(state, 0, ids('S3 C3 W3 O6 S6')));
     assert.equal(state.winner, 0);
     assert.equal(state.han[0], 3);
+});
+
+test('a World win settles with five role han, or four when made by a call', () => {
+    for (const called of [false, true]) {
+        const match = M.createMatch({ players: 3 });
+        M.startRound(match);
+        const hand = called ? 'M21 M3 M9 M13' : 'M21 M3 M9 M10 M13';
+        match.round = table([hand, 'W2 M5', 'W3 CA SA'], { field: called ? 'M10' : '' });
+        ok(R.play(match.round, 0, ids(hand)));
+        const roleHan = called ? 4 : 5;
+        const winnerHan = roleHan + 2; // Going out and the dealer add one each.
+        assert.equal(match.round.han[0], roleHan);
+        const result = M.settleRound(match);
+        assert.equal(result.winnerHan, winnerHan);
+        assert.equal(result.lastCardHan, 0);
+        assert.deepEqual(result.payments.map(pay => [pay.cards, pay.han, pay.paid]),
+            [[2, winnerHan, 2 * winnerHan * 10], [3, winnerHan + 2, 3 * (winnerHan + 2) * 10]]);
+        assert.equal(match.chips.reduce((sum, value) => sum + value, 0), 3000);
+        assert.equal(M.settleRound(match), result);
+    }
 });
 
 test('chips: losers pay cards left x the winner han, plus one han per ace they still hold', () => {

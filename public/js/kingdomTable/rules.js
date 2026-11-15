@@ -10,7 +10,7 @@ const MAJOR_SUITS = { 1: SUITS, 16: ['sword'], 17: ['cup'], 18: ['coin'], 19: ['
 const OPENING_BARRED = new Set([15, 16, 17, 18, 19, 21]);
 export const LAST_CARD_HAN = 1;
 // Han earned when a five-card role clears the field (or goes out), by role rank. A role made by a call earns one less.
-export const ROLE_HAN = [0, 2, 2, 3, 4, 10, 5, 10];
+export const ROLE_HAN = [0, 2, 2, 3, 4, 5, 5, 10];
 export const CALL_HAN_PENALTY = 1;
 export const ROLE_NAMES = ['', 'ストレート', 'フラッシュ', 'フルハウス', 'フォーカード', 'ザ・ワールド', 'ストレートフラッシュ', 'ファイブカード'];
 
