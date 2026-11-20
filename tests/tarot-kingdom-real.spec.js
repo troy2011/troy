@@ -35,7 +35,11 @@ test('the existing self-reading URL links to the manual and browser back retains
     await page.goto('/pirate-tarot.html');
     await expect(page).toHaveTitle('海賊タロット｜一枚から、自分の航路へ');
     const entry = page.getByRole('navigation', { name: '実物カードの遊び方' });
-    await expect(entry.getByRole('link')).toHaveAttribute('href', '/tarot-kingdom-real.html');
+    const manual = entry.getByRole('link', { name: '実物版の説明書を読む', exact: true });
+    const game = entry.getByRole('link', { name: 'タロットキングダムで遊ぶ', exact: true });
+    await expect(manual).toHaveAttribute('href', '/tarot-kingdom-real.html');
+    await expect(game).toBeVisible();
+    await expect(game).toHaveAttribute('href', 'https://tarot-kingdom-online.bar-troy2011.chatgpt.site/tarot-kingdom-table.html');
     await screenshot(page, 'self-entry-mobile.png');
     await expect(page.locator('#cardGrid button')).toHaveCount(78);
     await page.locator('[data-card-id="sword-3"]').click();
@@ -44,7 +48,7 @@ test('the existing self-reading URL links to the manual and browser back retains
     await expect(page.locator('#resultLabel')).toHaveText('ソード 3');
     const reading = await page.locator('#resultPoint').textContent();
     await expect(page).toHaveURL(/\/pirate-tarot\.html$/);
-    await entry.getByRole('link').click();
+    await manual.click();
     await expect(page).toHaveURL(/\/tarot-kingdom-real\.html$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('タロットキングダム');
     await page.goBack();
