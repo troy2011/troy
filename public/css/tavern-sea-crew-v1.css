@@ -1,0 +1,17 @@
+/* Compact boards inherit the shared game palette and seat rotation. */
+.sea-cipher,.sea-harbor{display:grid;justify-items:center;min-width:0;gap:clamp(2px, .55svh, 7px);width:min(100%,330px);margin-inline:auto}
+.sea-cipher-code{margin:0;line-height:1.15;color:#ffe3a8;font:700 clamp(20px,4.5vw,30px)/1.15 ui-monospace,monospace;letter-spacing:.04em}
+.sea-cipher-key{display:grid;width:100%;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;font:700 clamp(11px,3.4vw,15px)/1.25 ui-monospace,monospace}
+.sea-cipher-key span{display:block;border:1px solid #cda96467;background:#20130c;padding:3px 0;border-radius:4px;text-align:center;white-space:nowrap;color:#ffedd3}
+.sea-cipher-read{min-height:1.3em;line-height:1.25;font-size:clamp(13px,3.5vw,16px);font-weight:750;color:#ffe1a1}
+.sea-cipher-read[data-error=true]{color:#ffb1a5}
+.sea-cipher-keys{display:grid;width:100%;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
+.sea-cipher-keys button,.sea-harbor-buttons button{width:100%;min-width:0;padding:2px 1px;white-space:nowrap;min-height:34px;min-height:clamp(29px,5.2svh,44px);margin:0}
+.sea-cipher-keys button{font-size:clamp(15px,4.4vw,21px)}
+.sea-cipher-keys .sea-cipher-erase{font-size:clamp(9px,3vw,13px)}
+.sea-harbor-title,.sea-harbor-info{margin:0;line-height:1.18;text-align:center;color:#ffe7bb}
+.sea-harbor-title{font-weight:800;font-size:clamp(13px,3.9vw,19px);letter-spacing:.1em}
+.sea-harbor-info{font-size:clamp(11px,3.2vw,14px);white-space:nowrap}
+.sea-harbor-map{display:block;height:clamp(57px,14svh,125px);width:100%;border:1px solid #587782;background:#0d2836;border-radius:6px;background-image:repeating-linear-gradient(0deg,transparent 0 14px,#95deff0c 15px 16px)}
+.sea-harbor-buttons{display:grid;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.sea-harbor-buttons button[aria-pressed=true]{background:#e6bf73;color:#25160a;text-shadow:none;box-shadow:inset 0 0 0 1px #fff3bd}

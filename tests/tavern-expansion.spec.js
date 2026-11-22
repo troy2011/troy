@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
-const IDs=['tug-of-war','skull-bomb','quick-math','color-word','number-touch','cannon-power','shell-count','chest-shuffle','cargo-stow','take-fifteen','claim-route','pirate-dice','barrel-swords','treasure-dig','captain-topic','captain-charades'];
-const assets=new Set(['/tavern-minigames.html','/favicon.ico','/css/tavern-minigames-v1.css','/css/tavern-expansion-v1.css','/js/tavern-minigames-v1.js','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-expansion-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js']);
+const IDs=['tug-of-war','skull-bomb','quick-math','color-word','number-touch','cannon-power','shell-count','chest-shuffle','take-fifteen','pirate-dice','treasure-dig'];
+const assets=new Set(['/tavern-minigames.html','/favicon.ico','/css/tavern-minigames-v1.css','/css/tavern-expansion-v1.css','/js/tavern-minigames-v1.js','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-expansion-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css']);
 const seat=(p,s)=>p.locator('.xgame-seat').nth(s);
 const cmd=(p,s,n)=>seat(p,s).getByRole('button',{name:n,exact:typeof n==='string'}).click();
 const uid=(p,s,i)=>seat(p,s).locator('button').nth(i).click();
@@ -46,22 +46,17 @@ for(const id of IDs)test('actual completed outcome: '+id,async({page:p})=>{
     case 'chest-shuffle':
       for(const wait of [3800,4200,4200]){await step(wait);await cmd(p,0,'左の樽');await cmd(p,1,'右の樽');await step(1450);}
       await result(p,'合計 3 対 0');break;
-    case 'cargo-stow':for(let s=0,i=0;i<16;i+=2,s=1-s){await uid(p,s,i);await uid(p,s,i+1);}await result(p,'置けない');break;
     case 'take-fifteen':for(const [s,n] of [[0,1],[1,2],[0,5],[1,3],[0,9]])await cmd(p,s,String(n));await result(p,'15');break;
-    case 'claim-route':for(const [s,i] of [[0,0],[1,1],[0,4],[1,2],[0,8],[1,3],[0,12]])await uid(p,s,i);await result(p,'開通');break;
     case 'pirate-dice':
       await expect(seat(p,1).getByRole('button',{name:'振る'})).toHaveCount(0);
       await cmd(p,0,'振る');await step(500);await expect(p.locator('#signal')).toContainText('ドクロ');
       await p.evaluate(()=>{Math.random=()=>0.99;});
       for(let i=0;i<5;i++){await cmd(p,1,'振る');await step(500);}await result(p,'30 枚に到達');break;
-    case 'barrel-swords':await uid(p,0,1);await uid(p,1,0);await result(p,'飛び出した');break;
     case 'treasure-dig':
       for(let i=0;i<40&&await p.locator('#arena').getAttribute('data-phase')==='play';i++){
         const mine=p.locator('.xgame-seat[data-turn=mine]');await mine.locator('.xgame-board button:not(:disabled)').first().click();
       }
       await result(p,'お宝');break;
-    case 'captain-topic':await cmd(p,0,'最初の人、準備OK');await cmd(p,0,'言えた');await cmd(p,1,'OK');await cmd(p,1,'準備OK');await step(7100);await result(p,'時間切れ');break;
-    case 'captain-charades':for(let n=0;n<4;n++){const s=n%2;await cmd(p,s,/(1P|2P)だけお題を見る/);await cmd(p,s,'覚えた。お題を隠して開始');await cmd(p,s,n===3?'パス':'当たった！');}await result(p,'ふたりでクリア');await expect(p.locator('.xgame-result')).toHaveText(['ふたりの結果','ふたりの結果']);break;
   }
 });
 test('orientation and exit cancel old timers; replay alternates starter',async({page:p})=>{

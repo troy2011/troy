@@ -1,0 +1,35 @@
+
+/* Shared private panels for the two simultaneous sea challenges. */
+.sea-lanes { width:min(100%, 21rem); max-width:100%; }
+.sea-lanes .xgame-action {
+    display:grid;
+    grid-template-rows:1fr 1fr;
+    place-items:center;
+    min-height:68px;
+    padding:5px 1px;
+    background:#173b43;
+    font-size:1.25rem;
+}
+.sea-lanes .xgame-action[data-danger="true"] {
+    background:#2f2232;
+    border-color:#eb7f73;
+}
+.sea-lanes .xgame-action[data-ship="true"] {
+    box-shadow:inset 0 0 0 2px #f3cf7d;
+}
+.sea-wave,.sea-ship { min-height:1.2em; line-height:1.06; }
+.xgame-seat .sea-chart { width:min(100%, 11.25rem); flex-basis:auto; }
+.sea-chart .xgame-action {
+    aspect-ratio:1;
+    min-height:44px;
+    padding:0;
+    color:#f2d59c;
+    background:#193d49;
+    border-color:#6f9ba6;
+}
+.sea-chart svg { display:block; width:100%; height:100%; }
+.sea-chart polyline { fill:none; stroke:currentColor; stroke-width:5px; stroke-linecap:round; stroke-linejoin:round; }
+.sea-chart circle { stroke:#071b22; stroke-width:1.6px; }
+.sea-chart circle.port { fill:#57dcff; }
+.sea-chart circle.island { fill:#ffc55b; }
+.xgame-seat .sea-legend { font-size:.78rem; }

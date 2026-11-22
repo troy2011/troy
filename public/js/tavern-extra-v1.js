@@ -5,7 +5,6 @@
 (() => {
   'use strict';
   const GAMES = {
-    curse: ['31の呪い', 'strategy', '31', '交互に1〜3を足す。31を出したら負け。'],
     flags: ['偽旗を見破れ', 'reflex', '⚑', 'お題と同じ旗を先に見つけて3点先取。'],
     memory: ['光る順番', 'memory', '✦', '同じ順番を覚えて、それぞれ再現。'],
     curling: ['コインカーリング', 'strategy', '◎', '交互に3投。コインを弾いて、中心に近いほうが勝ち。'],
@@ -15,7 +14,6 @@
   const SHAPES = ['●', '▲', '◆', '■'];
   const COLOURS = ['赤', '青', '金', '緑'];
 
-  const CURSE_LIMIT = 31;
   const FLAG_POINTS_TO_WIN = 3;
   const FLAG_NEXT_TARGET_MS = 450;
   const MEMORY_LENGTH = 4;
@@ -58,9 +56,6 @@
   let note = '';
   let timers = [];
   // 31の呪い
-  let total = 0;
-  let lastAdder = null;
-  let lastStep = 0;
   // 偽旗を見破れ
   let points = [0, 0];
   let target = 0;
@@ -132,7 +127,6 @@
       zone.dataset.turn = turnState(seat);
       if (phase === 'idle') drawIdle(zone, seat);
       else if (phase === 'done') drawDone(zone, seat);
-      else if (id === 'curse') drawCurse(zone, seat);
       else if (id === 'flags') drawFlags(zone, seat);
       else if (id === 'memory') drawMemory(zone, seat);
       else if (id === 'curling') drawCurling(zone, seat);
@@ -140,7 +134,7 @@
     });
   }
   const labelOf = node => node.getAttribute('aria-label') || node.textContent;
-  const turnBased = () => id === 'curse' || id === 'curling';
+  const turnBased = () => id === 'curling';
   function turnState(seat) {
     if (!turnBased() || (phase !== 'play' && phase !== 'sliding')) return '';
     return turn === seat ? 'mine' : 'theirs';
@@ -156,7 +150,6 @@
   function drawDone(zone, seat) {
     zone.append(el('strong', winner == null ? '引き分け' : winner === seat ? '勝ち' : '負け'));
     let detail = '';
-    if (id === 'curse') detail = lastAdder === seat ? CURSE_LIMIT + ' を出してしまった' : '相手が ' + CURSE_LIMIT + ' を出した';
     if (id === 'flags') detail = points[seat] + ' 点';
     if (id === 'memory') detail = score(seat) + ' / ' + pattern.length + ' 正解';
     if (id === 'curling') detail = '投数 ' + throws[seat] + '/' + THROWS_PER_PLAYER + '　中心まで ' + distanceText(best[seat]);
@@ -164,25 +157,6 @@
     if (id === 'curling') zone.append(curlingLane(seat, false));
     // The answer is shown after the round, so both can see where they slipped.
     say(zone, id === 'memory' ? note + '\n正解　' + pattern.map(v => SHAPES[v]).join(' ') : note);
-  }
-
-  function drawCurse(zone, seat) {
-    const mine = turn === seat;
-    zone.append(el('strong', String(total)), el('small', mine ? 'あなたの番' : '相手の番'));
-    const actions = el('div', null, 'extra-actions');
-    [1, 2, 3].forEach(step => actions.append(actionButton('+' + step, () => addToCurse(seat, step), !mine || total + step > CURSE_LIMIT)));
-    zone.append(actions);
-    say(zone, lastAdder == null ? note : (lastAdder === seat ? 'あなた' : '相手') + 'が +' + lastStep + '　' + note);
-  }
-  function addToCurse(seat, step) {
-    if (phase !== 'play' || turn !== seat || total + step > CURSE_LIMIT) return;
-    total += step;
-    lastAdder = seat;
-    lastStep = step;
-    fx.tap();
-    if (total === CURSE_LIMIT) { finish(1 - seat); return; }
-    turn = 1 - seat;
-    render();
   }
 
   function drawFlags(zone, seat) {
@@ -400,9 +374,6 @@
     phase = 'play';
     // The first player alternates between games, so a rematch is fair.
     turn = round++ % 2;
-    total = 0;
-    lastAdder = null;
-    lastStep = 0;
     scorer = null;
     points = [0, 0];
     target = random(SHAPES.length);
@@ -414,7 +385,7 @@
     landings = [[], []];
     best = [Infinity, Infinity];
     power = [0, 0];
-    note = { curse: CURSE_LIMIT + ' にしたら負け', flags: '同じ旗を押せ', curling: '中心に近いほうが勝ち', memory: '合図を覚えよう' }[id];
+    note = { flags: '同じ旗を押せ', curling: '中心に近いほうが勝ち', memory: '合図を覚えよう' }[id];
     if (id === 'memory') {
       phase = 'show';
       cue = -1;

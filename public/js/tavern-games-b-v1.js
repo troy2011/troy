@@ -1,4 +1,4 @@
-// Tavern games, set B: turn-based board and dice games, and two party games where the phone only keeps time.
+// Tavern games, set B: turn-based board and dice games.
 // Boards are drawn in both halves so the waiting player can follow; only the player whose turn it is can tap.
 (() => {
   'use strict';
@@ -32,43 +32,6 @@
       ctx.zones[seat].append(grid);
     });
   }
-  const moveFocus = (ctx, s, i) => ctx.zones[s].querySelectorAll('.xgame-board button')[i]?.focus({ preventScroll: true });
-  const turnLine = (ctx, turn, mineText) => both(s => ctx.text(s, s === turn ? mineText : '相手の番', 'xgame-text'));
-
-  meta('cargo-stow', '船荷ならべ', 'strategy', '📦', '縦か横に隣り合う空きマス2つに船荷を置く。置けなくなった方の負け。', ctx => {
-    let turn = ctx.starter;
-    let first = -1;
-    const size = 4;
-    const cargo = Array(size * size).fill(null);
-    const adjacent = (a, b) => Math.abs((a % size) - (b % size)) + Math.abs(Math.floor(a / size) - Math.floor(b / size)) === 1;
-    const fits = i => cargo[i] === null && cargo.some((value, j) => value === null && adjacent(i, j));
-    const render = () => {
-      ctx.clear();
-      ctx.turn(turn);
-      ctx.say(seatName(turn) + 'の番　船荷を縦か横の2マスに');
-      turnLine(ctx, turn, first < 0 ? '船荷の片側を選ぶ' : '隣のマスを選んで置く');
-      board(ctx, cargo.map((v, i) => ({
-        label: v !== null ? '📦' : i === first ? '◆' : '・',
-        mark: v,
-        disabled: v !== null || (first < 0 ? !fits(i) : i !== first && !adjacent(first, i)),
-        a11y: '行 ' + (1 + Math.floor(i / size)) + ' 列 ' + (1 + (i % size)) + (v === null ? ' 空き' : ' ' + seatName(v) + ' の船荷'),
-      })), size, turn, select);
-    };
-    function select(i) {
-      if (!fits(i)) return;
-      if (first < 0) { first = i; render(); moveFocus(ctx, turn, i); return; }
-      if (i === first) { first = -1; render(); moveFocus(ctx, turn, i); return; }
-      if (!adjacent(first, i)) return;
-      cargo[first] = cargo[i] = turn;
-      first = -1;
-      ctx.fx.tap();
-      if (!cargo.some((_, j) => fits(j))) { win(ctx, turn, '相手はもう船荷を置けない。'); return; }
-      turn = 1 - turn;
-      render();
-    }
-    return { start: render };
-  });
-
   meta('take-fifteen', '15の取り合い', 'strategy', '🧮', '1〜9を交互に1枚ずつ取る。自分の数字のどれか3枚で15を作れば勝ち。', ctx => {
     let turn = ctx.starter;
     const picked = [[], []];
@@ -92,48 +55,6 @@
       ctx.fx.tap();
       if (threeSum(picked[turn])) { win(ctx, turn, '3枚で15を完成。'); return; }
       if (picked[0].length + picked[1].length === 9) { ctx.finish(null, '9枚を取り切って引き分け。'); return; }
-      turn = 1 - turn;
-      render();
-    }
-    return { start: render };
-  });
-
-  meta('claim-route', '航路の取り合い', 'strategy', '🧭', '1Pは上から下、2Pは左から右。自分の港をつないで先に航路を作る。', ctx => {
-    let turn = ctx.starter;
-    const w = 4;
-    const ports = Array(w * w).fill(null);
-    const offsets = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, -1], [-1, 1]];
-    const route = s => {
-      const queue = ports.map((p, i) => (p === s && (s === 0 ? i < w : i % w === 0) ? i : -1)).filter(i => i >= 0);
-      const seen = new Set(queue);
-      for (let k = 0; k < queue.length; k++) {
-        const i = queue[k], r = Math.floor(i / w), c = i % w;
-        if (s === 0 ? r === w - 1 : c === w - 1) return true;
-        for (const [dr, dc] of offsets) {
-          const nr = r + dr, nc = c + dc, j = nr * w + nc;
-          if (nr >= 0 && nr < w && nc >= 0 && nc < w && !seen.has(j) && ports[j] === s) { queue.push(j); seen.add(j); }
-        }
-      }
-      return false;
-    };
-    const render = () => {
-      ctx.clear();
-      ctx.turn(turn);
-      ctx.say(seatName(turn) + 'の番　上下左右と、右上・左下につながる');
-      both(s => ctx.text(s, s === turn ? (s === 0 ? 'あなたは上→下をつなぐ' : 'あなたは左→右をつなぐ') : '相手の番　' + (s === 0 ? 'あなたは上→下' : 'あなたは左→右'), 'xgame-text'));
-      board(ctx, ports.map((p, i) => ({
-        label: p === null ? '・' : '⚓',
-        mark: p,
-        disabled: p !== null,
-        a11y: '行 ' + (1 + Math.floor(i / w)) + ' 列 ' + (1 + (i % w)) + (p === null ? ' 空き' : ' ' + seatName(p) + ' の港'),
-      })), w, turn, pick);
-    };
-    function pick(i) {
-      if (ports[i] !== null) return;
-      ports[i] = turn;
-      ctx.fx.tap();
-      if (route(turn)) { win(ctx, turn, '対岸までの航路が開通。'); return; }
-      if (ports.every(p => p !== null)) { ctx.finish(null, 'すべての港が埋まって引き分け。'); return; }
       turn = 1 - turn;
       render();
     }
@@ -195,40 +116,6 @@
       render(seatName(1 - turn) + ' が ' + kept + ' 枚を貯めた　' + seatName(turn) + 'の番');
     }
     return { start: () => render() };
-  });
-
-  // ---- 樽の剣刺し: one hole in the barrel springs the trap. Take turns stabbing. ----
-  const BARREL_HOLES = 12;
-  meta('barrel-swords', '樽の剣刺し', 'luck', '🗡', '交互に樽の穴へ剣を刺す。ひとつだけ当たりの穴があり、刺した方の負け。', ctx => {
-    let turn = ctx.starter;
-    const trap = ctx.random(BARREL_HOLES);
-    const stabbed = Array(BARREL_HOLES).fill(null);
-    const render = () => {
-      ctx.clear();
-      ctx.turn(turn);
-      const left = stabbed.filter(v => v === null).length;
-      ctx.say(seatName(turn) + 'の番　残りの穴 ' + left);
-      turnLine(ctx, turn, '穴を選んで剣を刺す（残り ' + left + '）');
-      board(ctx, stabbed.map((v, i) => ({
-        label: v === null ? '◯' : '🗡',
-        mark: v,
-        disabled: v !== null,
-        a11y: (i + 1) + '番の穴' + (v === null ? '' : '（刺さっている）'),
-      })), 4, turn, stab);
-    };
-    function stab(i) {
-      if (stabbed[i] !== null) return;
-      stabbed[i] = turn;
-      if (i === trap) {
-        ctx.fx.wrong();
-        ctx.finish(1 - turn, '💥 樽から海賊が飛び出した！ ' + seatName(turn) + ' の負け');
-        return;
-      }
-      ctx.fx.tap();
-      turn = 1 - turn;
-      render();
-    }
-    return { start: render };
   });
 
   // ---- 宝島の発掘: dig the island. Numbers tell how many treasures are next to a spot; skulls cost a treasure. ----
@@ -294,78 +181,4 @@
     return { start: () => render() };
   });
 
-  // ---- Party games: the phone keeps time and judges; the fun is out loud. ----
-  meta('captain-topic', '船長のお題バトル（古今東西）', 'party', '💬', 'お題に合う言葉を交互に言う。7秒以内。重複かお題外なら負け。', ctx => {
-    const topics = ['海にいる生き物', '赤いもの', '果物の名前', '楽器の名前', 'コンビニにあるもの', '「か」で始まる食べ物', '船にありそうなもの', '空を飛ぶもの', '丸いもの', '動物の鳴き声'];
-    const TOPIC_ANSWER_MS = 7000;
-    let turn = ctx.starter, nonce = 0, count = 0, active = false, topic = '';
-    function prep() {
-      ctx.clear();
-      ctx.turn(turn);
-      ctx.say('お題：' + topic + '　答えは口で言い、相手が判定');
-      both(s => ctx.text(s, 'お題：' + topic, 'xgame-big is-topic'));
-      ctx.button(turn, count === 0 ? '最初の人、準備OK' : '準備OK', prompt);
-    }
-    function prompt() {
-      if (active) return;
-      const tag = ++nonce;
-      active = true;
-      ctx.clear();
-      ctx.turn(turn);
-      ctx.say('お題：' + topic + '　' + (count + 1) + '答目');
-      both(s => ctx.text(s, 'お題：' + topic, 'xgame-big is-topic'));
-      ctx.text(turn, '7秒以内に言ってから押す', 'xgame-text');
-      const bar = make('div', null, 'xgame-timer');
-      ctx.zones[turn].append(bar);
-      ctx.button(turn, '言えた', () => { if (tag === nonce) { nonce++; active = false; judge(); } });
-      ctx.later(() => { if (active && tag === nonce) { active = false; nonce++; ctx.fx.wrong(); win(ctx, 1 - turn, '時間切れ。'); } }, TOPIC_ANSWER_MS);
-    }
-    function judge() {
-      ctx.clear();
-      ctx.turn(1 - turn);
-      ctx.say('お題：' + topic + '　判定は相手');
-      ctx.text(1 - turn, '相手の答えは、お題に合っていて初めて出た言葉？', 'xgame-text');
-      ctx.text(turn, '相手が判定中…', 'xgame-text');
-      ctx.button(1 - turn, 'OK', () => { count++; ctx.fx.correct(); if (count === 30) { ctx.finish(null, '30答クリア！ 引き分け。'); return; } turn = 1 - turn; prep(); });
-      ctx.button(1 - turn, '重複・お題外', () => { ctx.fx.wrong(); win(ctx, 1 - turn, '答えが重複、またはお題の外でした。'); });
-    }
-    return { start() { topic = topics[ctx.random(topics.length)]; prep(); } };
-  });
-
-  meta('captain-charades', '船長の無言芝居', 'party', '🎭', '声を出さずに演技して、相手にお題を当ててもらう協力ゲーム。4問中3問でクリア。', ctx => {
-    const prompts = ['大きな魚を釣る', '海賊の望遠鏡', 'おばけに驚く', 'スープを味見する', '猫が伸びをする', '船の舵を回す', '急いで歯を磨く', '傘が風で飛ぶ', '鍵を探す', '弓を引く', '犬の散歩', '宝箱が重くて持てない'];
-    const CHARADE_MS = 25000;
-    let turn = ctx.starter, attempts = 0, solved = 0, nonce = 0;
-    const used = new Set();
-    function next() {
-      ctx.clear();
-      ctx.turn(turn);
-      ctx.say('4問中3問でふたりの勝ち　1問25秒');
-      if (attempts === 4) { ctx.finish(null, (solved >= 3 ? 'ふたりでクリア！' : '今回は失敗。') + ' ' + solved + '／4問正解。'); return; }
-      ctx.text(1 - turn, '画面から目をそらしてね', 'xgame-text');
-      ctx.button(turn, seatName(turn) + 'だけお題を見る', secretPrompt);
-    }
-    function secretPrompt() {
-      const available = prompts.filter(p => !used.has(p)), word = available[ctx.random(available.length)];
-      used.add(word);
-      ctx.clear();
-      ctx.say('演じる人だけ見てください');
-      ctx.text(turn, word, 'xgame-big is-topic');
-      ctx.text(1 - turn, 'まだ見ないで！', 'xgame-text');
-      ctx.button(turn, '覚えた。お題を隠して開始', play);
-    }
-    function play() {
-      const tag = ++nonce;
-      ctx.clear();
-      ctx.say('声を出さずに演技　相手は口で答える');
-      ctx.text(turn, '第' + (attempts + 1) + '問：あなたが演技', 'xgame-text');
-      ctx.text(1 - turn, '第' + (attempts + 1) + '問：答えを口で言おう', 'xgame-text');
-      both(s => ctx.zones[s].append(make('div', null, 'xgame-timer is-long')));
-      function settle(ok) { if (tag !== nonce) return; nonce++; if (ok) { solved++; ctx.fx.correct(); } attempts++; turn = 1 - turn; next(); }
-      ctx.button(turn, '当たった！', () => settle(true));
-      ctx.button(turn, 'パス', () => settle(false));
-      ctx.later(() => settle(false), CHARADE_MS);
-    }
-    return { start: next };
-  });
 })();

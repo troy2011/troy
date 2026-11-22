@@ -73,7 +73,7 @@
   }
   function end(winner, message) {
     if (phase !== 'play') return;
-    const coop = game.coop === true || game.id === 'captain-charades';
+    const coop = game.coop === true;
     cancel();
     setPhase('done');
     if (!coop) fx.record(winner);

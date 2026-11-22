@@ -4,7 +4,7 @@ const shots=process.env.TAVERN_SHOTS;
 async function open(page,width,height){
  await page.setViewportSize({width,height});
  const remote=[], bad=[];
- page.on('request',r=>{const u=new URL(r.url());if(!['/tavern-minigames.html','/js/tavern-minigames-v1.js','/css/tavern-minigames-v1.css','/favicon.ico','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-expansion-v1.js','/css/tavern-expansion-v1.css'].includes(u.pathname) || u.hostname!=='127.0.0.1') remote.push(r.url());});
+ page.on('request',r=>{const u=new URL(r.url());if(!['/tavern-minigames.html','/js/tavern-minigames-v1.js','/css/tavern-minigames-v1.css','/favicon.ico','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css','/js/tavern-expansion-v1.js','/css/tavern-expansion-v1.css'].includes(u.pathname) || u.hostname!=='127.0.0.1') remote.push(r.url());});
  page.on('pageerror',e=>bad.push(e.message));
  await page.addInitScript(()=>{Math.random=()=>0; for(const key of ['localStorage','sessionStorage']) Object.defineProperty(window,key,{get(){throw Error('persistent storage not permitted');}});});
  await page.goto('/tavern-minigames.html');
@@ -14,7 +14,9 @@ async function open(page,width,height){
 for(const w of [320,390,430])test('table layout is tap-safe at '+w,async({page})=>{
  const {arena,one,two,clean}=await open(page,w,640);
  await expect(page.locator('[data-game]')).toHaveCount(22);
- await page.locator('#category').selectOption('reflex');await expect(page.locator('[data-game]')).toHaveCount(6);
+ await page.locator('#category').selectOption('reflex');
+ expect(await page.locator('[data-game]').evaluateAll(g=>g.map(x=>x.dataset.game).sort())).toEqual(
+  ['barrel-rally','color-word','flags','number-touch','quick-math','reflex','tug-of-war','wave-dodge']);
  await page.locator('#category').selectOption('all');
  if(shots&&w===390)await page.screenshot({path:path.join(shots,'chooser-390.png')});
  await page.locator('[data-game=count]').click();
@@ -84,15 +86,6 @@ for(const orientation of ['table','counter'])test('two simultaneous touch contac
  }
  await clean();
 });
-test('curse prevents other seat and overshoot, loses on exactly 31 and alternates starter',async({page})=>{
- await open(page,320,568); await page.locator('[data-game=curse]').click(); await page.locator('#start').click();
- const a=page.locator('.extra.a'),b=page.locator('.extra.b');
- await expect(b.getByRole('button',{name:'+1',exact:true})).toBeDisabled();
- for(let i=0;i<10;i++) await (i%2?b:a).getByRole('button',{name:'+3',exact:true}).click();
- await expect(a.getByRole('button',{name:'+2',exact:true})).toBeDisabled();
- await a.getByRole('button',{name:'+1',exact:true}).click(); await expect(b).toHaveAttribute('data-result','win');
- await page.locator('#start').click();await expect(b.getByRole('button',{name:'+1',exact:true})).toBeEnabled();
-});
 test('flags read both labels, wrong hit never scores, alternating new targets, first to three',async({page})=>{
  const {clean}=await open(page,640,320);await page.locator('input[value=counter]').check();await page.locator('[data-game=flags]').click();await page.locator('#start').click();
  const a=page.locator('.extra.a'), b=page.locator('.extra.b');
@@ -158,4 +151,22 @@ test('win count follows rematches, memory shows the answer, sound can be switche
  await page.locator('#exit').click();await page.locator('[data-game=memory]').click();
  await expect(a.locator('.seat')).toHaveText('1P');
  await clean();
+});
+
+test('six retired games have no launcher, registry entry, or hash launch', async({page})=>{
+ const retired=['captain-topic','captain-charades','curse','cargo-stow','claim-route','barrel-swords'];
+ for(const layout of ['table','counter']){
+  for(const id of retired){
+   await page.goto('/tavern-minigames.html#'+id);
+   await page.locator('input[value='+layout+']').check();
+   await expect(page.locator('#games [data-game]')).toHaveCount(22);
+   await expect(page.locator('[data-game='+id+']')).toHaveCount(0);
+   await expect(page.locator('#arena')).toBeHidden();
+   expect(await page.evaluate(gameId=>window.tavernExtra.entries.some(game=>game.id===gameId),id)).toBe(false);
+  }
+  await page.locator('[data-game=count]').click();
+  await expect(page.locator('#arena')).toBeVisible();
+  await page.locator('#exit').click();
+  await expect(page.locator('#games')).toBeVisible();
+ }
 });
