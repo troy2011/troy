@@ -2897,3 +2897,54 @@ body.home-v3 #bottomNav .nav-button span:last-child {
         line-height: 1;
     }
 }
+
+/* Home deck sole: native avatar is 64px tall after layer rendering and scales around its center. */
+body.home-v3 #homeShipStage .home-ship-bob {
+    --home-avatar-base-bottom: 25%;
+    --home-avatar-deck-scale: 1.45;
+    --home-companion-floor: calc(var(--home-avatar-base-bottom) + 32px - 32px * var(--home-avatar-deck-scale));
+}
+@media (min-width: 641px) and (max-height: 500px) {
+    body.home-v3 #homeShipStage .home-ship-bob { --home-avatar-base-bottom: 52.5%; }
+}
+@media (max-width: 640px) {
+    body.home-v3 #homeShipStage .home-ship-bob {
+        --home-avatar-base-bottom: 23%;
+        --home-avatar-deck-scale: 1.68;
+    }
+}
+body.home-v3 #tabContentHome #home-avatar::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    width: 32px;
+    height: 7px;
+    left: 50%;
+    bottom: -3.5px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(ellipse, #070401e8 0%, #070401a8 42%, transparent 76%);
+}
+body.home-v3 #tabContentHome #homePetCompanion { bottom: var(--home-companion-floor); }
+body.home-v3 #tabContentHome #homePetCompanion .pixel-monster-companion-shadow {
+    bottom: -4px;
+    height: 8px;
+    opacity: .84;
+    filter: none;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse, #070401e8 0%, #070401a8 42%, transparent 76%);
+}
+body.home-v3 #tabContentHome #homePetCompanion[data-monster-anchor="air"] .pixel-monster-companion-shadow {
+    opacity: .62;
+    filter: blur(1px);
+}
+body.home-v3 #tabContentHome #homePetCompanion .pixel-monster-companion-sprite {
+    bottom: calc(var(--home-pet-sole-origin, var(--pixel-monster-companion-anchor-y)) - var(--pixel-monster-companion-frame-height));
+    transform-origin: var(--pixel-monster-companion-anchor-x) var(--home-pet-sole-origin, var(--pixel-monster-companion-anchor-y));
+    transform:
+        translateX(calc(-1 * var(--pixel-monster-companion-anchor-x)))
+        scaleX(var(--pixel-monster-companion-scale-x, 1))
+        scaleY(var(--pixel-monster-companion-scale-y, 1))
+        scale(calc(.9 * var(--pixel-monster-companion-scale) * var(--home-avatar-deck-scale)));
+}

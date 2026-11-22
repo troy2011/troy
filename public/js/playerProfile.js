@@ -10,7 +10,7 @@ import {
 } from './playfabClient.js?v=20260830-s1-auth-v1';
 import { createRequestId } from './api.js';
 import { showRpgMessage } from './rpgMessages.js';
-import { renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
+import { getPixelMonsterCompanion, renderPixelMonsterCompanion } from './pixelMonsterCompanion.js?v=20260825-monster-motion-v2';
 import { bindModalClose } from './modalClose.js';
 import {
     getTarotKingdomWeaponProfile,
@@ -1292,9 +1292,23 @@ export async function openPlayerProfile(targetPlayFabId, options = {}) {
     }
 }
 
+// Opaque median idle sole differs from roster bounds for these two pets.
+const HOME_PET_SOLES = Object.freeze({ 'ismartal-vol1-monster-02': 43, 'ismartal-vol1-monster-14': 36 });
+
 export function renderHomePetCompanion(currentPet = null) {
     const target = document.getElementById('homePetCompanion');
     const hasPet = renderPixelMonsterCompanion(target, currentPet);
+    const monster = hasPet && getPixelMonsterCompanion(currentPet?.monsterId);
+    if (monster) {
+        const height = Number(monster.frameHeight) || 48;
+        // Flying idle sheets keep the transparent gap between the sprite and its floor.
+        const sole = monster.idleAnchor?.mode === 'air' ? height
+            : HOME_PET_SOLES[monster.id] ?? monster.idleAnchor?.y ?? height;
+        const sourceOrigin = monster.flipY === true ? height - sole : sole;
+        target.style.setProperty('--home-pet-sole-origin', sourceOrigin + 'px');
+    } else {
+        target?.style.removeProperty('--home-pet-sole-origin');
+    }
     document.getElementById('homeShipStage')?.classList.toggle('has-pet-companion', hasPet);
     return hasPet;
 }
