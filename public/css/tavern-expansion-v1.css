@@ -1,0 +1,125 @@
+/* Scoped to the sixteen new games; original six keep their own layout. */
+.xgame-seat {
+  display: flex;
+  /* Rows that wrap: each wide piece takes a line of its own (the original six stack in a column). */
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: clamp(4px, 1.4vmin, 8px);
+  padding: clamp(8px, 2.5vmin, 16px);
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+  scrollbar-width: thin;
+}
+.xgame-seat h2,
+.xgame-seat .seat,
+.xgame-seat p {
+  flex-basis: 100%;
+  max-width: 100%;
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.xgame-seat .xgame-title {
+  color: #ffedcb;
+  font-size: clamp(.9rem, 4.5vmin, 1.16rem);
+}
+.xgame-seat .xgame-static,
+.xgame-seat .xgame-text,
+.xgame-seat .xgame-rules,
+.xgame-seat .xgame-status {
+  color: #ffedcb;
+  font-size: clamp(.8rem, 3.8vmin, 1rem);
+  line-height: 1.25;
+  white-space: pre-line;
+}
+.xgame-seat .xgame-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid #c09459;
+  border-radius: 8px;
+  color: #fff0cf;
+  background: #211710;
+  font: inherit;
+  font-weight: 750;
+  touch-action: manipulation;
+}
+.xgame-seat .xgame-action:active { background: #614327; }
+.xgame-seat .xgame-action:disabled { opacity: .52; }
+.xgame-seat .xgame-result { min-width: min(85%, 10rem); }
+
+/* Shared pieces of the new games. Wide pieces take a full row of the half. */
+.xgame-seat :is(.xgame-grid, .xgame-field, .xgame-gauge, .xgame-rope, .xgame-timer) { flex-basis: 100%; }
+@media (max-height: 700px) {
+  .arena[data-phase="play"] .xgame-seat :is(.xgame-title, .seat) { display: none; }
+  .xgame-seat { padding-block: 6px; gap: 4px; }
+}
+.xgame-seat .xgame-big { color: #fff3d6; font-size: clamp(1.8rem, 11vmin, 3.4rem); font-weight: 900; line-height: 1.1; text-shadow: 0 2px 0 #0008; }
+.xgame-seat .xgame-big.is-topic { font-size: clamp(1.15rem, 6vmin, 1.8rem); }
+.xgame-seat .xgame-big.is-calm { opacity: .5; }
+.xgame-seat .xgame-big.is-bust { color: #ff8f7a; }
+.xgame-seat .xgame-text.is-warn { color: #ffb4a2; font-weight: 800; }
+.xgame-seat .xgame-pad { flex-basis: min(100%, 16rem); min-height: clamp(64px, 18vmin, 110px); border-color: #f0cd86; background: linear-gradient(#5a3a1f, #2c1c10); font-size: clamp(1.2rem, 6vmin, 1.9rem); }
+.xgame-seat .xgame-pad:active { background: linear-gradient(#7a5129, #3b2514); }
+
+.xgame-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: clamp(4px, 1.2vmin, 8px); width: 100%; max-width: 22rem; }
+.xgame-grid.is-two { --cols: 2; }
+.xgame-grid.is-three { --cols: 3; }
+.xgame-grid .xgame-action { min-width: 0; font-size: clamp(1rem, 4.4vmin, 1.4rem); }
+.xgame-grid .xgame-action[style*="--swatch"] { border-color: var(--swatch); box-shadow: inset 0 -5px 0 var(--swatch); }
+/* Square cells, sized to the height of a half as well as its width. */
+.xgame-seat .xgame-board { flex-basis: auto; width: min(100%, 22rem, max(188px, 50svh - 160px)); }
+.arena[data-layout="counter"] .xgame-board { width: min(100%, 22rem, max(188px, 100svh - 176px)); }
+.xgame-board .xgame-action { aspect-ratio: 1; min-height: 44px; padding: 0; }
+.xgame-board .xgame-action[data-mark="mine"] { border-color: #f2c25f; background: #5b3f1c; opacity: 1; }
+.xgame-board .xgame-action[data-mark="theirs"] { border-color: #6fb3cf; background: #1f3c4c; opacity: 1; }
+.xgame-board .xgame-action[data-tone="gold"] { background: #6b5418; }
+.xgame-board .xgame-action[data-tone="skull"] { background: #4a1a16; }
+.xgame-board .xgame-action[data-tone="sand"] { background: #3a3022; color: #f1dfb4; }
+
+.xgame-field { position: relative; height: clamp(96px, 40vmin, 13rem); max-width: 24rem; border: 1px solid #8b6a40; border-radius: .8rem; background: radial-gradient(ellipse at 50% 40%, #3b2d1d, #1b130c); }
+.xgame-field.is-row { height: clamp(80px, 26vmin, 9rem); }
+.xgame-shell { position: absolute; font-size: clamp(1.1rem, 6vmin, 1.8rem); transform: translate(-50%, -50%); }
+.xgame-target { position: absolute; width: clamp(52px, 15vmin, 72px); height: clamp(52px, 15vmin, 72px); border-radius: 50%; border-color: #ff9d6b; background: radial-gradient(circle, #6d2a1a, #2a0f0a); font-size: 1.5rem; transform: translate(-50%, -50%); }
+.xgame-barrel { position: absolute; top: 50%; width: clamp(56px, 17vmin, 84px); height: clamp(56px, 17vmin, 84px); border-radius: 1rem; font-size: clamp(1.6rem, 9vmin, 2.6rem); transform: translate(-50%, -50%); transition: left var(--slide-ms, 0ms) ease-in-out; }
+.xgame-barrel.is-picked { border-color: #fff1c4; box-shadow: 0 0 0 3px #f2c25f88; }
+.xgame-barrel.is-right { background: #2f5a35; }
+.xgame-barrel.is-wrong { background: #5a2420; }
+
+/* The rope: your end on the left of your own half. */
+.xgame-rope { position: relative; height: 3.2rem; max-width: 24rem; border-radius: 2rem; background: linear-gradient(90deg, #4a2a14 0 6%, transparent 6% 94%, #1c3644 94%), repeating-linear-gradient(115deg, #c79a5c 0 8px, #8c6435 8px 16px) center / 100% 14px no-repeat; }
+.xgame-rope-end { position: absolute; top: 50%; color: #ffe8bc; font-size: .78rem; font-weight: 800; transform: translateY(-50%); }
+.xgame-rope-end.is-mine { left: 8%; }
+.xgame-rope-end.is-theirs { right: 8%; }
+.xgame-rope-flag { position: absolute; top: 50%; color: #ff6b5b; font-size: 1.8rem; transform: translate(-50%, -60%); transition: left .08s linear; }
+
+/* The cannon gauge: a gold target band and a moving needle. */
+.xgame-gauge { position: relative; height: 2.6rem; max-width: 24rem; border: 1px solid #bd935f; border-radius: .5rem; background: linear-gradient(90deg, #22344a, #4a2a14); overflow: hidden; }
+.xgame-gauge-band { position: absolute; top: 0; bottom: 0; width: 8%; background: #f2c25f88; border-inline: 2px solid #ffe08a; transform: translateX(-50%); }
+.xgame-gauge-needle { position: absolute; top: -2px; bottom: -2px; width: 4px; background: #fff; box-shadow: 0 0 8px #fff; transform: translateX(-50%); }
+.xgame-gauge-needle.is-stopped { background: #ff6b5b; box-shadow: 0 0 10px #ff6b5b; }
+
+/* A shrinking bar shows the time left to answer or act. */
+.xgame-timer { height: 6px; max-width: 22rem; border-radius: 3px; background: #f2c25f; transform-origin: left; }
+@media (prefers-reduced-motion: no-preference) {
+  .xgame-timer { animation: xgame-timer 7s linear forwards; }
+  .xgame-timer.is-long { animation-duration: 25s; }
+  .xgame-seat .xgame-big.is-rolling { animation: xgame-roll .14s linear infinite; }
+}
+@keyframes xgame-timer {
+  to { transform: scaleX(0); background: #ff6b5b; }
+}
+@keyframes xgame-roll {
+  50% { transform: rotate(18deg) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xgame-barrel, .xgame-rope-flag { transition: none; }
+}
