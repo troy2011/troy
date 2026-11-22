@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24130d">
+<title>チュートリアル — タロットキングダム</title>
+<link rel="stylesheet" href="css/tarot-kingdom-table.css?v=turn-order-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-tutorial.css?v=menu-pages-v1">
+<link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
+</head>
+<body class="kt-tavern-theme kt-tavern-tutorial">
+<main id="ttApp" class="kt-app tt-app">
+  <section id="ttMenu" class="kt-setup tt-menu">
+    <div class="nv-companion-title nv-tutorial"><h1 class="kt-tavern-live-label">チュートリアル</h1></div><a class="nv-plate-back" href="/tarot-kingdom-table.html" aria-label="卓上戦へ戻る"></a>
+    <p class="tt-lead">配られる札と相手の手はすべて決まっています。光っている札を指示どおりに出すだけで、主なルールを順に体験できます。</p>
+    <ol id="ttChapters" class="tt-chapters"></ol>
+    <p class="tt-links"><a href="/tarot-kingdom-table.html">卓上戦へ戻る</a><a href="tarot-kingdom-table-rules.html">ルールをすべて見る</a></p>
+  </section>
+
+  <section id="ttTable" class="tt-table" hidden>
+    <div class="nv-tutorial-header"><div class="nv-companion-title nv-tutorial"><h1 class="kt-tavern-live-label">チュートリアル</h1></div><button type="button" id="nvTutorialBack" class="nv-plate-back" aria-label="章の一覧へ戻る"></button></div><header class="kt-bar tt-bar">
+      <div class="kt-brand"><strong id="ttChapterTitle"></strong><span id="ttProgress"></span></div>
+      <button type="button" id="ttRestart" class="kt-bar-link tt-bar-button">やり直す</button>
+      <button type="button" id="ttBack" class="kt-bar-link tt-bar-button">章を選ぶ</button>
+    </header>
+    <div id="ttSeats" class="tt-seats"></div>
+    <div class="tt-field">
+      <p id="ttFieldOwner" class="tt-field-owner"></p>
+      <div id="ttFieldCards" class="tt-field-cards"></div>
+      <p id="ttFieldState" class="kt-field-state tt-field-state" aria-label="場の状態"></p>
+    </div>
+    <p id="ttEvent" class="tt-event" aria-live="polite"></p>
+    <section id="ttCoach" class="tt-coach" aria-live="polite" aria-atomic="true">
+      <p id="ttCoachText"></p>
+      <p id="ttCoachHint" class="tt-coach-hint" role="alert"></p>
+      <button type="button" id="ttNext" class="kt-button kt-button-main tt-next" hidden>次へ</button>
+    </section>
+    <div id="ttMe" class="tt-me"></div>
+    <div id="ttHand" class="tt-hand" aria-label="あなたの手札"></div>
+    <div class="kt-actions tt-actions">
+      <button type="button" id="ttPass" class="kt-button kt-button-pass">パス</button>
+      <button type="button" id="ttPlay" class="kt-button kt-button-main kt-button-play">出す</button>
+    </div>
+  </section>
+
+  <div id="ttDialog" class="kt-dialog" role="dialog" aria-modal="true" aria-labelledby="ttDialogTitle" hidden>
+    <div class="kt-dialog-box">
+      <h2 id="ttDialogTitle"></h2>
+      <div id="ttDialogBody"></div>
+      <div id="ttDialogActions" class="kt-dialog-actions"></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="js/kingdomTable/tutorial.js?v=menu-pages-v1"></script>
+<script type="module" src="js/kingdomTable/tavernTutorial.js?v=menu-pages-v1"></script>
+</body>
+</html>

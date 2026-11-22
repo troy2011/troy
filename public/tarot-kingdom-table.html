@@ -1,4 +1,165 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#24130d"><title>タロットキングダム 移転のお知らせ</title>
-<style>body { margin: 0; padding: 24px; background: #24130d; color: #fff0d7; font: 16px/1.8 system-ui, sans-serif; } main { box-sizing: border-box; max-width: 560px; margin: 10vh auto; padding: 24px; border: 1px solid #b18b4a; border-radius: 16px; background: #18110c; } h1 { font-size: clamp(22px, 6vw, 30px); line-height: 1.5; } a { display: inline-block; box-sizing: border-box; max-width: 100%; padding: 12px 18px; border: 1px solid #e5c386; border-radius: 8px; color: #ffe3a8; overflow-wrap: anywhere; } small { display: block; margin-top: 20px; }</style>
-</head><body><main><p>TAROT KINGDOM</p><h1>卓上戦は独立サイトへ移転しました</h1><p>新しいサイトで、友人とのオンライン対戦とレートに合わせたCPU対戦を遊べます。オンライン対戦は新サイトでログインして参加してください。</p><p><a href="https://tarot-kingdom-online.bar-troy2011.chatgpt.site/tarot-kingdom-table.html">タロットキングダムで遊ぶ</a></p><small>トロイ内の冒険・戦闘ゲームは引き続きトロイから遊べます。</small></main></body></html>
+<html lang="ja">
+<head>
+<base href="/tabletop-v65/">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24130d">
+<title>タロットキングダム 卓上戦</title>
+<link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
+<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css">
+<link rel="stylesheet" href="css/tarot-choice-focus.css?v=pirate-ability-v1">
+<link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
+<link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
+<link rel="stylesheet" href="css/tarot-match-ending-v1.css">
+<link rel="stylesheet" href="css/troy-local.css">
+</head>
+<body class="kt-tavern-theme kt-tavern-main kt-troy-local">
+<main id="ktApp" class="kt-app">
+  <section id="ktSetup" class="kt-setup kt-tavern-setup">
+    <div class="kt-tavern-cover">
+      <header class="kt-tavern-brand">
+        <h1><img class="kt-tavern-title-art" src="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png" alt="タロットキングダム 卓上戦" width="500" height="950" decoding="async" fetchpriority="high"></h1>
+      </header>
+      <nav class="kt-tavern-nav" aria-label="卓上戦のメニュー">
+        <button type="button" class="kt-tavern-plaque kt-tavern-plaque-main" data-tavern-mode="practice" aria-controls="ktTavernCpu" aria-expanded="false"><span class="kt-tavern-live-label">CPU練習</span></button>
+        <div class="kt-tavern-nav-pair">
+          <a href="tarot-kingdom-table-rules.html" class="kt-tavern-plaque"><span class="kt-tavern-live-label">ルール</span></a>
+          <button id="ktTavernSettings" type="button" class="kt-tavern-plaque" aria-haspopup="dialog" aria-controls="ktSettingsDialog"><span class="kt-tavern-live-label">設定</span></button>
+        </div>
+      </nav>
+      <p class="kt-troy-return"><a href="/index.html">TROYに戻る</a></p>
+    </div>
+    <div class="kt-tavern-console">
+      <div class="nv-companion-title nv-practice"><h2 class="kt-tavern-live-label">練習</h2></div>
+      <header class="nv-page-head" aria-hidden="true"><img class="nv-page-helm" src="assets/tarot-kingdom-table/nassau-preview/tavern-helm.webp" alt="" decoding="async"><p id="ktPageTitle" class="nv-page-title"></p></header>
+      <button type="button" class="nv-page-back nv-plate-back" data-tavern-back aria-label="メニューへ戻る" hidden></button><fieldset id="ktTavernSeats" class="kt-choice" hidden>
+      <legend>対戦人数</legend>
+      <label><input type="radio" name="ktSeats" value="4" checked><span>4人</span></label>
+      <label><input type="radio" name="ktSeats" value="3"><span>3人</span></label>
+    </fieldset>
+      <section id="ktTavernCpu" class="kt-mode-panel" aria-labelledby="ktCpuMode" hidden>
+      <h2 id="ktCpuMode" tabindex="-1">CPU対戦</h2>
+      <div class="kt-mode-actions">
+        <button type="button" id="ktStart" data-tavern-practice class="kt-button kt-button-main">練習を始める</button>
+      </div>
+      <p class="kt-mode-caption" data-tavern-practice><a id="ktTutorial" href="tarot-kingdom-tutorial.html">チュートリアル</a></p>
+      <details class="kt-mode-options" data-tavern-practice>
+        <summary>練習オプション</summary>
+        <label class="kt-check"><input type="checkbox" id="ktFast"><span>CPUの手番を速くする</span></label>
+      </details>
+      <section id="ktRatingSetup" class="kt-rating-setup" aria-label="レート" hidden>
+        <p>あなたの仮レート <strong id="ktRatingValue">1000</strong></p>
+        <p class="kt-rating-help">試作中のため、この画面を閉じると1000に戻ります。</p>
+      </section>
+    </section>
+
+    </div>
+  </section>
+
+  <section id="ktTable" class="kt-table" hidden>
+    <div id="ktSessionControls" class="kt-session-controls" hidden>
+      <p id="ktOnlinePlayStatus" class="kt-online-play-status" role="status" hidden></p>
+      <button type="button" id="ktExitCpu" class="kt-bar-link kt-session-exit" hidden>CPU戦を終了</button>
+    </div>
+    <header class="kt-bar">
+      <div class="kt-brand"><strong>タロットキングダム</strong><span>卓上戦</span></div>
+      <div class="kt-bar-status">
+        <span id="ktRound" class="kt-bar-item kt-bar-round"></span>
+        <span id="ktDeck" class="kt-bar-item kt-bar-deck"></span>
+      </div>
+      <button type="button" id="ktSound" class="kt-bar-link kt-sound" aria-pressed="true" aria-label="効果音：オン">♪</button>
+      <a class="kt-bar-link" href="tarot-kingdom-table-rules.html" target="_blank" rel="noopener">ルール</a>
+      <button type="button" id="ktSettings" class="kt-bar-link kt-settings-button" aria-haspopup="dialog" aria-label="対戦設定">設定</button>
+    </header>
+    <div id="ktFelt" class="kt-felt">
+      <div id="ktSeatTop" class="kt-seat kt-seat-top" hidden></div>
+      <div id="ktSeatLeft" class="kt-seat kt-seat-left" hidden></div>
+      <div id="ktSeatRight" class="kt-seat kt-seat-right" hidden></div>
+      <div class="kt-field">
+        <div class="kt-field-heading">
+          <div class="kt-field-tools">
+            <div class="kt-pot"><span id="ktPot" class="kt-chip"></span></div>
+            <button type="button" id="ktGrave" class="kt-grave-button" aria-haspopup="dialog" aria-controls="ktGraveDialog">墓地・除外 0枚</button>
+          </div>
+          <p id="ktFieldOwner" class="kt-field-owner"></p>
+        </div>
+        <div id="ktFieldCards" class="kt-field-cards"></div>
+      </div>
+      <div id="ktChoiceFocus" class="kt-choice-focus" hidden></div>
+    </div>
+    <div class="kt-navigation">
+      <p id="ktTurnOrder" class="kt-turn-order" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+      <p id="ktFieldState" class="kt-field-state" aria-label="場の状態" hidden></p>
+    </div>
+    <div id="ktLocalPlayer">
+      <div id="ktMe" class="kt-me"></div>
+      <div id="ktAvatarSeat" hidden aria-hidden="true"><div class="kt-avatar-art"></div></div>
+    </div>
+    <div class="kt-hand-header">
+      <span>手札 <strong id="ktHandCount"></strong></span>
+      <span id="ktSelection" role="status" aria-live="polite"></span>
+      <button type="button" id="ktArrange" class="kt-hand-arrange" aria-pressed="false" aria-controls="ktArrangeActions">並べ替え</button>
+    </div>
+    <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktSelection"></div>
+    <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
+    <div id="ktActions" class="kt-actions">
+      <button type="button" id="ktDraw" class="kt-button kt-button-draw">1枚引く</button>
+      <button type="button" id="ktPass" aria-describedby="ktMessage" class="kt-button kt-button-pass">パス</button>
+      <button type="button" id="ktPlay" aria-describedby="ktMessage" class="kt-button kt-button-main kt-button-play">出す</button>
+    </div>
+    <div id="ktArrangeActions" class="kt-actions" hidden>
+      <button type="button" id="ktMoveLeft" class="kt-button">← 左へ</button>
+      <button type="button" id="ktSortHand" class="kt-button">数字順</button>
+      <button type="button" id="ktMoveRight" class="kt-button">右へ →</button>
+    </div>
+  </section>
+
+  <div id="ktDialog" class="kt-dialog" role="dialog" aria-modal="true" aria-labelledby="ktDialogTitle" hidden>
+    <div class="kt-dialog-box">
+      <h2 id="ktDialogTitle"></h2>
+      <div id="ktDialogBody"></div>
+      <div id="ktDialogActions" class="kt-dialog-actions"></div>
+    </div>
+  </div>
+
+  <div id="ktGraveDialog" class="kt-dialog kt-grave-dialog" role="dialog" aria-modal="true" aria-labelledby="ktGraveTitle" hidden>
+    <div class="kt-dialog-box">
+      <div class="kt-grave-heading">
+        <h2 id="ktGraveTitle">墓地・除外</h2>
+        <button type="button" id="ktGraveClose" class="kt-button" aria-label="墓地・除外を閉じる">閉じる</button>
+      </div>
+      <p>小札は出した人の墓地へ、大札は除外へ移ります。札を押すと大きく見られます。</p>
+      <div id="ktGraveBody"></div>
+    </div>
+  </div>
+
+  <button type="button" id="ktZoom" class="kt-zoom" aria-label="札を閉じる" hidden></button>
+</main>
+<dialog id="ktHandInspector" class="kt-hand-inspector" aria-labelledby="ktInspectTitle">
+  <header class="kt-inspect-header">
+    <h2 id="ktInspectTitle"></h2>
+    <button type="button" id="ktInspectClose" class="kt-inspect-close" aria-label="札の詳細を閉じる" autofocus>閉じる</button>
+  </header>
+  <div class="kt-inspect-content">
+    <div id="ktInspectArt" class="kt-inspect-art"></div>
+    <div id="ktInspectDetails" class="kt-inspect-details" role="region" aria-label="カードの説明" tabindex="0"></div>
+  </div>
+</dialog>
+<dialog id="ktSettingsDialog" class="kt-settings" aria-labelledby="ktSettingsTitle">
+  <form method="dialog">
+    <header class="nv-companion-title nv-settings"><h2 id="ktSettingsTitle" class="kt-tavern-live-label">設定</h2><button class="nv-plate-back" value="close" aria-label="設定を閉じる"></button></header>
+    <label class="kt-settings-option"><span><strong>効果音</strong></span><input id="nvSoundSetting" type="checkbox" role="switch"></label><label class="kt-settings-option">
+      <span><strong>出せる札のヒント</strong><small>5枚役やコールに使える札にも金枠を付けます。設定はこの端末に保存されます。</small></span>
+      <input id="ktTurnHints" type="checkbox" role="switch">
+    </label>
+
+    <p><a href="tarot-kingdom-audio-credits.html" target="_blank" rel="noopener">効果音クレジット</a></p>
+  </form>
+</dialog>
+
+
+
+<script type="module" src="js/kingdomTable/ui.js?v=victory-roster-22-v1"></script>
+</body>
+</html>

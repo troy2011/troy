@@ -1,0 +1,225 @@
+/* The rules book: one screen of chapters, each chapter read in a sheet that scrolls on its own. */
+.nv-rules {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-width: 520px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 0 0 calc(21% + env(safe-area-inset-bottom));
+  border: 1px solid #bc864b;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 3px #2f1a0d, 0 10px 35px #090503;
+  color: var(--nv-ink);
+  background:
+    url("../assets/tarot-kingdom-table/nassau-preview/practice-foot.webp") center bottom / 100% auto no-repeat,
+    url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y,
+    #201208;
+}
+.nv-rules-head {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 64px 14px;
+  background: radial-gradient(ellipse at 50% 30%, #ffc76b1f, transparent 70%);
+}
+.nv-rules-head h1 {
+  margin: -4px 0 0;
+  color: #f7dfa6;
+  font: 800 clamp(1.6rem, 8vw, 2.2rem)/1.15 var(--kt-serif);
+  letter-spacing: .08em;
+  text-shadow: 0 2px 0 #3a1a07, 0 0 14px #ffb85a59;
+  white-space: nowrap;
+}
+.nv-rules-head::after {
+  content: "";
+  width: min(240px, 70%);
+  height: 2px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, transparent, #d9a75e 25% 75%, transparent);
+}
+
+/* Back arrows: the page's and each sheet's, drawn the same way as the menu pages'. */
+:is(.nv-rules-back, .nv-rule-close) {
+  position: absolute;
+  z-index: 2;
+  top: 13px;
+  left: 15px;
+  width: 45px;
+  height: 45px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+:is(.nv-rules-back, .nv-rule-close)::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 18px;
+  width: 13px;
+  height: 13px;
+  border-bottom: 3px solid #f6e3bd;
+  border-left: 3px solid #f6e3bd;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+:is(.nv-rules-back, .nv-rule-close):active { background: #0005; }
+@media (hover: hover) {
+  :is(.nv-rules-back, .nv-rule-close):hover { background: #ffdeb534; }
+}
+
+.nv-rules-lead {
+  margin: 0 7% 14px;
+  color: #f4e2bf;
+  font-size: .98rem;
+  line-height: 1.7;
+  text-align: center;
+}
+.nv-rule-index {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 5.6%;
+  padding: 0;
+  list-style: none;
+}
+.nv-rule-index li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.nv-rule-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 54px;
+  padding: 7px 10px;
+  border: 1px solid #a77341;
+  border-radius: 6px;
+  color: #ffe8bf;
+  background: linear-gradient(115deg, #4c321d, #2b1b11);
+  box-shadow: inset 0 0 0 1px #21150b;
+  font: 800 .95rem/1.3 var(--kt-serif);
+  text-decoration: none;
+}
+.nv-rule-link:active { background: linear-gradient(115deg, #3a2414, #22150c); }
+.nv-rule-no {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #2c1908;
+  background: linear-gradient(#f0cc78, #b7782c);
+  font: 800 .85rem var(--kt-serif);
+}
+.nv-rules-foot { margin: auto 5.6% 0; padding-top: 14px; }
+.nv-rules-foot a {
+  display: grid;
+  place-items: center;
+  min-height: 50px;
+  border: 1px solid #c69453;
+  border-radius: 5px;
+  color: #fff0cd;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/tavern-plaque.webp") center / 100% 100% no-repeat, #43230f;
+  box-shadow: inset 0 0 0 2px #271305;
+  font: 800 1.05rem var(--kt-serif);
+  text-decoration: none;
+  text-shadow: 0 2px 3px #0e0701;
+}
+
+/* A chapter sheet: its own header and footer stay put, only the text between them scrolls. */
+.nv-rule-sheet {
+  box-sizing: border-box;
+  width: min(94vw, 500px);
+  height: min(90svh, 780px);
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #ae793f;
+  border-radius: 6px;
+  color: var(--nv-ink);
+  background: url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y, #201208;
+  box-shadow: inset 0 0 0 3px #2f1a0d, 0 14px 48px #000c;
+}
+.nv-rule-sheet[open] { display: flex; flex-direction: column; }
+.nv-rule-sheet::backdrop { background: #0d0805c7; }
+.nv-rule-sheet-head {
+  position: relative;
+  flex: none;
+  padding: 14px 58px 12px;
+  border-bottom: 1px solid #745031;
+  text-align: center;
+}
+.nv-rule-sheet-no { margin: 0; color: #d6ac70; font-size: .8rem; letter-spacing: .2em; }
+.nv-rule-sheet-head h2 { margin: 2px 0 0; color: #f7dfa6; font: 800 clamp(1.15rem, 5.4vw, 1.4rem)/1.35 var(--kt-serif); }
+.nv-rule-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 6% 20px;
+  color: #f6e7c9;
+  font-size: 16px;
+  line-height: 1.85;
+  letter-spacing: .02em;
+}
+.nv-rule-body:focus-visible { outline-offset: -3px; }
+.nv-rule-body p { margin: 0 0 .9em; }
+.nv-rule-body ul { display: grid; gap: 10px; margin: 0 0 1em; padding: 0; list-style: none; }
+.nv-rule-body li {
+  padding: 10px 12px;
+  border-left: 3px solid #c99653;
+  border-radius: 0 6px 6px 0;
+  background: #fff3dc0d;
+}
+.nv-rule-body strong { color: #ffd98e; }
+.nv-term { display: block; margin-bottom: 2px; color: #f2c977; font-family: var(--kt-serif); font-weight: 800; }
+.nv-rule-body .kt-han { margin: 4px 0 16px; font-size: 15px; }
+.nv-rule-body .kt-han caption { padding-bottom: 6px; color: #e9cd98; font-size: 14px; }
+.nv-rule-body .kt-han tr:nth-child(odd) { background: #fff3dc0d; }
+.nv-rule-body .kt-han th, .nv-rule-body .kt-han td { padding: 8px 10px; }
+.nv-rule-body .kt-han td { font-size: 16px; }
+.nv-rule-sheet-foot {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4% calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid #745031;
+  background: #1a0e07e6;
+}
+.nv-rule-step {
+  display: grid;
+  place-items: center;
+  max-width: 48%;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 1px solid #a77341;
+  border-radius: 6px;
+  color: #ffe8bf;
+  background: linear-gradient(115deg, #4c321d, #2b1b11);
+  font: 800 .88rem/1.3 var(--kt-serif);
+  text-align: center;
+  text-decoration: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nv-rule-sheet[open] { animation: nv-sheet-in .18s ease-out; }
+}
+@keyframes nv-sheet-in {
+  from { opacity: 0; transform: translateY(14px); }
+}
+/* Short phones: drop the helm and tighten the list so the whole index still fits on one screen. */
+@media (max-height: 640px) {
+  .nv-rules-head { padding-block: 10px 6px; }
+  .nv-rules-head .nv-page-helm { display: none; }
+  .nv-rules-head h1 { margin-top: 4px; }
+  .nv-rules-lead { margin-bottom: 8px; font-size: .86rem; line-height: 1.55; }
+  .nv-rule-index { gap: 6px; }
+  .nv-rule-link { min-height: 46px; padding: 5px 8px; gap: 6px; font-size: .86rem; }
+  .nv-rule-no { width: 22px; height: 22px; font-size: .78rem; }
+  .nv-rules-foot { padding-top: 10px; }
+  .nv-rules-foot a { min-height: 46px; }
+}

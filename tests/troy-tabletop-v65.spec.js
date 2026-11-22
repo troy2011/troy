@@ -1,0 +1,44 @@
+const { test, expect } = require('@playwright/test');
+const { bootstrapMainApp } = require('./helpers/main-app-harness');
+const url = '/tarot-kingdom-table.html?v=65';
+
+for (const width of [320, 390, 430]) {
+  test('TROY native menu and offline v65 tabletop at '+width+'px', async ({page}) => {
+    await page.setViewportSize({width,height:844});
+    await bootstrapMainApp(page);
+    await page.locator('#navTroy').click();
+    const cta=page.locator('#troyTabletopV65');
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('href',url);
+    if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-entry.png'});
+    await page.evaluate(() => window.showTab('tarot'));
+    await expect(page.locator('#tarotModePoker')).toBeVisible();
+    await expect(page.locator('#tarotModeKingdom')).toBeHidden();
+    await expect(page.locator('#tarotTabletopV65')).toHaveAttribute('href',url);
+    await page.locator('#navTroy').click();
+    const requests=[],errors=[];
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('request',r=>{ if(/\/tarot-kingdom-table|\/tabletop-v65\//.test(r.frame().url()) && /\/api\/|sign.?in|chatgpt\.site/.test(r.url())) requests.push(r.url()); });
+    await cta.click();
+    await expect(page).toHaveURL(new RegExp('tarot-kingdom-table\\.html\\?v=65$'));
+    await expect(page.getByRole('button',{name:'CPU練習'})).toBeVisible();
+    await expect(page.getByText('オンライン対戦',{exact:true})).toHaveCount(0);
+    if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-tabletop-menu.png'});
+    await page.getByRole('link',{name:'ルール',exact:true}).click();
+    await expect(page).toHaveURL(/tabletop-v65\/tarot-kingdom-table-rules/);
+    await page.locator('[data-rule="eight"]').first().click();
+    await expect(page).toHaveURL(/#eight$/);
+    if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-tabletop-rules.png'});
+    await page.goto(url+'&room=123456&mode=cpu&rating-preview=1#online');
+    await expect(page).toHaveURL(/\?v=65$/);
+    await page.getByRole('button',{name:'CPU練習'}).click();
+    await expect(page.locator('#ktStart')).toBeVisible();
+    await page.locator('input[name=ktSeats][value="3"]').check();
+    await page.locator('#ktStart').click();
+    await expect(page.locator('#ktFelt')).toHaveAttribute('data-seats','3');
+    await expect(page.locator('#ktHand .kt-card').first()).toBeVisible();
+    if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-tabletop-board.png'});
+    expect(requests).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+}

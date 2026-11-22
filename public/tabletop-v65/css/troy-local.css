@@ -1,0 +1,17 @@
+/* The v65 poster includes online words below its hero. Crop only that baked navigation;
+   use the original wooden plaque texture for real local-only controls. */
+.kt-troy-local .kt-tavern-brand { aspect-ratio: 500 / 525; overflow: hidden; }
+.kt-troy-local .kt-tavern-cover { padding-bottom: 18px; }
+.kt-troy-local .kt-tavern-nav { display: grid; gap: 9px; padding: 8px 8% 0; }
+.kt-troy-local .kt-tavern-nav-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; }
+.kt-troy-local .kt-tavern-cover .kt-tavern-plaque {
+  position: static; width: 100%; min-height: 46px; height: auto; color: #fff4d8;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/tavern-plaque.webp") center / 100% 100% no-repeat, #43230f;
+  font: bold clamp(16px, 5vw, 24px) serif;
+}
+.kt-troy-local .kt-tavern-cover .kt-tavern-plaque:active { filter: brightness(.85); }
+.kt-troy-local .kt-tavern-cover .kt-tavern-live-label {
+  position: static; width: auto; height: auto; overflow: visible; clip-path: none;
+}
+.kt-troy-local .kt-troy-return { margin: 14px 0 0; text-align: center; }
+.kt-troy-local .kt-troy-return a { color: #efd193; }

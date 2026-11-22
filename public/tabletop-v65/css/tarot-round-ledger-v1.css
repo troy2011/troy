@@ -1,0 +1,221 @@
+/* Round ledger only. The match-ending and card-choice dialogs keep their own layouts. */
+#ktDialog.is-round-result {
+  --round-ink: #f6ebd7;
+  --round-gold: #e5bf7c;
+  --round-muted: #d3bea0;
+  --round-rule: #936b3d75;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+           max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse at center, #15362ab8, #081510d9 85%);
+}
+#ktDialog.is-round-result .kt-dialog-box {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(100%, 472px);
+  max-width: none;
+  height: min(556px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #a57b49;
+  border-radius: 7px;
+  color: var(--round-ink);
+  background:
+    linear-gradient(110deg, #3824182b, #07040262),
+    #25180f url('../assets/tarot-kingdom-table/round-results/tarot-round-ledger-walnut-v1.webp') center / cover;
+  box-shadow: 0 18px 70px #000c, inset 0 0 0 3px #120b07, inset 0 0 0 4px #9f78413d;
+}
+#ktDialog.is-round-result #ktDialogTitle {
+  margin: 0 12px;
+  padding: 10px 8px 8px;
+  border: 0;
+  color: #f6e2ae;
+  font-size: clamp(24px, 7.5vw, 34px);
+  font-weight: 750;
+  letter-spacing: .06em;
+  line-height: 1.2;
+  text-shadow: 0 1px 5px #000;
+}
+#ktDialog.is-round-result #ktDialogTitle::before {
+  display: block;
+  margin-bottom: 4px;
+  color: #d3aa67;
+  content: "✦  航海日誌  ✦";
+  font-family: Georgia, serif;
+  font-size: 10px;
+  letter-spacing: .23em;
+}
+#ktDialog.is-round-result #ktDialogBody {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #805d42 #21160d;
+  padding: 2px clamp(11px, 4vw, 20px) 8px;
+  scroll-padding-block: 8px;
+}
+#ktDialog.is-round-result .kt-round-hero {
+  padding: 9px 12px;
+  text-align: center;
+  background: linear-gradient(98deg, #4f15165c, #6f1b26ed 13% 87%, #4f15165c);
+  text-shadow: 0 1px 2px #291012;
+  border-block: 1px solid #b68a526e;
+}
+#ktDialog.is-round-result .kt-round-hero .kt-result-head {
+  gap: 8px;
+  margin: 0;
+  font-size: clamp(17px, 5vw, 22px);
+  line-height: 1.2;
+  color: #f7e1b0;
+}
+#ktDialog.is-round-result .kt-result-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#ktDialog.is-round-result .kt-result-head .kt-han-pill {
+  flex: none;
+  margin: 0;
+  padding: 3px 9px;
+  font-size: 15px;
+  color: #2a190c;
+  background: #e9c486;
+}
+#ktDialog.is-round-result .kt-round-hero p:last-child { margin-bottom: 0; }
+#ktDialog.is-round-result .kt-result-note {
+  margin-top: 5px;
+  color: var(--round-muted);
+  font-size: .8125rem;
+  overflow-wrap: anywhere;
+}
+#ktDialog.is-round-result .kt-round-ledger { margin-top: 11px; }
+#ktDialog.is-round-result .kt-round-ledger h3 {
+  display: flex;
+  gap: .65em;
+  align-items: center;
+  margin: 0;
+  color: var(--round-gold);
+  font: bold .875rem var(--kt-serif);
+  letter-spacing: .07em;
+}
+#ktDialog.is-round-result .kt-round-ledger h3::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, var(--round-rule), transparent);
+}
+#ktDialog.is-round-result .kt-round-ledger .kt-score {
+  margin: 3px 0 4px;
+  padding: 0;
+  color: var(--round-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: .9375rem;
+  font-variant-numeric: tabular-nums;
+}
+#ktDialog.is-round-result .kt-round-ledger li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(3.6em, max-content);
+  gap: 7px;
+  align-items: start;
+  min-height: 27px;
+  padding: 4px 5px;
+  color: inherit;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  border: 0;
+  border-bottom: 1px solid #bd8e4e2a;
+}
+#ktDialog.is-round-result .kt-round-ledger .is-round-winner {
+  color: #fff0c8;
+  font-weight: 750;
+  background: #b8874520;
+}
+#ktDialog.is-round-result .kt-round-ledger .kt-chip { margin: 0; white-space: nowrap; }
+#ktDialog.is-round-result .kt-round-ledger .kt-delta { min-width: 0; white-space: nowrap; }
+#ktDialog.is-round-result .kt-round-ledger .kt-dialog-label { margin: 4px 0 0; color: var(--round-muted); font-size: .8125rem; }
+#ktDialog.is-round-result .kt-round-proof { margin: 10px 0 0; }
+#ktDialog.is-round-result .kt-round-proof .kt-dialog-cards { margin-bottom: 6px; }
+#ktDialog.is-round-result .kt-round-proof .kt-dialog-cards .kt-card { width: clamp(29px, 9vw, 43px); }
+#ktDialog.is-round-result .kt-dialog-label { color: var(--round-gold); font-size: .875rem; }
+#ktDialog.is-round-result .kt-round-details { border-block: 1px solid var(--round-rule); margin-top: 8px; }
+#ktDialog.is-round-result .kt-round-details summary {
+  padding: 10px 5px;
+  color: var(--round-gold);
+  cursor: pointer;
+  font-size: .875rem;
+  font-weight: 700;
+}
+#ktDialog.is-round-result .kt-round-details .kt-result-row,
+#ktDialog.is-round-result .kt-round-details .kt-result-pot { border-color: var(--round-rule); }
+#ktDialog.is-round-result #ktDialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+  margin: 0 3px 3px;
+  padding: 9px clamp(7px, 3vw, 15px) 5px;
+  background: #1b100af7;
+  border-top: 1px solid #a97b4a91;
+}
+#ktDialog.is-round-result #ktDialogActions .kt-button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 4px 8px;
+  font: bold .84375rem / 1.25 var(--kt-serif);
+  overflow-wrap: anywhere;
+  color: #f5e1b8;
+  background: linear-gradient(#402b1c, #2a1c12);
+  border: 1px solid #9b754b;
+  border-radius: 3px;
+  box-shadow: none;
+}
+#ktDialog.is-round-result #ktDialogActions .kt-button-main {
+  grid-column: 1 / -1;
+  min-height: 48px;
+  color: #251506;
+  border-color: #f0d5a1;
+  background: linear-gradient(#f1d39b, #bc8948);
+  font-size: 1rem;
+  box-shadow: inset 0 0 0 2px #9f713966;
+}
+#ktDialog.is-round-result :focus-visible {
+  outline: 2px solid #fff1ab;
+  outline-offset: -2px;
+}
+@media (max-height: 450px) {
+  #ktDialog.is-round-result #ktDialogTitle { padding-block: 6px; }
+  #ktDialog.is-round-result #ktDialogTitle::before { margin-bottom: 3px; }
+  #ktDialog.is-round-result #ktDialogActions { gap: 4px; padding-block: 5px; }
+}
+#ktDialog.is-round-result .kt-round-context {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 5px;
+  color: #efd2a0;
+  font-size: .8125rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+#ktDialog.is-round-result .kt-round-context::before,
+#ktDialog.is-round-result .kt-round-context::after {
+  content: "";
+  width: min(12%, 30px);
+  height: 1px;
+  background: linear-gradient(to right, #ae854877, #d6ae72bb);
+}
+#ktDialog.is-round-result .kt-round-context::after { transform: scaleX(-1); }
+#ktDialog.is-round-result .kt-round-ledger .kt-delta-up { color: #f6d695; }
+#ktDialog.is-round-result .kt-round-ledger .kt-delta-down { color: #ff9b88; }
+
+
+#ktDialog.is-round-result #ktDialogActions .kt-button:last-child:nth-child(2) { grid-column: 1 / -1; }
+
+@media (max-height: 620px) {
+  #ktDialog.is-round-result #ktDialogTitle { padding-top: 8px; }
+  #ktDialog.is-round-result .kt-round-hero { padding-block: 6px; }
+  #ktDialog.is-round-result .kt-round-ledger { margin-top: 8px; }
+  #ktDialog.is-round-result .kt-round-proof { margin-top: 8px; }
+  #ktDialog.is-round-result .kt-round-details summary { padding-block: 7px; }
+}

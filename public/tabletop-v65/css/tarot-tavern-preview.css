@@ -1,0 +1,525 @@
+/* Nassau tavern: shared materials with a separate portrait composition for the menu. */
+.kt-tavern-theme {
+  --nv-ink: #fff4d8;
+  --nv-gold: #efd193;
+  --nv-brass: #a96d37;
+  --nv-edge: #63401f;
+  --nv-shadow: #0f0704;
+  --nv-wood: linear-gradient(102deg, rgb(255 181 101 / 4%), transparent 57%, rgb(0 0 0 / 12%)),
+             repeating-linear-gradient(2deg, rgb(238 169 95 / 3%) 0 1px, transparent 1px 6px, rgb(0 0 0 / 6%) 6px 9px),
+             linear-gradient(161deg, #3a2316, #20100a 78%);
+  color: var(--nv-ink);
+  background: radial-gradient(ellipse at 50% 38%, #412618, #140c07 70%, #080504);
+}
+.kt-tavern-theme [hidden] { display: none !important; }
+.kt-tavern-theme :is(button,a,summary,input):focus-visible {
+  outline: 3px solid #ffe2a6;
+  outline-offset: 3px;
+}
+.kt-tavern-main #ktApp:has(> .kt-tavern-setup:not([hidden])) {
+  max-width: 520px;
+  padding: 0;
+  background: #1b0d07;
+  box-shadow: 0 0 90px #000;
+}
+.kt-tavern-setup {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.kt-tavern-cover { position: relative; }
+.kt-tavern-brand h1 { margin: 0; padding: 0; color: #ffe4a7; }
+.kt-tavern-title-art { display: block; width: 100%; height: auto; margin: 0; }
+/* Hit areas are proportional to the original 500 × 950 A artwork. */
+.kt-tavern-nav, .kt-tavern-nav-pair { display: contents; }
+.kt-tavern-cover .kt-tavern-plaque {
+  position: absolute;
+  top: var(--nv-top);
+  left: var(--nv-left);
+  width: var(--nv-width);
+  height: max(44px, var(--nv-height));
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  appearance: none;
+  text-decoration: none;
+}
+.kt-tavern-cover [data-tavern-mode="online"] { --nv-top: 55.6%; --nv-left: 5.8%; --nv-width: 88.6%; --nv-height: 12.7%; }
+.kt-tavern-cover [data-tavern-mode="rated"] { --nv-top: 69.8%; --nv-left: 9.4%; --nv-width: 82%; --nv-height: 7.6%; }
+.kt-tavern-cover [data-tavern-mode="practice"] { --nv-top: 78.6%; --nv-left: 9.4%; --nv-width: 82%; --nv-height: 7.6%; }
+.kt-tavern-cover .kt-tavern-nav-pair a { --nv-top: 88.75%; --nv-left: 9.4%; --nv-width: 38.6%; --nv-height: 5.6%; }
+.kt-tavern-cover #ktTavernSettings { --nv-top: 88.75%; --nv-left: 53%; --nv-width: 38.4%; --nv-height: 5.6%; }
+.kt-tavern-cover .kt-tavern-plaque:active { background: rgb(0 0 0 / 22%); }
+@media (hover: hover) {
+  .kt-tavern-cover .kt-tavern-plaque:hover { background: rgb(255 204 120 / 12%); }
+}
+.kt-tavern-live-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (min-width: 600px) {
+  .kt-tavern-main #ktApp:has(> .kt-tavern-setup:not([hidden])) {
+    max-width: clamp(360px, 52.6316svh, 520px);
+  }
+}
+@media (forced-colors: active) {
+  .kt-tavern-live-label { position: static; width: auto; height: auto; clip-path: none; color: ButtonText; background: ButtonFace; }
+}
+.kt-tavern-console {
+  padding: 5px clamp(15px, 5vw, 27px) max(24px, env(safe-area-inset-bottom));
+  background: linear-gradient(#190b05, #24120a);
+}
+.kt-tavern-console .kt-home-account { justify-content: center; padding: 0 .1rem; gap: .50rem; margin: .6rem 0; }
+.kt-tavern-console .kt-home-account > :is(button,a) { min-height: 44px; }
+.kt-tavern-console .kt-home-account p:empty { display: none; }
+.kt-tavern-theme :is(.kt-mode-panel,.kt-notes,#ktLobby,.kt-tavern-doc,.tt-menu,.kt-dialog-box,.kt-settings,.kt-avatar-shop-dialog) {
+  color: var(--nv-ink);
+  border-color: var(--nv-brass);
+  background: var(--nv-wood);
+  box-shadow: inset 0 0 0 2px #643a214d, inset 0 0 24px #180a05a8, 0 7px 24px #160904a0;
+}
+.kt-tavern-theme :is(.kt-tavern-doc,.tt-menu) {
+  margin-block: 22px;
+  padding: clamp(16px, 4.4vw, 28px);
+}
+.kt-tavern-theme :is(.kt-tavern-doc,.tt-menu) > :is(h1,.kt-eyebrow) { color: var(--nv-gold); }
+.kt-tavern-theme .kt-tavern-doc :is(li,p) { max-width: 70ch; overflow-wrap: anywhere; }
+.kt-tavern-theme .kt-tavern-doc :is(h2, h3) { color: var(--nv-gold); }
+.kt-tavern-theme :is(.kt-mode-panel,#ktLobby,.kt-dialog-box,.kt-settings) :is(h2,h3) { color: var(--nv-gold); }
+.kt-tavern-theme .kt-mode-panel { padding: 1rem; gap: .7rem; border-radius: 7px; }
+.kt-tavern-theme :is(.kt-mode-panel,#ktLobby,.kt-settings,.kt-dialog-box,.tt-chapters) .kt-button {
+  border-color: var(--nv-brass);
+  background: linear-gradient(160deg, #6a3d24, #32180d 72%);
+  color: var(--nv-ink);
+}
+.kt-tavern-theme :is(.kt-mode-panel,#ktLobby,.kt-settings,.kt-dialog-box,.tt-chapters) .kt-button-main {
+  border-color: #d7a661;
+  background: linear-gradient(155deg, #8d552b, #4d240f 75%);
+  color: var(--nv-ink);
+}
+.kt-tavern-theme .kt-mode-panel input:not([type="checkbox"]) {
+  background: #1d110c;
+  color: var(--nv-ink);
+  border-color: var(--nv-edge);
+}
+.kt-tavern-main :is(.kt-bar,.kt-actions) { border-color: #946031; }
+.kt-tavern-theme :is(.tt-coach,.kt-settings) { border-color: var(--nv-brass); }
+@media (max-width: 349px) {
+  .kt-tavern-nav { margin-inline: 6.7%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kt-tavern-plaque { transition: none; }
+  #ktSetup.nv-on-page .kt-mode-options summary::after { transition: none; }
+}
+
+
+/* Source-board crops carry only stable illustration. All state and controls are live. */
+.nv-companion-title, .nv-tutorial-header { position: relative; }
+.nv-companion-title { aspect-ratio: var(--nv-hero-ratio); background: var(--nv-hero) center / 100% 100% no-repeat; }
+.nv-waiting { --nv-hero: url("../assets/tarot-kingdom-table/nassau-preview/waiting-top.webp"); --nv-hero-ratio: 418 / 189; }
+.nv-practice { --nv-hero: url("../assets/tarot-kingdom-table/nassau-preview/practice-top.webp"); --nv-hero-ratio: 419 / 382; }
+.nv-settings { --nv-hero: url("../assets/tarot-kingdom-table/nassau-preview/settings-top.webp"); --nv-hero-ratio: 419 / 171; }
+.nv-tutorial { --nv-hero: url("../assets/tarot-kingdom-table/nassau-preview/tutorial-top.webp"); --nv-hero-ratio: 419 / 151; }
+.nv-plate-back { position: absolute; z-index: 2; top: 13px; left: 15px; width: 45px; height: 45px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.nv-plate-back:hover { background: #ffdeb534; }
+.nv-plate-back:active { background: #0005; }
+.kt-tavern-console > .nv-practice { display: none; }
+.kt-tavern-theme :is(#ktSetup.nv-on-page,#ktSetup:has(#ktLobby:not([hidden]))) > .kt-tavern-cover { display: none; }
+.kt-tavern-theme :is(#ktSetup.nv-on-page,#ktSetup:has(#ktLobby:not([hidden]))) > .kt-tavern-console {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  padding: 0;
+  border: 1px solid #bc864b;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 3px #2f1a0d,0 10px 35px #090503;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y,#201208;
+}
+#ktSetup[data-nv-mode="practice"] .kt-tavern-console > .nv-practice { display: block; }
+#ktSetup.nv-on-page #ktCpuMode { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+#ktSetup.nv-on-page #ktTavernSeats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 5.6%;
+  padding: .55rem .8rem .85rem;
+  border: 1px solid #c28d53;
+  border-radius: 6px;
+  background: #1b100ac9;
+  color: #ffe5b2;
+}
+#ktSetup.nv-on-page #ktTavernSeats legend { margin-inline: auto; padding: 0 .4rem; color: #ffe5b2; font: 800 1.2rem var(--kt-serif); }
+#ktSetup.nv-on-page #ktTavernSeats label { flex: 1; text-align: center; }
+#ktSetup.nv-on-page #ktTavernSeats label:has([value="3"]) { order: -1; }
+#ktSetup.nv-on-page #ktTavernSeats label span { display: grid; place-items: center; min-height: 46px; color: #ffe8b8; background: #503823; border-color: #b88651; font: 800 1.15rem var(--kt-serif); }
+#ktSetup.nv-on-page #ktTavernSeats input:checked + span { color: #2c1908; background: linear-gradient(#f0cc78,#b7782c); }
+.kt-tavern-theme :is(#ktSetup.nv-on-page #ktTavernCpu,#ktTavernOnline:has(#ktLobby:not([hidden])),#ktLobby) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+#ktSetup.nv-on-page #ktStart { width: 100%; min-height: 65px; }
+#ktSetup.nv-on-page #ktTutorial { display: grid; place-items: center; width: 100%; min-height: 50px; padding: 6px 12px; font-size: 1.1rem; font-weight: 800; text-decoration: none; }
+#ktSetup.nv-on-page :is(.kt-home-account,.kt-notes),
+#ktSetup:has(#ktLobby:not([hidden])) :is(.kt-home-account,.kt-notes),
+#ktTavernOnline:has(#ktLobby:not([hidden])) > :not(#ktLobby,#ktOnlineStatus) { display: none; }
+#ktTavernOnline:has(#ktLobby:not([hidden])) > #ktOnlineStatus { order: 2; text-align: center; }
+#ktLobby { position: relative; display: grid; gap: .6rem; padding-bottom: 72px !important; background: url("../assets/tarot-kingdom-table/nassau-preview/waiting-foot.webp") center bottom / 100% auto no-repeat !important; }
+#ktLobby > :not(.nv-companion-title,.nv-plate-back) { margin-inline: 6%; }
+#ktLobby .kt-lobby-heading { display: grid; justify-items: stretch; gap: 7px; }
+#ktRoomCapacity { grid-row: 1; margin: 0; }
+#ktLobby h3 { margin: 0; text-align: center; padding: 5px; font-size: 1rem; }
+#ktLobby h3 strong { margin-left: .35rem; letter-spacing: .15em; }
+#ktRoomMembers { display: grid; gap: 5px; padding: 0; list-style: none; }
+#ktRoomMembers li { display: grid; grid-template-columns: 1.25rem minmax(0,1fr) auto; align-items: center; min-height: 41px; gap: .45rem; padding: 4px 9px; color: #ffe8bf; background: linear-gradient(100deg,#261308,#432412); border: 1px solid #996435; border-radius: 5px; }
+#ktRoomMembers li::before { content: ""; display: block; width: 1.25rem; height: 1.25rem; background: radial-gradient(circle at 50% 24%, currentColor 0 23%,transparent 25%),radial-gradient(ellipse at 50% 100%,currentColor 0 53%,transparent 56%); }
+#ktRoomMembers li.nv-seat-vacant::before { opacity: .40; }
+#ktRoomMembers span { overflow-wrap: anywhere; }
+#ktRoomMembers small { padding: 2px 5px; border: 1px solid #ad7842; border-radius: 3px; }
+.kt-tavern-theme :is(#ktStart,#ktTutorial,#ktRoomCapacity,#ktRoomStart,#ktRoomLeave,#ttPlay,#ttPass) {
+  color: #fff0cd;
+  border: 1px solid #bc8248;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 2px #271305;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/tavern-plaque.webp") center / 100% 100% no-repeat,#43230f;
+  font-family: var(--kt-serif);
+  text-shadow: 0 2px 3px #0e0701;
+}
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+#ktRoomCapacity { padding: 14px 5px; text-align: center; font-size: clamp(1.05rem, 5.4vw, 1.5rem); font-weight: 800; }
+#ktRoomStart { min-height: 52px; }
+#ktRoomLeave { justify-self: center; padding-inline: 1.2rem; }
+#ktRoomStart:disabled { filter: grayscale(.65); opacity: .6; }
+.kt-tavern-theme #ktSettingsDialog { width: min(94vw, 455px); max-height: 96svh; min-height: min(720px, 93svh); padding: 0 0 65px; border: 1px solid #ae793f; border-radius: 5px; background: url("../assets/tarot-kingdom-table/nassau-preview/settings-foot.webp") center bottom / 100% auto no-repeat,url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y,#201208; }
+#ktSettingsDialog .nv-companion-title { display: block; margin: 0; }
+#ktSettingsDialog .kt-settings-option { margin: 0 5%; padding: 14px 10px; border: 1px solid #875827; background: #21140acc; color: #ffe6b5; }
+#ktSettingsDialog .kt-settings-option input { accent-color: #c88d42; }
+#ktSettingsDialog form > p { margin: 24px 10px; text-align: center; }
+#ktSettingsDialog a { color: #ffe7b6; }
+.kt-tavern-tutorial #ttApp { max-width: 460px; }
+.kt-tavern-theme.kt-tavern-tutorial :is(#ttMenu,#ttTable) { position: relative; margin: 0; padding: 0 0 90px; border-radius: 5px; border: 1px solid #ae793f; background: url("../assets/tarot-kingdom-table/nassau-preview/tutorial-foot.webp") center bottom / 100% auto no-repeat,url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y,#201208; }
+.kt-tavern-tutorial #ttTable { gap: .4rem; }
+.kt-tavern-tutorial :is(#ttTable,#ttMenu) > :not(.nv-companion-title,.nv-tutorial-header,.nv-plate-back) { margin-inline: 4%; }
+.kt-tavern-tutorial .tt-bar { position: static; box-shadow: none; border-color: #a47440; min-height: 45px; background: #312011; }
+.kt-tavern-tutorial .tt-hand { overflow: auto; padding-block: 10px; }
+.kt-tavern-tutorial .tt-coach { border-color: #9f6a35; background: #26170d; color: #ffe4ad; }
+.kt-tavern-tutorial .tt-actions { position: relative; inset: auto; box-shadow: none; background: transparent; padding-bottom: 0; }
+.kt-tavern-tutorial #ttPlay { order: -1; }
+
+
+.kt-tavern-theme #ktSetup.nv-on-page #ktTavernCpu {
+  padding: 14px 7% 0;
+  background: none;
+}
+.kt-tavern-theme #ktSetup.nv-on-page .kt-mode-actions { grid-template-columns: minmax(0,1fr); }
+.kt-tavern-theme :is(#ktSetup.nv-on-page #ktStart,#ktLobby #ktRoomStart,#ktLobby #ktRoomLeave) {
+  border-color: #c69453;
+  color: #fff0cd;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/tavern-plaque.webp") center / 100% 100% no-repeat,#43230f;
+  font: 800 clamp(1.15rem,5.8vw,1.65rem) var(--kt-serif);
+  text-shadow: 0 2px 4px #150702;
+}
+#ktLobby #ktRoomStart { width: auto; justify-self: stretch; margin-top: 0; }
+#ktLobby #ktRoomLeave { font-size: 1.08rem; }
+#ktLobby #ktRoomCapacity { font-size: clamp(1.1rem,6.3vw,1.65rem); }
+#ktLobby .kt-lobby-heading h3 { color: #ffe3b0; }
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+#ktSettingsDialog .kt-settings-option { min-height: 75px; margin-top: -1px; }
+#ktSettingsDialog .kt-settings-option strong { font: 800 1.15rem var(--kt-serif); }
+#ktSettingsDialog input[role="switch"] { appearance: none; width: 59px; height: 31px; border-radius: 99px; border: 1px solid #b88a56; background: radial-gradient(circle at 14px 50%,#e2c69e 0 10px,transparent 11px),#49301d; }
+#ktSettingsDialog input[role="switch"]:checked { background: radial-gradient(circle at calc(100% - 14px) 50%,#fff1ce 0 10px,transparent 11px),linear-gradient(#aa782e,#774c1d); }
+@media (forced-colors: active) { #ktSettingsDialog input[role="switch"] { appearance: auto; } }
+.kt-tavern-tutorial #ttTable .tt-field { background: radial-gradient(ellipse at 48% 30%,#614128,#25160d 83%); border-color: #aa783e; }
+
+
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+#ktRoomMembers li { grid-template-columns: 40px minmax(0,1fr) auto; min-height: 48px; padding: 3px 9px; }
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+#ktRoomMembers li::before { justify-self: center; }
+#ktRoomMembers li.nv-seat-with-icon::before { display: none; }
+#ktRoomMembers .nv-player-avatar {
+  display: block;
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #a66d37;
+  background: #110805;
+}
+
+
+/* Give the first switch its own visible top rail beneath the hero art. */
+#ktSettingsDialog .nv-settings + .kt-settings-option {
+  position: relative;
+  margin-top: 9px;
+  border-top: 2px solid #c68b4f;
+  border-radius: 6px 6px 0 0;
+  box-shadow: inset 0 2px #2b1509;
+}
+#ktSettingsDialog .nv-settings + .kt-settings-option::before,
+#ktSettingsDialog .nv-settings + .kt-settings-option::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 3px;
+  inline-size: 8px;
+  block-size: 8px;
+  border-block-start: 1px solid #a77341;
+  pointer-events: none;
+}
+#ktSettingsDialog .nv-settings + .kt-settings-option::before { inset-inline-start: 3px; border-inline-start: 1px solid #a77341; }
+#ktSettingsDialog .nv-settings + .kt-settings-option::after { inset-inline-end: 3px; border-inline-end: 1px solid #a77341; }
+
+
+
+/* One continuous source panel; fixed top/bottom proportions, clean wood behind live controls. */
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+.kt-tavern-theme #ktSettingsDialog {
+  container-type: inline-size;
+  padding-bottom: 0;
+  background: #211309;
+}
+#ktSettingsDialog > form {
+  position: relative;
+  isolation: isolate;
+  min-height: min(718px, calc(93svh - 2px));
+  padding-bottom: 32px;
+}
+#ktSettingsDialog > form::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-image: url("../assets/tarot-kingdom-table/nassau-preview/settings-wood-continuous.webp") 171 0 91 0 fill / 40.81cqw 0 21.72cqw 0 stretch;
+}
+#ktSettingsDialog .nv-settings { background: none; }
+
+
+/* The tutorial body shares the same continuous source frame as its heading. */
+/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
+.kt-tavern-theme.kt-tavern-tutorial :is(#ttMenu,#ttTable) {
+  container-type: inline-size;
+  isolation: isolate;
+  background: #201208;
+}
+.kt-tavern-theme.kt-tavern-tutorial :is(#ttMenu,#ttTable)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-image: url("../assets/tarot-kingdom-table/nassau-preview/tutorial-wood-continuous.webp") 151 0 110 0 fill / 36.0382cqw 0 26.253cqw 0 stretch;
+}
+.kt-tavern-tutorial :is(#ttMenu,#ttTable) .nv-tutorial { background: none; }
+.kt-tavern-tutorial #ttTable > :not(.nv-tutorial-header) { margin-inline: 6%; }
+.kt-tavern-tutorial #ttTable .tt-actions { margin-bottom: 6px; }
+
+/* Continue the existing framed settings material below the preference switches. */
+#ktSettingsDialog .kt-settings-account {
+  margin: 16px 5% 0;
+  padding: 9px 12px 12px;
+  border: 1px solid #a77341;
+  box-shadow: inset 0 0 0 2px #21150b;
+  background: #22140ce8;
+  color: #ffe6b5;
+}
+.kt-settings-account h3 {
+  margin: 0 0 9px;
+  padding: 0 0 7px;
+  border-bottom: 1px solid #745031;
+  font: 800 1rem var(--kt-serif);
+}
+.kt-settings-account .kt-settings-rating { display: grid; gap: 3px; }
+/* Signed out there is no rating to show: hide the empty heading rather than leave it standing alone. */
+.kt-settings-account .kt-settings-rating:has(#ktAccount:empty) { display: none; }
+.kt-settings-account #ktAccount { margin: 0; color: #f4dfb6; font-size: .83rem; line-height: 1.5; }
+.kt-settings-account-actions { display: grid; gap: 8px; margin-top: 10px; }
+.kt-settings-account-actions > button { width: 100%; min-height: 46px; margin: 0; padding: 6px 12px; border-radius: 5px; background: linear-gradient(115deg,#4c321d,#2b1b11); }
+.kt-settings-account-actions .kt-role-record-entry { display: flex; justify-content: space-between; align-items: center; }
+.kt-settings-account-actions .kt-role-record-entry::after { content: "›"; font-size: 20px; line-height: 1; color: #d2a168; }
+.kt-settings-account-actions .kt-avatar-shop-trigger { white-space: nowrap; gap: 8px; font-size: .9rem; }
+.kt-settings-account-actions .kt-avatar-shop-icon, .kt-settings-account-actions .kt-avatar-shop-token { width: 28px; height: 28px; font-size: 16px; }
+.kt-settings-account-actions > button[hidden] { display: none; }
+
+/* ---- Menu pages (2026-11-21): every menu choice is a full screen page with a visible back button. ---- */
+
+/* The menu itself fits the screen: the art is sized by the shorter side and sits in the middle. */
+.kt-tavern-main #ktApp:has(> #ktSetup[data-nv-mode=""]:not([hidden])) {
+  max-width: min(520px, 52.6316svh);
+  justify-content: center;
+}
+#ktSetup[data-nv-mode=""] > .kt-tavern-console { display: none; }
+
+/* The foot illustration closes every page at the bottom of the screen. */
+.kt-tavern-theme #ktSetup.nv-on-page:not(:has(#ktLobby:not([hidden]))) > .kt-tavern-console {
+  padding-bottom: calc(21% + env(safe-area-inset-bottom));
+  background:
+    url("../assets/tarot-kingdom-table/nassau-preview/practice-foot.webp") center bottom / 100% auto no-repeat,
+    url("../assets/tarot-kingdom-table/nassau-preview/clean-wood.webp") center / 100% auto repeat-y,
+    #201208;
+}
+
+/* Practice keeps its painted heading; on short screens its lower edge is cropped instead of pushing the page into a scroll. */
+#ktSetup[data-nv-mode="practice"] .nv-practice {
+  max-height: 34svh;
+  background-size: 100% auto;
+  background-position: center top;
+}
+
+/* Online and CPU pages: a helm, a live title and a rule beneath, in the style of the painted headings. */
+.nv-page-head { display: none; }
+#ktSetup:is([data-nv-mode="online"],[data-nv-mode="rated"]):not(:has(#ktLobby:not([hidden]))) .nv-page-head {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 64px 14px;
+  background: radial-gradient(ellipse at 50% 30%, #ffc76b1f, transparent 70%);
+}
+.nv-page-helm { width: min(132px, 42vw); height: auto; filter: drop-shadow(0 3px 4px #0a0402); }
+.nv-page-title {
+  margin: -4px 0 0;
+  color: #f7dfa6;
+  font: 800 clamp(1.75rem, 8.6vw, 2.35rem)/1.15 var(--kt-serif);
+  letter-spacing: .1em;
+  text-shadow: 0 2px 0 #3a1a07, 0 0 14px #ffb85a59;
+  white-space: nowrap;
+}
+.nv-page-head::after {
+  content: "";
+  width: min(240px, 70%);
+  height: 2px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, transparent, #d9a75e 25% 75%, transparent);
+}
+
+/* One back button for every page. Practice paints its own arrow; the others draw one. */
+.nv-page-back { z-index: 3; }
+#ktSetup:has(#ktLobby:not([hidden])) .nv-page-back { display: none; }
+#ktSetup:is([data-nv-mode="online"],[data-nv-mode="rated"]) .nv-page-back::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 18px;
+  width: 13px;
+  height: 13px;
+  border-bottom: 3px solid #f6e3bd;
+  border-left: 3px solid #f6e3bd;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  filter: drop-shadow(0 1px 1px #0008);
+}
+
+/* The online entry form, laid out like the other pages instead of a stock panel. */
+.kt-tavern-theme #ktSetup[data-nv-mode="online"] #ktTavernOnline:not(:has(#ktLobby:not([hidden]))) {
+  margin: 0;
+  padding: 14px 7% 0;
+  gap: 12px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+#ktSetup[data-nv-mode="online"] #ktOnlineMode { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+/* The login link sits in the header's top-right corner, opposite the back button. */
+#ktSetup[data-nv-mode="online"] .kt-mode-heading { display: contents; }
+#ktSetup[data-nv-mode="online"] #ktSignIn { position: absolute; z-index: 3; top: 16px; right: 14px; }
+#ktSetup.nv-on-page :is(#ktSignIn,#ktRoleRecordsLogin) {
+  padding: 6px 14px;
+  border: 1px solid #b88651;
+  border-radius: 99px;
+  color: #ffe5b2;
+  background: #2a180d;
+  font-size: .9rem;
+  text-decoration: none;
+}
+#ktSetup[data-nv-mode="online"] .kt-online-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: #ffe5b2;
+  font: 800 1rem var(--kt-serif);
+}
+#ktSetup[data-nv-mode="online"] :is(#ktNickname,#ktJoinCode) {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid #a77341;
+  border-radius: 6px;
+  color: #fff0cd;
+  background: #170d07;
+  font-size: 1rem;
+}
+#ktSetup[data-nv-mode="online"] #ktJoinCode { letter-spacing: .12em; }
+#ktSetup[data-nv-mode="online"] .kt-join { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.kt-tavern-theme #ktSetup.nv-on-page :is(#ktCreateRoom,#ktRatedCpu,#ktJoinRoom,#ktResume) {
+  border: 1px solid #c69453;
+  border-radius: 5px;
+  color: #fff0cd;
+  background: url("../assets/tarot-kingdom-table/nassau-preview/tavern-plaque.webp") center / 100% 100% no-repeat, #43230f;
+  box-shadow: inset 0 0 0 2px #271305, 0 4px 10px #0008;
+  font-family: var(--kt-serif);
+  text-shadow: 0 2px 3px #0e0701;
+}
+.kt-tavern-theme #ktSetup.nv-on-page :is(#ktCreateRoom,#ktRatedCpu) {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 62px;
+  font-size: clamp(1.15rem, 5.8vw, 1.55rem);
+  font-weight: 800;
+}
+.kt-tavern-theme #ktSetup.nv-on-page #ktJoinRoom { min-height: 48px; padding-inline: 1.1rem; font-size: 1.05rem; }
+#ktSetup.nv-on-page #ktOnlineStatus:empty { display: none; }
+#ktSetup.nv-on-page #ktOnlineStatus { margin: 0; padding: 8px 10px; border-left: 3px solid #d39a52; color: #ffe2ad; background: #1a0e07cc; font-size: .9rem; }
+#ktSetup.nv-on-page .kt-mode-caption { color: #e9cd98; font-size: .88rem; line-height: 1.6; text-align: center; }
+
+/* CPU and practice pages. The CPU page's few controls sit in the middle of the space, not at its top. */
+#ktSetup[data-nv-mode="rated"] #ktTavernSeats { margin-top: auto; }
+.kt-tavern-theme #ktSetup[data-nv-mode="rated"] #ktTavernCpu { margin-bottom: auto; }
+#ktSetup.nv-on-page .kt-mode-actions { display: grid; gap: 10px; }
+#ktSetup.nv-on-page #ktRatingSetup { margin: 4px 0 0; border-color: #a77341; background: #1a0e07cc; }
+#ktSetup.nv-on-page .kt-mode-options {
+  border: 1px solid #875827;
+  border-radius: 6px;
+  background: #21140acc;
+  color: #ffe6b5;
+}
+#ktSetup.nv-on-page .kt-mode-options summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  font: 800 1rem var(--kt-serif);
+  cursor: pointer;
+  list-style: none;
+}
+#ktSetup.nv-on-page .kt-mode-options summary::-webkit-details-marker { display: none; }
+#ktSetup.nv-on-page .kt-mode-options summary::after { content: "›"; color: #d2a168; font-size: 1.4rem; transition: transform .15s; }
+#ktSetup.nv-on-page .kt-mode-options[open] summary::after { transform: rotate(90deg); }
+#ktSetup.nv-on-page .kt-mode-options .kt-check { margin: 0; padding: 0 12px 6px; }
+
+/* Short phones: tighten the page so it still fits without scrolling. */
+@media (max-height: 640px) {
+  #ktSetup:is([data-nv-mode="online"],[data-nv-mode="rated"]) .nv-page-head { padding-block: 6px 8px; }
+  .nv-page-helm { width: min(100px, 32vw); }
+  .nv-page-title { font-size: clamp(1.5rem, 7.5vw, 2rem); }
+  .kt-tavern-theme #ktSetup.nv-on-page :is(#ktCreateRoom,#ktRatedCpu) { min-height: 54px; }
+  #ktSetup.nv-on-page #ktStart { min-height: 56px; }
+  .kt-tavern-theme #ktSetup[data-nv-mode="online"] #ktTavernOnline:not(:has(#ktLobby:not([hidden]))) { gap: 7px; padding-top: 7px; }
+  #ktSetup.nv-on-page #ktTavernSeats { padding: .35rem .7rem .6rem; }
+  #ktSetup.nv-on-page #ktTavernSeats label span { min-height: 42px; }
+}

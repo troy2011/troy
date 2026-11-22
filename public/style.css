@@ -7185,6 +7185,31 @@ body.modal-lock .troy-menu-board-order-modal {
     transition: all 0.2s ease;
 }
 
+#tarotModeKingdom[hidden] {
+    display: none;
+}
+
+.tarot-shared-lobby {
+    min-height: 44px;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 8px;
+    gap: 2px;
+    text-align: center;
+    text-decoration: none;
+}
+
+.tarot-shared-lobby:focus-visible {
+    outline: 2px solid #ddd6fe;
+    outline-offset: 3px;
+}
+
+.tarot-shared-lobby-note {
+    color: #d8ccf8;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
 .tarot-mode-card.is-active {
     border-color: rgba(167, 139, 250, 0.75);
     background:
