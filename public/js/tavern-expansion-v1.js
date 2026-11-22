@@ -159,8 +159,7 @@
     update() {
       if (!game) { previous.update(); return; }
       const portrait = matchMedia('(orientation: portrait)').matches;
-      document.getElementById('hint').textContent = (arena.dataset.layout === 'counter') === portrait
-        ? (portrait ? '横向きがおすすめ' : '縦向きがおすすめ') : '';
+      document.getElementById('hint').textContent = arena.dataset.layout === 'table' && !portrait ? '縦向きがおすすめ' : '';
       if (phase === 'play') drawIdle('向きを変えたので中断しました。「開始」でやり直せます。');
     }
   };

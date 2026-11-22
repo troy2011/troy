@@ -26,8 +26,6 @@
     "catalog:equipment-presentation": "node scripts/normalize-equipment-catalog-presentation.js",
     "catalog:troy-menu": "node scripts/upsert-troy-menu-catalog-items.js",
     "catalog:troy-menu:sync:publish": "node scripts/sync-catalog-v2.js --publish --friendly-prefix troy_menu_",
-    "poker:shot": "node scripts/tarot-poker-shot.js",
-    "poker:shot:mobile": "node scripts/tarot-poker-shot.js --mobile",
     "kingdom:shot": "node scripts/tarot-kingdom-shot.js",
     "kingdom:shot:mobile": "node scripts/tarot-kingdom-shot.js --mobile"
   },

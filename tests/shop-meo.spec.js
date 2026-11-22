@@ -128,7 +128,6 @@ test.describe('public shop MEO page', () => {
     const noindexPages = [
       '/display.html',
       '/tarot-kingdom-preview.html',
-      '/tarot-poker-preview.html',
       '/tarot-reading.html',
       '/troy-coin-return.html',
       '/troy-orders.html'

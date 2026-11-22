@@ -12,53 +12,6 @@ async function expectNoPageErrors(errors) {
   expect(errors, errors.join('\n')).toEqual([]);
 }
 
-async function waitForPokerInteractive(page) {
-  await page.waitForFunction(() => {
-    const startButton = document.getElementById('tarotStartButton');
-    const betButtons = [
-      document.getElementById('tarotBetCheck'),
-      document.getElementById('tarotBetCall'),
-      document.getElementById('tarotBetBet'),
-      document.getElementById('tarotBetRaise'),
-      document.getElementById('tarotBetFold')
-    ].filter(Boolean);
-    const hasEnabledBet = betButtons.some((button) => !button.disabled);
-    const hasJudgmentChoice = Array.from(document.querySelectorAll('#tarotJudgmentOptions button')).some((button) => !button.disabled);
-    return !!startButton && (!startButton.disabled || hasEnabledBet || hasJudgmentChoice);
-  }, { timeout: 30_000 });
-}
-
-async function readPokerSnapshot(page) {
-  return page.evaluate(() => {
-    const betButtons = [
-      document.getElementById('tarotBetCheck'),
-      document.getElementById('tarotBetCall'),
-      document.getElementById('tarotBetBet'),
-      document.getElementById('tarotBetRaise'),
-      document.getElementById('tarotBetFold')
-    ].filter(Boolean);
-    return {
-      playerCards: document.getElementById('tarotPlayerHand')?.childElementCount || 0,
-      cpuCards: document.getElementById('tarotCpuHand')?.childElementCount || 0,
-      boardCards: document.getElementById('tarotPokerBoard')?.childElementCount || 0,
-      logEntries: document.getElementById('tarotLog')?.childElementCount || 0,
-      enabledBetButtons: betButtons.filter((button) => !button.disabled).length,
-      judgmentChoices: document.querySelectorAll('#tarotJudgmentOptions button').length
-    };
-  });
-}
-
-async function clickFirstVisibleEnabled(page, selectors) {
-  for (const selector of selectors) {
-    const button = page.locator(selector);
-    if (await button.isVisible() && await button.isEnabled()) {
-      await button.click();
-      return selector;
-    }
-  }
-  return '';
-}
-
 async function waitForKingdomDoneState(page) {
   await page.waitForFunction(() => {
     const button = document.getElementById('tarotKingdomSettlementConfirmButton');
@@ -89,47 +42,6 @@ async function readKingdomSnapshot(page) {
 }
 
 test.describe('preview smoke', () => {
-  test('tarot poker preview can start a hand and accept a bet action', async ({ page }) => {
-    const errors = trackPageErrors(page);
-
-    await page.goto('/tarot-poker-preview.html', { waitUntil: 'networkidle' });
-
-    await expect(page).toHaveTitle(/Tarot Poker Preview/i);
-    await expect(page.locator('#tarotStartButton')).toBeVisible();
-    await waitForPokerInteractive(page);
-
-    await page.locator('#tarotModeWithoutArcana').click();
-    await expect(page.locator('#tarotModeWithoutArcana')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#tarotModeWithArcana')).toHaveAttribute('aria-pressed', 'false');
-
-    await page.locator('#tarotStartButton').click();
-    await page.waitForFunction(() => {
-      const playerCards = document.getElementById('tarotPlayerHand')?.childElementCount || 0;
-      const cpuCards = document.getElementById('tarotCpuHand')?.childElementCount || 0;
-      const betButtons = Array.from(document.querySelectorAll('#tarotBetPopup button'));
-      const hasEnabledBet = betButtons.some((button) => !button.disabled);
-      return playerCards > 0 && cpuCards > 0 && hasEnabledBet;
-    }, { timeout: 30_000 });
-
-    const actionSelector = await clickFirstVisibleEnabled(page, [
-      '#tarotBetCheck',
-      '#tarotBetCall',
-      '#tarotBetBet',
-      '#tarotBetRaise',
-      '#tarotBetFold'
-    ]);
-
-    await waitForPokerInteractive(page);
-    const snapshot = await readPokerSnapshot(page);
-
-    expect(actionSelector).not.toBe('');
-    expect(snapshot.playerCards).toBeGreaterThan(0);
-    expect(snapshot.cpuCards).toBeGreaterThan(0);
-    expect(snapshot.logEntries).toBeGreaterThan(0);
-    expect(snapshot.enabledBetButtons + snapshot.judgmentChoices).toBeGreaterThan(0);
-    await expectNoPageErrors(errors);
-  });
-
   test('tarot kingdom preview exposes the debug done state', async ({ page }) => {
     test.slow();
     const errors = trackPageErrors(page);

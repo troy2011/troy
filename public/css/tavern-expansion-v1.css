@@ -78,6 +78,11 @@
 /* Square cells, sized to the height of a half as well as its width. */
 .xgame-seat .xgame-board { flex-basis: auto; width: min(100%, 22rem, max(188px, 50svh - 160px)); }
 .arena[data-layout="counter"] .xgame-board { width: min(100%, 22rem, max(188px, 100svh - 176px)); }
+@media (orientation: portrait) {
+  .arena[data-layout="counter"] .xgame-board { width: min(100%, 22rem, max(176px, 100vw - 176px)); }
+  .arena[data-layout="counter"] .xgame-seat { padding-block: 6px; gap: 4px; }
+  .arena[data-layout="counter"][data-phase="play"] .xgame-seat :is(.xgame-title, .seat) { display: none; }
+}
 .xgame-board .xgame-action { aspect-ratio: 1; min-height: 44px; padding: 0; }
 .xgame-board .xgame-action[data-mark="mine"] { border-color: #f2c25f; background: #5b3f1c; opacity: 1; }
 .xgame-board .xgame-action[data-mark="theirs"] { border-color: #6fb3cf; background: #1f3c4c; opacity: 1; }

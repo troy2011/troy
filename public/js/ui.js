@@ -24,14 +24,6 @@ const ensureCompanionModule = async () => {
     return companionModule;
 };
 
-let tarotModule = null;
-const TAROT_MODULE_VERSION = '20261113-fortune-fast-v1';
-const ensureTarotModule = async () => {
-    if (tarotModule) return tarotModule;
-    tarotModule = await import(`./tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
-    return tarotModule;
-};
-
 let tarotKingdomModule = null;
 const TAROT_KINGDOM_MODULE_VERSION = '20261116-kingdom-table-rules-v2';
 const ensureTarotKingdomModule = async () => {
@@ -40,115 +32,17 @@ const ensureTarotKingdomModule = async () => {
     return tarotKingdomModule;
 };
 
-let tarotModeBound = false;
-let currentTarotMode = 'poker';
-let tarotPokerLoaded = false;
 let tarotKingdomLoaded = false;
 
-const getTarotModeElements = () => {
-    return {
-        selectRoot: document.getElementById('tarotGameSelectRoot'),
-        pokerButton: document.getElementById('tarotModePoker'),
-        kingdomButton: document.getElementById('tarotModeKingdom'),
-        pokerRoot: document.getElementById('tarotPokerRoot'),
-        kingdomRoot: document.getElementById('tarotKingdomRoot')
-    };
+const setKingdomBoardVisible = (visible) => {
+    const menu = document.getElementById('tarotGameSelectRoot');
+    const board = document.getElementById('tarotKingdomRoot');
+    if (menu) menu.style.display = visible ? 'none' : 'block';
+    if (board) board.style.display = visible ? 'block' : 'none';
 };
 
-const showTarotModeSelection = () => {
-    const { selectRoot, pokerRoot, kingdomRoot, pokerButton, kingdomButton } = getTarotModeElements();
-    if (selectRoot) {
-        selectRoot.style.display = 'block';
-    }
-    if (pokerRoot) {
-        pokerRoot.style.display = 'none';
-    }
-    if (kingdomRoot) {
-        kingdomRoot.style.display = 'none';
-    }
-    if (pokerButton) {
-        pokerButton.classList.remove('is-active');
-        pokerButton.setAttribute('aria-selected', 'false');
-    }
-    if (kingdomButton) {
-        kingdomButton.classList.remove('is-active');
-        kingdomButton.setAttribute('aria-selected', 'false');
-    }
-};
-
-const applyTarotModeUi = (mode) => {
-    const normalized = mode === 'kingdom' ? mode : 'poker';
-    const { selectRoot, pokerButton, kingdomButton, pokerRoot, kingdomRoot } = getTarotModeElements();
-    if (selectRoot) {
-        selectRoot.style.display = 'none';
-    }
-    if (pokerRoot) {
-        pokerRoot.style.display = normalized === 'poker' ? 'block' : 'none';
-    }
-    if (kingdomRoot) {
-        kingdomRoot.style.display = normalized === 'kingdom' ? 'block' : 'none';
-    }
-    if (pokerButton) {
-        pokerButton.classList.toggle('is-active', normalized === 'poker');
-        pokerButton.setAttribute('aria-selected', normalized === 'poker' ? 'true' : 'false');
-    }
-    if (kingdomButton) {
-        kingdomButton.classList.toggle('is-active', normalized === 'kingdom');
-        kingdomButton.setAttribute('aria-selected', normalized === 'kingdom' ? 'true' : 'false');
-    }
-};
-
-const ensureTarotModeLoaded = async (mode, forceLoad = false) => {
-    if (mode === 'kingdom') {
-        if (!forceLoad && tarotKingdomLoaded) return;
-        const Kingdom = await ensureTarotKingdomModule();
-        if (typeof Kingdom.loadTarotKingdomPage === 'function') {
-            await Kingdom.loadTarotKingdomPage();
-        }
-        tarotKingdomLoaded = true;
-        return;
-    }
-
-    if (!forceLoad && tarotPokerLoaded) return;
-    const Tarot = await ensureTarotModule();
-    if (typeof Tarot.loadTarotPokerPage === 'function') {
-        await Tarot.loadTarotPokerPage();
-    }
-    tarotPokerLoaded = true;
-};
-
-const setTarotMode = async (mode, options = {}) => {
-    const { ensureLoaded = true, forceLoad = false } = options;
-    const normalized = mode === 'kingdom' ? mode : 'poker';
-    currentTarotMode = normalized;
-    applyTarotModeUi(normalized);
-    if (ensureLoaded) {
-        await ensureTarotModeLoaded(normalized, forceLoad);
-    }
-};
-
-const bindTarotModeSwitch = () => {
-    if (tarotModeBound) return;
-    const { pokerButton, kingdomButton } = getTarotModeElements();
-    if (!pokerButton || !kingdomButton) return;
-
-    pokerButton.addEventListener('click', () => {
-        setTarotMode('poker', { ensureLoaded: true }).catch((error) => {
-            console.error('[tarot] failed to switch to poker mode:', error);
-        });
-    });
-    kingdomButton.addEventListener('click', () => {
-        setTarotMode('kingdom', { ensureLoaded: true }).catch((error) => {
-            console.error('[tarot] failed to switch to kingdom mode:', error);
-        });
-    });
-    tarotModeBound = true;
-};
-
-const prepareTarotTab = async () => {
-    bindTarotModeSwitch();
-    showTarotModeSelection();
-};
+const showTarotModeSelection = () => setKingdomBoardVisible(false);
+const prepareTarotTab = async () => showTarotModeSelection();
 
 const TAROT_AREAS = [
     { id: 'wands', label: 'ワンド' },
@@ -1271,13 +1165,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
     if ((currentTabId === 'tarot' || hasExplorationKingdomSession) && tabId !== 'tarot') {
         console.log('[showTab] Leaving tarot tab, destroying tarot games');
         try {
-            if (tarotPokerLoaded) {
-                const Tarot = await ensureTarotModule();
-                if (typeof Tarot.destroyTarotPokerPage === 'function') {
-                    Tarot.destroyTarotPokerPage();
-                }
-                tarotPokerLoaded = false;
-            }
             if (tarotKingdomLoaded || hasExplorationKingdomSession) {
                 const Kingdom = await ensureTarotKingdomModule();
                 if (typeof Kingdom.destroyTarotKingdomPage === 'function') {
@@ -1288,7 +1175,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
         } catch (error) {
             console.warn('[showTab] Failed to destroy tarot modules:', error);
         }
-        currentTarotMode = 'poker';
         showTarotModeSelection();
         tabLoaded.tarot = false;
     }
@@ -1503,7 +1389,6 @@ export async function showTab(tabId, playerInfo, options = {}) {
         }
 
         if (tabId === 'tarot') {
-            bindTarotModeSwitch();
             showTarotModeSelection();
         }
 
@@ -1574,9 +1459,7 @@ export async function launchTarotKingdomExplorationBattle(context = {}, playerIn
         nation: String(window.myAvatarBaseInfo?.Nation || '')
     };
     await showTab('tarot', resolvedPlayerInfo, { explorationEntry: true });
-    bindTarotModeSwitch();
-    currentTarotMode = 'kingdom';
-    applyTarotModeUi('kingdom');
+    setKingdomBoardVisible(true);
     const Kingdom = await ensureTarotKingdomModule();
     tarotKingdomLoaded = true;
     if (typeof Kingdom.startTarotKingdomExplorationBattle !== 'function') {
@@ -1599,9 +1482,7 @@ export async function launchTarotKingdomRescueBattle(room = {}, playerInfo = nul
         nation: String(window.myAvatarBaseInfo?.Nation || '')
     };
     await showTab('tarot', resolvedPlayerInfo, { explorationEntry: true });
-    bindTarotModeSwitch();
-    currentTarotMode = 'kingdom';
-    applyTarotModeUi('kingdom');
+    setKingdomBoardVisible(true);
     const Kingdom = await ensureTarotKingdomModule();
     tarotKingdomLoaded = true;
     if (typeof Kingdom.joinTarotKingdomRescueRoom !== 'function') {

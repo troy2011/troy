@@ -7259,25 +7259,6 @@ body.modal-lock .troy-menu-board-order-modal {
     letter-spacing: 0.01em;
 }
 
-.tarot-poker-root {
-    overflow: visible;
-    position: relative;
-    --tarot-card-w: 54px;
-    --tarot-card-h: 88px;
-    --tarot-art-w: 48px;
-    --tarot-art-h: 80px;
-    --tarot-art-left: 5px;
-    --tarot-art-top: 8px;
-    --tarot-card-radius: 10px;
-    --tarot-card-padding: 4px;
-    --tarot-card-number-size: 22px;
-    --tarot-card-title-size: 10px;
-    --tarot-interact-border: rgba(244, 114, 182, 0.95);
-    --tarot-interact-border-soft: rgba(244, 114, 182, 0.78);
-    --tarot-interact-glow: rgba(236, 72, 153, 0.45);
-    --tarot-interact-selected: rgba(255, 225, 244, 0.98);
-}
-
 .tarot-kingdom-root {
     --tarot-card-w: 54px;
     --tarot-card-h: 88px;
@@ -9227,10 +9208,6 @@ body.modal-lock .troy-menu-board-order-modal {
 
 /* Tarot Kingdom cards use the same core card styles as Tarot Poker (.tarot-card*). */
 
-.tarot-poker-root.is-time-stopped {
-    animation: tarotTimeStopMonochrome 1.2s ease-in-out infinite;
-}
-
 @keyframes tarotTimeStopMonochrome {
     0%,
     100% {
@@ -9239,42 +9216,6 @@ body.modal-lock .troy-menu-board-order-modal {
     50% {
         filter: grayscale(1) contrast(1.5) saturate(0) invert(0.06);
     }
-}
-
-.tarot-poker-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.tarot-poker-header h2 {
-    font-size: clamp(17px, 2.2vw, 22px);
-    white-space: nowrap;
-    word-break: keep-all;
-    line-height: 1.1;
-    margin-bottom: 0;
-    border-bottom: none;
-    padding-bottom: 0;
-    flex: 0 0 auto;
-}
-
-.tarot-poker-header-meta {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    white-space: nowrap;
-    flex: 0 0 auto;
-}
-
-.tarot-poker-sub {
-    font-size: 11px;
-    color: var(--text-sub);
-    white-space: nowrap;
 }
 
 .tarot-pot-chip {
@@ -9344,56 +9285,6 @@ body.modal-lock .troy-menu-board-order-modal {
 
 .tarot-pot-chip.is-rolling .tarot-pot-value {
     animation: tarotPotRoll 0.12s linear infinite;
-}
-
-.tarot-poker-controls {
-    display: flex;
-    align-items: stretch;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.tarot-poker-controls button {
-    flex: 1;
-}
-
-.tarot-poker-mode-toggle {
-    flex: 0 0 auto;
-    min-width: 240px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.tarot-poker-mode-btn {
-    min-height: 44px;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.94), rgba(15, 23, 42, 0.98));
-    color: #cbd5e1;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    transition: transform 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
-}
-
-.tarot-poker-mode-btn.is-active {
-    color: #fff3c4;
-    border-color: rgba(251, 191, 36, 0.52);
-    background:
-        radial-gradient(140% 120% at 50% 0%, rgba(245, 158, 11, 0.2), rgba(255, 255, 255, 0) 52%),
-        linear-gradient(180deg, rgba(71, 85, 105, 0.94), rgba(17, 24, 39, 0.98));
-    box-shadow:
-        0 0 0 1px rgba(251, 191, 36, 0.18),
-        0 10px 18px rgba(2, 6, 23, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.tarot-poker-mode-btn:disabled {
-    opacity: 0.58;
 }
 
 .tarot-draw-guide {
@@ -9846,14 +9737,6 @@ body.modal-lock .troy-menu-board-order-modal {
     border-color: rgba(96, 165, 250, 0.72);
 }
 
-.tarot-poker-board {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
 .tarot-board-row {
     display: flex;
     align-items: flex-start;
@@ -9911,10 +9794,6 @@ body.modal-lock .troy-menu-board-order-modal {
     min-width: 0;
 }
 
-.tarot-board-main .tarot-poker-board {
-    margin-bottom: 0;
-}
-
 .tarot-fate-effect {
     margin: 0 0 10px;
     padding: 6px 10px;
@@ -9928,44 +9807,6 @@ body.modal-lock .troy-menu-board-order-modal {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.tarot-poker-root.is-no-major-arcana .tarot-fate-label {
-    color: #94a3b8;
-}
-
-.tarot-poker-root .tarot-bet-popup {
-    position: static;
-    left: auto;
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    max-width: none;
-    transform: none;
-    margin: 0 0 10px;
-    padding: 12px;
-}
-
-.tarot-poker-root .tarot-betting-actions {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
-    justify-content: stretch;
-    overflow: visible;
-}
-
-.tarot-poker-root .tarot-betting-actions button {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 0;
-    height: 66px;
-    min-height: 66px;
-    padding: 8px 6px;
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-    white-space: normal;
-    line-height: 1.12;
-    font-size: 12px;
 }
 
 .tarot-fate-preview-token {
@@ -10040,115 +9881,6 @@ body.modal-lock .troy-menu-board-order-modal {
     background: transparent;
 }
 
-.tarot-poker-columns {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.tarot-poker-column--player {
-    grid-column: 1 / -1;
-    border-color: rgba(244, 114, 182, 0.3);
-    background: linear-gradient(180deg, rgba(10, 6, 18, 0.92), rgba(20, 8, 30, 0.94)),
-        radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.1), transparent 55%);
-}
-
-.tarot-poker-column--player .tarot-hand-grave-wrap {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-}
-
-.tarot-poker-column--player .tarot-grave-block,
-.tarot-poker-column--player .tarot-grave-title {
-    text-align: left;
-}
-
-.tarot-poker-column--player .tarot-grave-row {
-    justify-content: flex-start;
-}
-
-.tarot-poker-column {
-    background: rgba(0, 0, 0, 0.24);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 10px;
-}
-
-
-.tarot-poker-column--npc-mini {
-    --tarot-card-w: 27px;
-    --tarot-card-h: 44px;
-    --tarot-card-radius: 6px;
-    --tarot-art-w: 48px;
-    --tarot-art-h: 80px;
-    --tarot-art-left: 2px;
-    --tarot-art-top: 4px;
-    --tarot-card-padding: 2px;
-    --tarot-card-number-size: 12px;
-    --tarot-card-title-size: 8px;
-    padding: 7px;
-}
-
-.tarot-poker-column--npc-mini .tarot-hand-grave-wrap {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
-}
-
-.tarot-poker-column--npc-mini .tarot-poker-column-title {
-    font-size: 10px;
-    margin-bottom: 5px;
-}
-
-.tarot-poker-column--npc-mini .tarot-inline-point {
-    font-size: 9px;
-    padding: 1px 5px;
-    margin-left: 4px;
-}
-
-.tarot-poker-column--npc-mini .tarot-role-label {
-    min-height: 14px;
-    margin-top: 3px;
-    font-size: 10px;
-    line-height: 1.15;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tarot-poker-column--npc-mini .tarot-action-label {
-    min-height: 14px;
-    font-size: 10px;
-    margin-top: 2px;
-}
-
-.tarot-poker-column--npc-mini .tarot-card-row {
-    gap: 2px;
-    min-height: var(--tarot-card-h, 48px);
-    justify-content: flex-start;
-    overflow-x: visible;
-}
-
-.tarot-poker-column--npc-mini .tarot-card-art {
-    top: 50%;
-    transform: translate(-50%, -50%) scale(0.5);
-    transform-origin: center center;
-}
-
-.tarot-poker-column--npc-mini .tarot-grave-row {
-    gap: 2px;
-    min-height: var(--tarot-card-h, 48px);
-    justify-content: flex-start;
-}
-
-.tarot-poker-column--npc-mini .tarot-grave-title {
-    font-size: 10px;
-    text-align: left;
-}
-
-.tarot-poker-column--npc-mini .tarot-grave-block {
-    text-align: left;
-}
-
 .tarot-action-label--mini {
     letter-spacing: 0.01em;
 }
@@ -10158,14 +9890,6 @@ body.modal-lock .troy-menu-board-order-modal {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
     align-items: start;
-}
-
-.tarot-poker-root.is-showdown .tarot-hand-grave-wrap {
-    grid-template-columns: minmax(0, 1fr);
-}
-
-.tarot-poker-root.is-showdown .tarot-grave-block {
-    display: none;
 }
 
 #tabContentTarot.is-showdown .tarot-hand-grave-wrap {
@@ -10187,12 +9911,6 @@ body.modal-lock .troy-menu-board-order-modal {
 
 .tarot-grave-title {
     text-align: right;
-}
-
-.tarot-poker-column-title {
-    font-size: 12px;
-    color: var(--text-sub);
-    margin-bottom: 8px;
 }
 
 .tarot-inline-point {
@@ -10426,8 +10144,7 @@ body.modal-lock .troy-menu-board-order-modal {
     }
 }
 
-.tarot-card-row .tarot-card,
-.tarot-poker-board .tarot-card {
+.tarot-card-row .tarot-card {
     flex: 0 0 var(--tarot-card-w, 64px);
 }
 
@@ -14636,8 +14353,7 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
 /* Mini tarot cards: reduce white arcana outline so suit color stays visible. */
 .tarot-kingdom-hand .tarot-card.is-arcana,
-.tarot-kingdom-grave-slot .tarot-card.is-arcana,
-.tarot-poker-column--npc-mini .tarot-card.is-arcana {
+.tarot-kingdom-grave-slot .tarot-card.is-arcana {
     border-color: rgba(15, 23, 42, 0.82);
     box-shadow:
         0 0 0 1px rgba(15, 23, 42, 0.5),
@@ -14646,15 +14362,13 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 }
 
 .tarot-kingdom-hand .tarot-card.is-arcana::before,
-.tarot-kingdom-grave-slot .tarot-card.is-arcana::before,
-.tarot-poker-column--npc-mini .tarot-card.is-arcana::before {
+.tarot-kingdom-grave-slot .tarot-card.is-arcana::before {
     opacity: 0.14;
     filter: saturate(1.02);
 }
 
 .tarot-kingdom-hand .tarot-card.is-arcana.arcana-suit-hybrid,
-.tarot-kingdom-grave-slot .tarot-card.is-arcana.arcana-suit-hybrid,
-.tarot-poker-column--npc-mini .tarot-card.is-arcana.arcana-suit-hybrid {
+.tarot-kingdom-grave-slot .tarot-card.is-arcana.arcana-suit-hybrid {
     background:
         linear-gradient(
             135deg,
@@ -16434,15 +16148,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 }
 
 @media (max-width: 900px) {
-    .tarot-poker-columns {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-    }
-
-    .tarot-poker-column--player {
-        grid-column: 1 / -1;
-    }
 }
 
 @media (max-width: 640px) {
@@ -16586,32 +16291,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
         padding: 5px 7px;
     }
 
-    #tabContentTarot .tarot-poker-root {
-        margin: 8px;
-        padding: 10px;
-    }
-
-    #tabContentTarot .tarot-poker-header {
-        gap: 6px;
-        margin-bottom: 8px;
-        align-items: center;
-        flex-wrap: nowrap;
-    }
-
-    #tabContentTarot .tarot-poker-header h2 {
-        font-size: 16px;
-        white-space: nowrap;
-    }
-
-    #tabContentTarot .tarot-poker-sub {
-        font-size: 10px;
-    }
-
-    #tabContentTarot .tarot-poker-header-meta {
-        gap: 4px;
-        flex-wrap: nowrap;
-    }
-
     #tabContentTarot .tarot-pot-chip {
         min-width: 122px;
         padding: 5px 8px;
@@ -16633,29 +16312,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
     #tabContentTarot .tarot-pot-unit {
         font-size: 10px;
-    }
-
-    #tabContentTarot .tarot-poker-controls {
-        gap: 6px;
-        margin-bottom: 8px;
-    }
-
-    #tabContentTarot .tarot-poker-controls button {
-        min-height: 34px;
-        padding: 6px;
-        font-size: 12px;
-    }
-
-    #tabContentTarot .tarot-poker-mode-toggle {
-        min-width: 0;
-        width: 100%;
-        gap: 6px;
-    }
-
-    #tabContentTarot .tarot-poker-mode-btn {
-        min-height: 36px;
-        padding: 8px 10px;
-        font-size: 11px;
     }
 
     #tabContentTarot .tarot-betting-info {
@@ -16693,13 +16349,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
         margin-bottom: 6px;
     }
 
-    #tabContentTarot .tarot-poker-board {
-        gap: 6px;
-        margin-bottom: 0;
-        overflow-x: auto;
-        padding-bottom: 3px;
-    }
-
     #tabContentTarot .tarot-board-row {
         gap: 6px;
         margin-bottom: 6px;
@@ -16720,47 +16369,16 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
         font-size: 11px;
     }
 
-#tabContentTarot .tarot-poker-columns {
-    gap: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-    #tabContentTarot .tarot-poker-column {
-        padding: 8px;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini {
-        padding: 6px;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini .tarot-poker-column-title {
-        font-size: 9px;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini .tarot-inline-point {
-        font-size: 8px;
-        margin-left: 3px;
-    }
-
     #tabContentTarot .tarot-hand-grave-wrap {
         grid-template-columns: minmax(0, 1fr) max-content;
         gap: 8px;
     }
 
     /* NPCミニ列は常に1カラムで表示（右側の見えない空き列を防止） */
-    #tabContentTarot .tarot-poker-column--npc-mini .tarot-hand-grave-wrap {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 6px;
-    }
 
     #tabContentTarot .tarot-grave-row {
         justify-content: flex-end;
         min-height: var(--tarot-card-h, 100px);
-    }
-
-    #tabContentTarot .tarot-poker-column-title {
-        margin-bottom: 6px;
-        font-size: 11px;
     }
 
     #tabContentTarot .tarot-inline-point {
@@ -16787,17 +16405,6 @@ body.tarot-kingdom-preview-body #tarotKingdomBattleStage .tarot-kingdom-demo-con
 
     #tabContentTarot .tarot-hand-block .tarot-card-row {
         overflow-x: visible;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini .tarot-card-row {
-        overflow-x: visible;
-        padding-bottom: 0;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini .tarot-role-label {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
 #tabContentTarot .tarot-log {
@@ -21608,7 +21215,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-#tabContentTarot .tarot-poker-root,
 #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
     background: var(--tarot-mobile-shell-bg);
     border-color: rgba(148, 163, 184, 0.14);
@@ -21617,13 +21223,11 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
         inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-#tabContentTarot .tarot-poker-header,
 #tabContentTarot .tarot-kingdom-header {
     gap: 10px;
     align-items: flex-start;
 }
 
-#tabContentTarot .tarot-poker-header-meta,
 #tabContentTarot .tarot-kingdom-header-meta {
     margin-left: auto;
 }
@@ -21672,7 +21276,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-#tabContentTarot .tarot-poker-column,
 #tabContentTarot .tarot-kingdom-panel {
     border-radius: 18px;
     border-color: rgba(148, 163, 184, 0.14);
@@ -21680,14 +21283,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
         linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.84)),
         radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.08), transparent 52%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-#tabContentTarot .tarot-poker-column-title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
 }
 
 #tabContentTarot .tarot-role-label {
@@ -21755,40 +21350,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     scroll-snap-align: start;
 }
 
-#tabContentTarot #tarotPokerRoot .tarot-bet-popup {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: calc(var(--nav-height) + var(--safe-bottom) + 8px);
-    width: auto;
-    max-width: none;
-    transform: none;
-    margin: 0;
-    padding: 26px 10px 10px;
-}
-
-#tabContentTarot #tarotPokerRoot .tarot-betting-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-}
-
-#tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
-    flex: 0 0 var(--tarot-card-w, 58px);
-    width: var(--tarot-card-w, 58px);
-    min-width: var(--tarot-card-w, 58px);
-    height: var(--tarot-card-h, 96px);
-    min-height: var(--tarot-card-h, 96px);
-    padding: 5px 2px;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    white-space: pre-line;
-    font-size: 12px;
-    line-height: 1.08;
-}
-
 #tabContentTarot #tarotKingdomRoot .tarot-kingdom-hand-title,
 #tabContentTarot #tarotKingdomRoot .tarot-kingdom-trick-title {
     flex-wrap: wrap;
@@ -21809,61 +21370,15 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
 
 @media (max-width: 640px) {
 
-    #tabContentTarot .tarot-poker-column--player {
-        grid-column: 1 / -1;
-    }
-
-    #tabContentTarot .tarot-poker-column--npc-mini:last-child {
-        grid-column: 1 / -1;
-    }
-
-    #tabContentTarot .tarot-poker-root,
     #tabContentTarot #tarotKingdomRoot.tarot-kingdom-root {
         margin: 8px;
         padding: 12px 10px;
-    }
-
-    #tabContentTarot #tarotPokerRoot .tarot-poker-mode-toggle {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
 
 }
 
 @media (min-width: 641px) {
-    #tabContentTarot #tarotPokerRoot .tarot-bet-popup {
-        position: static;
-        left: auto;
-        right: auto;
-        bottom: auto;
-        width: 100%;
-        max-width: none;
-        transform: none;
-        margin: 0 0 10px;
-        padding: 12px;
-    }
-
-    #tabContentTarot #tarotPokerRoot .tarot-betting-actions {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-        justify-content: stretch;
-        overflow: visible;
-    }
-
-    #tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
-        flex: 1 1 0;
-        width: auto;
-        min-width: 0;
-        height: 66px;
-        min-height: 66px;
-        padding: 8px 6px;
-        writing-mode: horizontal-tb;
-        text-orientation: mixed;
-        white-space: normal;
-        line-height: 1.12;
-        font-size: 12px;
-    }
 }
 
 .king-page-note {
@@ -22414,30 +21929,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     font-size: 9px;
     letter-spacing: -0.01em;
 }
-
-    #tabContentTarot #tarotPokerRoot .tarot-bet-popup {
-        padding: 24px 8px 8px;
-    }
-
-    #tabContentTarot #tarotPokerRoot .tarot-betting-actions {
-        overflow: visible;
-        justify-content: space-between;
-        gap: 4px;
-    }
-
-    #tabContentTarot #tarotPokerRoot .tarot-betting-actions button {
-        flex: 1 1 0;
-        width: auto;
-        min-width: 0;
-        height: 50px;
-        min-height: 50px;
-        padding: 4px 1px;
-        writing-mode: horizontal-tb;
-        text-orientation: mixed;
-        white-space: normal;
-        font-size: 10px;
-        line-height: 1.12;
-    }
 
     #tabContentTarot #tarotKingdomPassButton {
         flex: 1 1 0;
@@ -26637,7 +26128,6 @@ body.is-new-order-flash::before {
 #tabContentQr .equipment-gacha-card,
 #tabContentQr .guild-card,
 #tabContentBattle .content-area,
-#tabContentTarot .tarot-poker-root,
 #tabContentTarot .tarot-kingdom-root {
     border: 1px solid rgba(220, 169, 82, 0.34);
     border-radius: 8px;
@@ -26653,7 +26143,6 @@ body.is-new-order-flash::before {
 #tabContentKing .king-card-label,
 #tabContentKing .troy-admin-label,
 #tabContentQr .content-area h2,
-#tabContentTarot .tarot-poker-header h2,
 #tabContentTarot .tarot-kingdom-header h2 {
     color: #f7d68d;
     font-size: 20px;
@@ -26668,7 +26157,6 @@ body.is-new-order-flash::before {
 #tabContentKing .king-announcement-current,
 #tabContentKing .king-menu-specials-list,
 #tabContentKing .king-menu-disable-list,
-#tabContentTarot .tarot-poker-column,
 #tabContentTarot .tarot-kingdom-panel,
 #tabContentTarot .tarot-log,
 #tabContentQr .guild-entry-grid > *,
@@ -26761,8 +26249,7 @@ body.is-new-order-flash::before {
 }
 
 
-#tabContentTarot .tarot-game-switch-wrap button,
-#tabContentTarot .tarot-poker-mode-toggle button {
+#tabContentTarot .tarot-game-switch-wrap button {
     min-height: 48px;
 }
 
@@ -26834,7 +26321,6 @@ body.is-new-order-flash::before {
 #tabContentQr .qr-battle-card,
 #tabContentQr .equipment-gacha-card,
 #tabContentQr .guild-card,
-#tabContentTarot .tarot-poker-root,
 #tabContentTarot .tarot-kingdom-root {
     border: 1px solid transparent;
     border-image: url("./assets/ui/panels/panel-dark.png") 30 fill / 12px / 0 stretch;
@@ -26992,7 +26478,6 @@ body.is-new-order-flash::before {
     filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
 }
 .tarot-game-select-icon,
-#tarotModePoker .tarot-mode-icon,
 #tarotModeKingdom .tarot-mode-icon { --home-card-icon: var(--icon-nav-king); }
 
 .home-qr-scan-btn,
@@ -32905,7 +32390,6 @@ body.is-new-order-flash::before {
 #tabContentQr .equipment-gacha-card,
 #tabContentQr .guild-card,
 #tabContentBattle .content-area,
-#tabContentTarot .tarot-poker-root,
 #tabContentTarot .tarot-kingdom-root,
 #tabContentCompanions input,
 #tabContentCompanions select,
@@ -32961,7 +32445,6 @@ body.is-new-order-flash::before {
 #tabContentKing .king-announcement-current,
 #tabContentKing .king-menu-specials-list,
 #tabContentKing .king-menu-disable-list,
-#tabContentTarot .tarot-poker-column,
 #tabContentTarot .tarot-kingdom-panel,
 #tabContentTarot .tarot-log,
 #tabContentQr .guild-entry-grid > *,
@@ -36741,8 +36224,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot {
     overflow: hidden !important;
 }
 
-body.tarot-kingdom-fullscreen #tarotGameSelectRoot,
-body.tarot-kingdom-fullscreen #tarotPokerRoot {
+body.tarot-kingdom-fullscreen #tarotGameSelectRoot {
     display: none !important;
 }
 
@@ -39837,11 +39319,6 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
 #tarotGameSelectRoot .tarot-game-select-title { color: #fff4d8; }
 #tabContentTarot .tarot-game-select-sub { color: #e6d5ae; font-size: 14px; }
 #tarotGameSelectRoot .tarot-game-switch { grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; background: transparent; }
-#tabContentTarot #tarotModePoker {
-    width: 100%; min-height: 96px; border-color: #a98045; background: #26190f;
-}
-#tabContentTarot #tarotModePoker .tarot-mode-name { color: #fff4d8; font-size: 18px; text-shadow: none; }
-#tabContentTarot #tarotModePoker .tarot-mode-desc { color: #f0d9aa; font-size: 14px; text-shadow: none; }
 #tabContentTarot #tarotTabletopV65 {
     min-height: 96px;
     padding: 12px 8px;

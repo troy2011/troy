@@ -65,7 +65,7 @@ let dailyFortuneOpenPromise = null;
 let dailyFortuneClaimEventBound = false;
 // JST day on which the server last answered that today's fortune has not been drawn.
 let dailyFortuneCanDrawDay = '';
-const TAROT_MODULE_VERSION = '20261113-fortune-fast-v1';
+const TAROT_MODULE_VERSION = '20261122-fortune-v1';
 const TAROT_KINGDOM_RESCUE_VERSION = '20261116-kingdom-table-rules-v2';
 const DAILY_FORTUNE_CLAIMED_DAY_STORAGE_KEY = 'troy:daily-fortune-claimed-day';
 const LIFF_CALLBACK_PARAM_KEYS = [
@@ -478,7 +478,7 @@ async function openDailyFortuneFromButton() {
     }
     dailyFortuneRefreshGeneration += 1;
     dailyFortuneOpenPromise = (async () => {
-        const Tarot = await import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`);
+        const Tarot = await import(`./js/dailyTarotFortune.js?v=${TAROT_MODULE_VERSION}`);
         if (Tarot && typeof Tarot.showDailyFortune === 'function') {
             await Tarot.showDailyFortune(myPlayFabId, { knownCanDraw: dailyFortuneCanDrawDay === getJstDayKey() });
             return;
@@ -565,7 +565,7 @@ function initDailyFortuneButton() {
         void openDailyFortuneFromButton();
     });
     // Fetch the fortune module while the home screen is idle, so the first tap does not wait for it.
-    const preloadFortune = () => { void import(`./js/tarotPoker.js?v=${TAROT_MODULE_VERSION}`).catch(() => {}); };
+    const preloadFortune = () => { void import(`./js/dailyTarotFortune.js?v=${TAROT_MODULE_VERSION}`).catch(() => {}); };
     if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(preloadFortune, { timeout: 4000 });
     else setTimeout(preloadFortune, 2000);
 }
@@ -3211,7 +3211,7 @@ const publicTabInfo = () => ({ playFabId: myPlayFabId, race: myAvatarBaseInfo.Ra
 const isGamesHash = () => ['#games', '#tarot'].includes(location.hash);
 let tabBeforeGames = 'home';
 function syncGameRoute() {
-    if (['#spin', '#spintarot', '#spin-tarot', '#tarot-spin'].includes(location.hash.toLowerCase())) {
+    if (['#spin', '#spintarot', '#spin-tarot', '#tarot-spin', '#poker', '#tarotpoker', '#tarot-poker', '#tarot-mode-poker'].includes(location.hash.toLowerCase())) {
         const destination = new URL(location.href);
         destination.hash = 'games';
         history.replaceState(history.state, '', destination);

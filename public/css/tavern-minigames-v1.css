@@ -81,6 +81,24 @@ button:focus-visible, a:focus-visible, input:focus-visible + span { outline: 3px
 .arena[data-layout="counter"] .deck { grid-row: 1; grid-column: 1 / -1; }
 .arena[data-layout="counter"] .player { grid-row: 2; }
 
+@media (orientation: portrait) {
+  .arena[data-layout="counter"]:not([hidden]) {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    height: 100dvw;
+    margin: 0;
+    transform: translate(-50%, -50%) rotate(90deg);
+    /* The right/top/left/bottom physical edges map to the top/left/bottom/right of the game. */
+    padding: max(7px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left)) max(7px, env(safe-area-inset-top));
+  }
+  .arena[data-layout="counter"] .deck { padding-block: 1px; }
+  .arena[data-layout="counter"] .player strong { font-size: clamp(1.05rem, 6vmin, 1.7rem); }
+}
+
 .player {
   display: flex;
   flex-direction: column;
@@ -120,6 +138,25 @@ button:focus-visible, a:focus-visible, input:focus-visible + span { outline: 3px
 /* The shared message, repeated in each half so it reads the right way up for both players. */
 .player .say { max-width: 22rem; margin: 0; white-space: pre-line; color: #f6deaa; font-size: clamp(.86rem, 3.2vmin, 1.08rem); font-style: normal; font-weight: 700; line-height: 1.5; }
 .player .say:empty { display: none; }
+.player .count-preview {
+  display: none;
+  color: #f6deaa;
+  font-size: clamp(.8rem, 3vmin, 1rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  line-height: 1.1;
+  pointer-events: none;
+}
+.arena[data-phase="counting"] .player small { display: none; }
+.arena[data-phase="counting"] .count-preview { display: block; opacity: 1; }
+.arena[data-phase="counting"][data-count-preview="fade"] .count-preview {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .75s ease-out, visibility 0s .75s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena[data-phase="counting"][data-count-preview="fade"] .count-preview { transition: none; }
+}
 .key { display: none; font-weight: 400; }
 @media (pointer: fine) {
   .key { display: inline; padding: .1rem .2rem; border: 1px solid #b28254; border-radius: .2rem; font-size: .7em; }

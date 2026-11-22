@@ -160,7 +160,7 @@ test('ship details has a close control visible before scrolling', async ({ page,
 
 test('fortune preparation stays inside the button and restores its label', async ({ page, baseURL }) => {
   await installOfflineRoutes(page, baseURL);
-  await page.route('**/js/tarotPoker.js*', (route) => route.fulfill({
+  await page.route('**/js/dailyTarotFortune.js*', (route) => route.fulfill({
     contentType: 'text/javascript',
     body: 'export async function showDailyFortune() { await new Promise(resolve => { window.__finishMockFortune = resolve; }); }'
   }));

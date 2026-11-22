@@ -92,9 +92,9 @@ test('daily caution cards do not inherit a calm score from another suit', () => 
 });
 
 test('legacy daily results use the same weather as the server for all 156 outcomes', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../public/js/tarotPoker.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/dailyTarotFortune.js'), 'utf8');
   const start = source.indexOf('const DAILY_FORTUNE_WEATHER_STATUSES');
-  const end = source.indexOf('function getNpcKeys()', start);
+  const end = source.indexOf('function getDailyFortuneStrikeLine(', start);
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   const context = {};

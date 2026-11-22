@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20261003-profile-cache-v2';
+const CACHE_VERSION = 'troy-app-v20261122-home-games-tavern-v1';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 
@@ -10,8 +10,8 @@ const CORE_ASSETS = [
   '/manifest.webmanifest'
 ];
 
-function retiredSpinPath(path) {
-  return path === '/spin-tarot-preview.html' || path === '/css/spin-tarot.css' || /^\/js\/spinTarot(?:Config|Engine|Phaser)?\.js$/.test(path);
+function retiredGamePath(path) {
+  return path === '/tarot-poker-preview.html' || path === '/js/tarotPoker.js' || /^\/js\/tarot-engine\/(?:HandEvaluator|GameController)(?:\.js)?$/.test(path) || path === '/spin-tarot-preview.html' || path === '/css/spin-tarot.css' || /^\/js\/spinTarot(?:Config|Engine|Phaser)?\.js$/.test(path);
 }
 
 self.addEventListener('install', (event) => {
@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
       for (const name of [CORE_CACHE, RUNTIME_CACHE]) {
         const cache = await caches.open(name);
         for (const request of await cache.keys()) {
-          if (retiredSpinPath(new URL(request.url).pathname)) await cache.delete(request);
+          if (retiredGamePath(new URL(request.url).pathname)) await cache.delete(request);
         }
       }
     }).then(() => self.clients.claim())
@@ -99,7 +99,7 @@ function createOfflineResponse(request) {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (!isCacheableRequest(request)) return;
-  if (retiredSpinPath(new URL(request.url).pathname)) {
+  if (retiredGamePath(new URL(request.url).pathname)) {
     event.respondWith(new Response('Not Found', { status: 404, headers: { 'Cache-Control': 'no-store' } }));
     return;
   }

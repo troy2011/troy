@@ -286,16 +286,19 @@
   }
 
   function wireCoin(coin, lane, seat) {
-    // Lane position under the finger. Face to face, 1P's half is turned around, so their screen-left is the lane's right.
+    // Project the pointer into the lane’s horizontal axis after either board rotation.
     const laneX = event => {
       const box = lane.getBoundingClientRect();
+      if (arena.dataset.layout === 'counter' && matchMedia('(orientation: portrait)').matches) {
+        return (100 * (event.clientY - box.top)) / box.height;
+      }
       const x = (100 * (event.clientX - box.left)) / box.width;
       return arena.dataset.layout === 'table' && seat === 0 ? 100 - x : x;
     };
     const place = x => { coin.style.left = Math.max(0, Math.min(LANE_THROW_LINE, x)) + '%'; };
     coin.onpointerdown = event => {
       if (drag || event.button !== 0) return;
-      drag = { pointer: event.pointerId, samples: [{ x: laneX(event), t: event.timeStamp }] };
+      drag = { coin, pointer: event.pointerId, samples: [{ x: laneX(event), t: event.timeStamp }] };
       coin.setPointerCapture(event.pointerId);
     };
     coin.onpointermove = event => {
@@ -318,7 +321,9 @@
       throwCoin(seat, from, speed * FLICK_RANGE_MS);
     };
     coin.onpointerup = release;
-    coin.onpointercancel = event => { if (drag?.pointer === event.pointerId) { drag = null; place(LANE_START); } };
+    coin.onpointercancel = coin.onlostpointercapture = event => {
+      if (drag?.coin === coin && drag.pointer === event.pointerId) { drag = null; place(LANE_START); }
+    };
     coin.onkeydown = event => {
       const step = { ArrowLeft: -KEYBOARD_POWER_STEP, ArrowRight: KEYBOARD_POWER_STEP }[event.key];
       if (step) {
@@ -376,7 +381,6 @@
 
   function hintText() {
     const portrait = matchMedia('(orientation: portrait)').matches;
-    if (arena.dataset.layout === 'counter' && portrait) return '横向きがおすすめ';
     if (arena.dataset.layout === 'table' && !portrait) return '縦向きがおすすめ';
     return '';
   }
@@ -434,6 +438,13 @@
     },
     update() {
       if (!id) return;
+      if (drag) {
+        // A held coin cannot carry velocity across a change of coordinate axes.
+        const { coin, pointer } = drag;
+        drag = null;
+        coin.style.left = LANE_START + '%';
+        if (coin.hasPointerCapture(pointer)) coin.releasePointerCapture(pointer);
+      }
       document.getElementById('hint').textContent = hintText();
       if (phase === 'idle') render();
     },

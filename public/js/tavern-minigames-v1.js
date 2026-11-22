@@ -3,6 +3,13 @@
   const $ = id => document.getElementById(id);
   const chooser = $('chooser'), arena = $('arena'), startButton = $('start');
   const players = [...arena.querySelectorAll('button.player')], portrait = matchMedia('(orientation: portrait)');
+  const countPreviews = players.map(player => {
+    const preview = document.createElement('span');
+    preview.className = 'count-preview';
+    preview.setAttribute('aria-hidden', 'true');
+    player.querySelector('small').before(preview);
+    return preview;
+  });
   const categories = { reflex: '反射・スピード', timing: '時間の感覚', memory: '記憶・観察', strategy: '戦略・読み合い', luck: '運試し', party: 'パーティー' };
   const catalog = [
     {id:'count', name:'テンカウント', category:'timing', icon:'10', description:'時計を見ずに、10秒に近いほうが勝ち'},
@@ -13,7 +20,31 @@
   const START_PROMPT = '「開始」を押すと始まります';
   const TIE_WINDOW = 18; // Process near-simultaneous input before comparing its actual millisecond timestamps.
   let game, phase = 'idle', startedAt = 0, waitingTimer, finishTimer, stamps, outcome, message;
-  const clear = () => { clearTimeout(waitingTimer); clearTimeout(finishTimer); waitingTimer = finishTimer = undefined; };
+  let countPreviewFrame;
+  const clear = () => {
+    clearTimeout(waitingTimer);
+    clearTimeout(finishTimer);
+    cancelAnimationFrame(countPreviewFrame);
+    waitingTimer = finishTimer = countPreviewFrame = undefined;
+    delete arena.dataset.countPreview;
+  };
+  function showCountPreview() {
+    arena.dataset.countPreview = 'live';
+    const update = () => {
+      const elapsed = Math.max(0, performance.now() - startedAt);
+      if (elapsed >= 3000) {
+        arena.dataset.countPreview = 'fade';
+        countPreviewFrame = undefined;
+        return;
+      }
+      const label = (Math.floor(elapsed / 100) / 10).toFixed(1) + ' 秒';
+      for (const preview of countPreviews) {
+        if (preview.textContent !== label) preview.textContent = label;
+      }
+      countPreviewFrame = requestAnimationFrame(update);
+    };
+    update();
+  }
   function time(event) {
     const stamp = event.timeStamp;
     return Number.isFinite(stamp) && stamp > 0 && stamp < 1e9 ? stamp : performance.now();
@@ -22,8 +53,7 @@
     arena.dataset.phase = phase;
     $('title').textContent = games.get(game).name;
     $('signal').textContent = message;
-    const incorrect = arena.dataset.layout === 'counter' ? portrait.matches : !portrait.matches;
-    const hint = incorrect ? (portrait.matches ? '横向きがおすすめ' : '縦向きがおすすめ') : '';
+    const hint = arena.dataset.layout === 'table' && !portrait.matches ? '縦向きがおすすめ' : '';
     $('hint').textContent = hint;
     // Face to face the middle strip is upside down for 1P, so each half repeats the shared message the right way up.
     const say = phase === 'idle'
@@ -64,7 +94,7 @@
   function start() {
     if (phase !== 'idle' && phase !== 'done') return;
     reset();
-    if (game === 'count') { phase = 'counting'; startedAt = performance.now(); message = '計測中'; render(); return; }
+    if (game === 'count') { phase = 'counting'; startedAt = performance.now(); message = '計測中'; showCountPreview(); render(); return; }
     phase = 'waiting'; message = '合図を待って'; render();
     waitingTimer = setTimeout(() => {
       if (phase !== 'waiting') return;

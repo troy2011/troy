@@ -281,7 +281,7 @@ test('daily tarot fortune checks status on startup and shows clear draw states o
   let tarotModuleRequests = 0;
   let fortuneDrawn = false;
   page.on('request', (request) => {
-    if (request.url().includes('/js/tarotPoker.js')) tarotModuleRequests += 1;
+    if (request.url().includes('/js/dailyTarotFortune.js')) tarotModuleRequests += 1;
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/tarot-fortune-status', async (route) => {
@@ -445,7 +445,7 @@ test('daily tarot fortune adds richer presentation after major arcana reveal', a
 
   await bootstrapMainApp(page);
   await page.evaluate(async () => {
-    const Tarot = await import('/js/tarotPoker.js');
+    const Tarot = await import('/js/dailyTarotFortune.js');
     await Tarot.showDailyFortunePromptOnLogin('PF_PLAYWRIGHT');
   });
 

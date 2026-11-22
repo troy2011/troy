@@ -46,8 +46,8 @@
         "./js/pixelMonsterCompanion.js?v=20260825-monster-motion-v2": "./js/pixelMonsterCompanion.js?v=20261103-pet-size-v1",
         "./js/playerBootstrapCache.js": "./js/playerBootstrapCache.js?v=20261003-profile-cache-v2",
         "./js/troy.js": "./js/troy.js?v=20261122-cup-noodles-menu-v1",
-        "ui": "./js/ui.js?v=20261122-games-readability-v2",
-        "./js/ui.js": "./js/ui.js?v=20261122-games-readability-v2",
+        "ui": "./js/ui.js?v=20261122-games-deck-v1",
+        "./js/ui.js": "./js/ui.js?v=20261122-games-deck-v1",
         "avatar": "./js/avatar.js",
         "player": "./js/player.js?v=20261109-pirate-king-v1",
         "inventory": "./js/inventory.js?v=20261105-fortune-flow-v1",
@@ -56,8 +56,9 @@
       }
     }
     </script>
-    <script type="module" src="main.js?v=20261122-games-readability-v2"></script>
-    <link rel="stylesheet" href="style.css?v=20261122-games-readability-v2">
+    <script type="module" src="main.js?v=20261122-games-deck-v1"></script>
+    <link rel="stylesheet" href="style.css?v=20261122-games-deck-v1">
+    <link rel="stylesheet" href="css/troy-games-deck-v1.css?v=20261122-home-games-tavern-v1">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20261103-element-ace-v8">
@@ -382,163 +383,27 @@
                 </section>
             </div>
 
-            <!-- 1.7 タロットポーカータブ -->
+            <!-- 1.7 Games -->
             <div id="tabContentTarot" class="tab-content" style="display: none;">
-                <div id="tarotGameSelectRoot" class="content-area tarot-game-switch-wrap">
-                    <div class="tarot-game-select-header">
-                        <span class="tarot-game-select-icon">🔮</span>
-                        <div>
-                            <div class="tarot-game-select-title">ゲーム</div>
-                            <div class="tarot-game-select-sub">ゲームを選択してください</div>
-                        </div>
+                <section id="tarotGameSelectRoot" class="content-area troy-games-deck" aria-labelledby="troyGamesHeading">
+                    <header class="troy-games-mast">
+                        <span class="troy-games-kicker">PIRATES BAR TROY</span>
+                        <h2 id="troyGamesHeading">ゲーム</h2>
+                        <p>今夜は、どちらで遊ぶ？</p>
+                    </header>
+                    <div class="troy-games-grid">
+                        <a id="troyTavernMinigames" class="troy-game-card troy-game-card--tavern" href="/tavern-minigames.html">
+                            <span class="troy-game-emblem" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="11" width="22" height="26" rx="4" transform="rotate(-13 19 24)"/><rect x="25" y="16" width="15" height="16" rx="3" transform="rotate(12 32 24)"/><path d="M15 18h2m3 11h2m9-8h2m2 6h2" stroke-linecap="round"/></svg></span>
+                            <span class="troy-game-copy"><strong class="tarot-mode-name">酒場ミニゲーム集</strong><span class="tarot-shared-lobby-note">スマホ1台でふたり対戦</span><span class="troy-game-badge">22種</span></span>
+                            <span class="troy-game-arrow" aria-hidden="true">›</span>
+                        </a>
+                        <a id="tarotTabletopV65" class="troy-game-card troy-game-card--table" href="/tarot-kingdom-table.html?v=65">
+                            <span class="troy-game-emblem" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 34 12 38 4 18 16 13m10 21 10 4 8-20-12-5"/><rect x="15" y="8" width="18" height="29" rx="3"/><path d="m24 15 4 7-4 7-4-7z"/></svg></span>
+                            <span class="troy-game-copy"><strong class="tarot-mode-name">タロットキングダム<br>卓上戦</strong><span class="tarot-shared-lobby-note">CPU練習・ルール・チュートリアル</span><span class="troy-game-badge">ログイン不要</span></span>
+                            <span class="troy-game-arrow" aria-hidden="true">›</span>
+                        </a>
                     </div>
-                    <div class="tarot-game-switch" role="tablist" aria-label="タロットゲーム切替">
-                        <button id="tarotModePoker" type="button" role="tab" aria-selected="false" class="tarot-mode-card">
-                            <span class="tarot-mode-icon">🃏</span>
-                            <span class="tarot-mode-name">タロット・ポーカー</span>
-                            <span class="tarot-mode-desc">短期決戦 · NPC対戦</span>
-                        </button>
-                        <button id="tarotModeKingdom" type="button" role="tab" aria-selected="false" aria-hidden="true" tabindex="-1" class="tarot-mode-card" hidden>
-                            <span class="tarot-mode-icon">♔</span>
-                            <span class="tarot-mode-name">タロットキングダム</span>
-                            <span class="tarot-mode-desc">長期戦 · オンライン対戦</span>
-                        </button>
-                    </div>
-                    <a id="troyTavernMinigames" class="tarot-mode-card tarot-shared-lobby" href="/tavern-minigames.html">
-                        <span class="tarot-mode-name">酒場ミニゲーム集</span>
-                        <span class="tarot-shared-lobby-note">スマホ1台でふたり対戦</span>
-                    </a>
-                    <a id="tarotTabletopV65" class="tarot-mode-card tarot-shared-lobby" href="/tarot-kingdom-table.html?v=65"
-                        target="_self" rel="noreferrer">
-                        <span class="tarot-mode-name">タロットキングダム 卓上戦</span>
-                        <span class="tarot-shared-lobby-note">CPU練習・ルール・チュートリアル</span>
-                        <span class="tarot-shared-lobby-note">ログイン不要</span>
-                    </a>
-                </div>
-                <div id="tarotPokerRoot" class="content-area tarot-poker-root">
-                    <div class="tarot-poker-header">
-                        <h2>タロット・ポーカー</h2>
-                        <div class="tarot-poker-header-meta">
-                            <div id="tarotPotText" class="tarot-pot-chip">
-                                <span class="tarot-pot-label">POT</span>
-                                <span class="tarot-pot-slit"><span id="tarotPotValue" class="tarot-pot-value">0</span></span>
-                                <span class="tarot-pot-unit">TP</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="tarot-poker-controls">
-                        <button id="tarotStartButton" type="button">新しい勝負を始める</button>
-                        <div class="tarot-poker-mode-toggle" role="group" aria-label="大アルカナルール切替">
-                            <button id="tarotModeWithArcana" type="button" class="tarot-poker-mode-btn is-active" aria-pressed="true">大アルカナあり</button>
-                            <button id="tarotModeWithoutArcana" type="button" class="tarot-poker-mode-btn" aria-pressed="false">大アルカナなし</button>
-                        </div>
-                    </div>
-                    <div id="tarotBetPopup" class="tarot-bet-popup app-action-panel" style="display:none;">
-                        <div class="tarot-betting-actions">
-                            <button id="tarotBetCheck" type="button">チェック</button>
-                            <button id="tarotBetCall" type="button">コール</button>
-                            <button id="tarotBetBet" type="button">BET</button>
-                            <button id="tarotBetRaise" type="button">レイズ</button>
-                            <button id="tarotBetFold" type="button">フォールド</button>
-                        </div>
-                    </div>
-                    <div id="tarotEffectOverlay" class="tarot-effect-overlay" aria-hidden="true"></div>
-                    <div id="tarotCutin" class="tarot-cutin" aria-hidden="true"></div>
-                    <div id="tarotStateText" class="tarot-state-text">「新しい勝負を始める」を押してください。</div>
-                    <div id="tarotParticipantList" class="tarot-participant-list"></div>
-                    <div id="tarotDrawGuide" class="tarot-draw-guide" style="display:none;"></div>
-                    <div id="tarotDeckAnchor" class="tarot-deck-anchor tarot-deck-anchor-hidden" aria-hidden="true"></div>
-                    <div class="tarot-board-row">
-                        <div class="tarot-fate-pane">
-                            <div class="tarot-fate-label">FATE</div>
-                            <div id="tarotFateCard" class="tarot-fate-card"></div>
-                        </div>
-                        <div class="tarot-board-main">
-                            <div id="tarotPokerBoard" class="tarot-poker-board"></div>
-                        </div>
-                    </div>
-                    <div id="tarotFateEffectText" class="tarot-fate-effect">FATE CARD効果: なし</div>
-                    <div class="tarot-poker-columns">
-                        <div class="tarot-poker-column tarot-poker-column--player">
-                            <div class="tarot-hand-grave-wrap">
-                                <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">
-                                        あなたの手札
-                                        <span id="tarotPlayerPointText" class="tarot-inline-point">0 TP</span>
-                                        <span id="tarotPlayerOutcome" class="tarot-outcome-badge"></span>
-                                    </div>
-                                    <div id="tarotPlayerHand" class="tarot-card-row"></div>
-                                    <div id="tarotPlayerRole" class="tarot-role-label"></div>
-                                    <div id="tarotPlayerAction" class="tarot-action-label"></div>
-                                </div>
-                                <div class="tarot-grave-block">
-                                    <div class="tarot-poker-column-title tarot-grave-title">あなたの墓地</div>
-                                    <div id="tarotPlayerGrave" class="tarot-grave-row"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tarot-poker-column tarot-poker-column--npc-mini">
-                            <div class="tarot-hand-grave-wrap">
-                                <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">
-                                        <span id="tarotNpcColumnTitle">NPC1 手札</span>
-                                        <span id="tarotCpuPointText" class="tarot-inline-point is-cpu">0 TP</span>
-                                        <span id="tarotCpuOutcome" class="tarot-outcome-badge"></span>
-                                    </div>
-                                    <div id="tarotCpuHand" class="tarot-card-row"></div>
-                                    <div id="tarotCpuRole" class="tarot-role-label"></div>
-                                    <div id="tarotCpuAction" class="tarot-action-label tarot-action-label--mini"></div>
-                                </div>
-                                <div class="tarot-grave-block">
-                                    <div id="tarotNpcGraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC1 墓地</div>
-                                    <div id="tarotCpuGrave" class="tarot-grave-row"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tarot-poker-column tarot-poker-column--npc-mini">
-                            <div class="tarot-hand-grave-wrap">
-                                <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">
-                                        <span id="tarotNpc2ColumnTitle">NPC2 手札</span>
-                                        <span id="tarotNpc2PointText" class="tarot-inline-point is-cpu">0 TP</span>
-                                        <span id="tarotNpc2Outcome" class="tarot-outcome-badge"></span>
-                                    </div>
-                                    <div id="tarotNpc2Hand" class="tarot-card-row"></div>
-                                    <div id="tarotNpc2Role" class="tarot-role-label"></div>
-                                    <div id="tarotNpc2Action" class="tarot-action-label tarot-action-label--mini"></div>
-                                </div>
-                                <div class="tarot-grave-block">
-                                    <div id="tarotNpc2GraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC2 墓地</div>
-                                    <div id="tarotNpc2Grave" class="tarot-grave-row"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tarot-poker-column tarot-poker-column--npc-mini">
-                            <div class="tarot-hand-grave-wrap">
-                                <div class="tarot-hand-block">
-                                    <div class="tarot-poker-column-title">
-                                        <span id="tarotNpc3ColumnTitle">NPC3 手札</span>
-                                        <span id="tarotNpc3PointText" class="tarot-inline-point is-cpu">0 TP</span>
-                                        <span id="tarotNpc3Outcome" class="tarot-outcome-badge"></span>
-                                    </div>
-                                    <div id="tarotNpc3Hand" class="tarot-card-row"></div>
-                                    <div id="tarotNpc3Role" class="tarot-role-label"></div>
-                                    <div id="tarotNpc3Action" class="tarot-action-label tarot-action-label--mini"></div>
-                                </div>
-                                <div class="tarot-grave-block">
-                                    <div id="tarotNpc3GraveTitle" class="tarot-poker-column-title tarot-grave-title">NPC3 墓地</div>
-                                    <div id="tarotNpc3Grave" class="tarot-grave-row"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="tarotJudgmentPanel" class="tarot-judgment-panel" style="display:none;">
-                        <div class="tarot-judgment-title">審判の効果: 取得カードを選択</div>
-                        <div id="tarotJudgmentOptions" class="tarot-judgment-options"></div>
-                    </div>
-                    <div id="tarotResultText" class="tarot-result-text"></div>
-                    <div id="tarotLog" class="tarot-log tarot-log--poker"></div>
-                </div>
+                </section>
                 <div id="tarotKingdomRoot" class="content-area tarot-kingdom-root tarot-kingdom-jrpg tarot-kingdom-reference-ui tarot-kingdom-reference-v2" style="display:none;">
                     <div class="tarot-kingdom-header">
                         <div class="tarot-kingdom-title-wrap">
