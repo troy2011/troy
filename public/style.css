@@ -21562,11 +21562,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
         radial-gradient(120% 120% at 50% 0%, rgba(245, 158, 11, 0.12), transparent 42%);
 }
 
-#tabContentTarot #tarotSpinRoot.tarot-spin-root {
-    --spin-tarot-mobile-action-offset: calc(var(--nav-height) + var(--safe-bottom) + 8px);
-    --spin-tarot-mobile-action-space: calc(var(--nav-height) + var(--safe-bottom) + 88px);
-}
-
 #tabContentTarot .content-area {
     overflow: visible;
 }
@@ -26998,7 +26993,6 @@ body.is-new-order-flash::before {
 }
 .tarot-game-select-icon,
 #tarotModePoker .tarot-mode-icon,
-#tarotModeSpin .tarot-mode-icon { --home-card-icon: var(--icon-tarot); }
 #tarotModeKingdom .tarot-mode-icon { --home-card-icon: var(--icon-nav-king); }
 
 .home-qr-scan-btn,
@@ -36748,8 +36742,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot {
 }
 
 body.tarot-kingdom-fullscreen #tarotGameSelectRoot,
-body.tarot-kingdom-fullscreen #tarotPokerRoot,
-body.tarot-kingdom-fullscreen #tarotSpinRoot {
+body.tarot-kingdom-fullscreen #tarotPokerRoot {
     display: none !important;
 }
 
@@ -39839,3 +39832,22 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-exit-button {
     outline-offset: 2px;
     transition: outline-color 0.6s ease;
 }
+
+/* Keep Games menu text legible against the dark ship-themed panels. */
+#tarotGameSelectRoot .tarot-game-select-title { color: #fff4d8; }
+#tabContentTarot .tarot-game-select-sub { color: #e6d5ae; font-size: 14px; }
+#tarotGameSelectRoot .tarot-game-switch { grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; background: transparent; }
+#tabContentTarot #tarotModePoker {
+    width: 100%; min-height: 96px; border-color: #a98045; background: #26190f;
+}
+#tabContentTarot #tarotModePoker .tarot-mode-name { color: #fff4d8; font-size: 18px; text-shadow: none; }
+#tabContentTarot #tarotModePoker .tarot-mode-desc { color: #f0d9aa; font-size: 14px; text-shadow: none; }
+#tabContentTarot #tarotTabletopV65 {
+    min-height: 96px;
+    padding: 12px 8px;
+    gap: 4px;
+    border-color: #a98045;
+    background: #26190f;
+}
+#tabContentTarot #tarotTabletopV65 .tarot-mode-name { color: #fff3d5; font-size: clamp(17px, 4.9vw, 21px); text-shadow: none; }
+#tabContentTarot #tarotTabletopV65 .tarot-shared-lobby-note { color: #f3dbac; font-size: 14px; text-shadow: none; }

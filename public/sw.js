@@ -10,6 +10,10 @@ const CORE_ASSETS = [
   '/manifest.webmanifest'
 ];
 
+function retiredSpinPath(path) {
+  return path === '/spin-tarot-preview.html' || path === '/css/spin-tarot.css' || /^\/js\/spinTarot(?:Config|Engine|Phaser)?\.js$/.test(path);
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CORE_CACHE).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => undefined)
@@ -23,7 +27,14 @@ self.addEventListener('activate', (event) => {
       keys
         .filter((key) => key !== CORE_CACHE && key !== RUNTIME_CACHE)
         .map((key) => caches.delete(key))
-    )).then(() => self.clients.claim())
+    )).then(async () => {
+      for (const name of [CORE_CACHE, RUNTIME_CACHE]) {
+        const cache = await caches.open(name);
+        for (const request of await cache.keys()) {
+          if (retiredSpinPath(new URL(request.url).pathname)) await cache.delete(request);
+        }
+      }
+    }).then(() => self.clients.claim())
   );
 });
 
@@ -88,6 +99,10 @@ function createOfflineResponse(request) {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (!isCacheableRequest(request)) return;
+  if (retiredSpinPath(new URL(request.url).pathname)) {
+    event.respondWith(new Response('Not Found', { status: 404, headers: { 'Cache-Control': 'no-store' } }));
+    return;
+  }
 
   if (shouldBypassRuntimeCache(request)) {
     event.respondWith(fetch(request));

@@ -12,28 +12,6 @@ async function expectNoPageErrors(errors) {
   expect(errors, errors.join('\n')).toEqual([]);
 }
 
-async function waitForSpinToSettle(page) {
-  await page.waitForFunction(() => {
-    const root = document.getElementById('tarotSpinRoot');
-    return !!root && !root.classList.contains('is-spinning');
-  }, { timeout: 15_000 });
-}
-
-async function readSpinSnapshot(page) {
-  return page.evaluate(() => {
-    const root = document.getElementById('tarotSpinRoot');
-    const phaserLayer = document.getElementById('spinTarotBoardPhaser');
-    return {
-      spinLabel: document.getElementById('spinTarotSpinButton')?.textContent?.trim() || '',
-      panelText: root?.innerText || '',
-      holdButtons: document.querySelectorAll('[data-hold-index]').length,
-      arcanaChoices: document.querySelectorAll('[data-arcana-choice]').length,
-      phaserActive: root?.classList.contains('spin-tarot-phaser-active') || false,
-      phaserDisplay: phaserLayer ? window.getComputedStyle(phaserLayer).display : ''
-    };
-  });
-}
-
 async function waitForPokerInteractive(page) {
   await page.waitForFunction(() => {
     const startButton = document.getElementById('tarotStartButton');
@@ -111,31 +89,6 @@ async function readKingdomSnapshot(page) {
 }
 
 test.describe('preview smoke', () => {
-  test('spin tarot preview can complete the initial deal', async ({ page }) => {
-    const errors = trackPageErrors(page);
-
-    await page.goto('/spin-tarot-preview.html', { waitUntil: 'networkidle' });
-
-    await expect(page).toHaveTitle(/Spin Tarot Preview/i);
-    await expect(page.locator('#tarotSpinRoot')).toBeVisible();
-    await expect(page.locator('#spinTarotSpinButton')).toBeVisible();
-    await waitForSpinToSettle(page);
-
-    const before = await readSpinSnapshot(page);
-    if (!before.phaserActive) {
-      expect(before.phaserDisplay).toBe('none');
-    }
-    await page.locator('#spinTarotSpinButton').click();
-    await waitForSpinToSettle(page);
-    const after = await readSpinSnapshot(page);
-
-    expect(before.spinLabel).toBe('DEAL');
-    expect(after.spinLabel).toBe('DRAW/SPIN');
-    expect(after.panelText).toContain('HOLD PHASE');
-    expect(after.holdButtons).toBeGreaterThan(0);
-    await expectNoPageErrors(errors);
-  });
-
   test('tarot poker preview can start a hand and accept a bet action', async ({ page }) => {
     const errors = trackPageErrors(page);
 

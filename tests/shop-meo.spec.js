@@ -50,7 +50,9 @@ test.describe('public shop MEO page', () => {
     await expect(page.getByRole('heading', { name: 'ドリンク', level: 2 })).toBeVisible();
     await expect(page.getByRole('heading', { name: '酒場のフード', level: 2 })).toBeVisible();
     await expect(page.getByText('ジントニック', { exact: true })).toBeVisible();
-    await expect(page.getByText('フライドポテト', { exact: true })).toBeVisible();
+    await expect(page.getByText('カップ麺', { exact: true })).toBeVisible();
+    await expect(page.getByText('フライドポテト', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('フード持ち込み料：¥500', { exact: true })).toBeVisible();
     await expect(page.getByText('お酒は20歳になってから。', { exact: false })).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/menu.html');
   });
@@ -87,7 +89,8 @@ test.describe('public shop MEO page', () => {
     const expectedRows = await page.evaluate(async () => {
       const { TROY_PRODUCT_MENUS, TROY_BOTTLE_ITEMS } = await import('/js/troyMenuData.js');
       return [
-        ...Object.values(TROY_PRODUCT_MENUS).flatMap((category) => category.items),
+        ...Object.entries(TROY_PRODUCT_MENUS).flatMap(([id, category]) => id === 'food'
+          ? category.items.filter((item) => item.concept === 'カップラーメン') : category.items),
         ...TROY_BOTTLE_ITEMS
       ].map((item) => ({
         name: item.menuLabel || item.concept,
@@ -124,7 +127,6 @@ test.describe('public shop MEO page', () => {
   test('keeps operational and demo pages out of search results', async ({ request }) => {
     const noindexPages = [
       '/display.html',
-      '/spin-tarot-preview.html',
       '/tarot-kingdom-preview.html',
       '/tarot-poker-preview.html',
       '/tarot-reading.html',

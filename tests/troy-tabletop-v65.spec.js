@@ -19,6 +19,24 @@ for (const width of [320, 390, 430]) {
     const cta=page.locator('#tarotTabletopV65');
     await expect(cta).toBeVisible();
     await expect(cta).toHaveAttribute('href',url);
+    const contrast = await page.evaluate(() => {
+      const l=(rgb)=>rgb.match(/[\d.]+/g).map(Number).slice(0,3).map(c=>c/255)
+        .map(c=>c<=0.04045?c/12.92:((c+.055)/1.055)**2.4)
+        .reduce((a,c,i)=>a+c*[.2126,.7152,.0722][i],0);
+      return ['#tarotModePoker','#tarotTabletopV65'].flatMap(selector=>{
+        const card=document.querySelector(selector), bg=l(getComputedStyle(card).backgroundColor);
+        return [...card.querySelectorAll('.tarot-mode-name,.tarot-mode-desc,.tarot-shared-lobby-note')].map(node=>{
+          const c=getComputedStyle(node),fg=l(c.color);
+          return { ratio:(Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05), size:parseFloat(c.fontSize), shadow:c.textShadow };
+        });
+      });
+    });
+    for (const label of contrast) {
+      expect(label.ratio).toBeGreaterThanOrEqual(4.5);
+      expect(label.size).toBeGreaterThanOrEqual(14);
+      expect(label.shadow).toBe('none');
+    }
+    await expect(page.locator('#tarotModeSpin,#tarotSpinRoot')).toHaveCount(0);
     if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-entry.png'});
     await expect(page.locator('#tarotModePoker')).toBeVisible();
     await expect(page.locator('#tarotModeKingdom')).toBeHidden();
@@ -63,5 +81,33 @@ test('old companion deep link returns home without fetching companion features',
   await expect(page.locator('#tarotPokerRoot')).toBeVisible();
   await page.locator('#navGames').click();
   await expect(page.locator('#tarotModePoker')).toBeVisible();
-  await expect(page.locator('#tarotModeSpin')).toBeVisible();
+  await expect(page.locator('#tarotModeSpin,#tarotSpinRoot')).toHaveCount(0);
+});
+
+test('legacy Spin URLs cannot open a game and the shared Tarot sprite remains', async ({ page, request }) => {
+  for (const path of ['/spin-tarot-preview.html','/js/spinTarot.js?v=20260325a','/css/spin-tarot.css']) {
+    expect((await request.get(path)).status()).toBe(404);
+  }
+  expect((await request.get('/Sprites/Buildings/tarot.png')).status()).toBe(200);
+  await bootstrapMainApp(page);
+  await page.evaluate(() => { location.hash='spin-tarot'; });
+  await expect(page).toHaveURL(/#games$/);
+  await expect(page.locator('#navGames')).toHaveClass(/active/);
+  await expect(page.locator('#tarotModeSpin,#tarotSpinRoot')).toHaveCount(0);
+});
+
+test('updated service worker removes only retired Spin cache entries', async ({page})=>{
+  await page.goto('/tarot-kingdom-table.html');
+  const result=await page.evaluate(async()=>{
+    const name='troy-runtime-troy-app-v20261003-profile-cache-v2';
+    const stale='/js/spinTarot.js?v=20260325a', shared='/Sprites/Buildings/tarot.png';
+    const cache=await caches.open(name);
+    await cache.put(stale,new Response('old spin'));
+    await cache.put(shared,new Response('shared'));
+    await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    if(!navigator.serviceWorker.controller) await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}));
+    return { stale:!!await cache.match(stale), shared:!!await cache.match(shared), status:(await fetch(stale)).status };
+  });
+  expect(result).toEqual({stale:false,shared:true,status:404});
 });

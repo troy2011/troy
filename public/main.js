@@ -3211,6 +3211,11 @@ const publicTabInfo = () => ({ playFabId: myPlayFabId, race: myAvatarBaseInfo.Ra
 const isGamesHash = () => ['#games', '#tarot'].includes(location.hash);
 let tabBeforeGames = 'home';
 function syncGameRoute() {
+    if (['#spin', '#spintarot', '#spin-tarot', '#tarot-spin'].includes(location.hash.toLowerCase())) {
+        const destination = new URL(location.href);
+        destination.hash = 'games';
+        history.replaceState(history.state, '', destination);
+    }
     if (['#companions', '#crew'].includes(location.hash)) {
         const clean = new URL(location.href);
         clean.hash = '';
