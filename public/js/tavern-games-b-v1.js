@@ -14,18 +14,31 @@
   const win = (ctx, s, why) => ctx.finish(s, seatName(s) + 'の勝ち！ ' + (why || ''));
   const meta = (id, name, category, icon, description, create) => games.push({ id, name, category, icon, description, create });
 
+  function ledger(ctx, seat, entries) {
+    const strip = make('div', null, 'xb-ledger');
+    for (const [label, value, tone] of entries) {
+      const item = make('div', null, 'xb-ledger-item');
+      if(tone) item.dataset.tone = tone;
+      item.append(make('span', label, 'xb-ledger-label'), make('strong', String(value), 'xb-ledger-value'));
+      strip.append(item);
+    }
+    ctx.zones[seat].append(strip);
+  }
+
   // One grid of cells in each half. `cells[i]` = { label, mark (0 / 1 / null), disabled, a11y }.
   function board(ctx, cells, cols, activeSeat, activate) {
-    both(seat => {
+    (cols === 4 ? [0] : [0,1]).forEach(seat => {
       const grid = make('div', null, 'xgame-grid xgame-board');
       grid.style.setProperty('--cols', cols);
+      grid.dataset.tavernBoard = cols === 4 ? 'dig' : 'fifteen';
       cells.forEach((cell, i) => {
         const button = make('button', cell.label, 'xgame-action');
         button.type = 'button';
-        button.disabled = seat !== activeSeat || !!cell.disabled;
+        button.disabled = (cols !== 4 && seat !== activeSeat) || !!cell.disabled;
         if (cell.mark === 0 || cell.mark === 1) button.dataset.mark = cell.mark === seat ? 'mine' : 'theirs';
-        if (cell.tone) button.dataset.tone = cell.tone;
+        if (cell.tone) button.dataset.tone = cell.tone; if (cols === 4 && cell.tone === "sand") button.dataset.digit = cell.label;
         if (cell.a11y) button.setAttribute('aria-label', cell.a11y);
+        if (cell.desc) button.setAttribute('aria-description', cell.desc);
         button.addEventListener('click', () => { if (!button.disabled) activate(i); });
         grid.append(button);
       });
@@ -36,14 +49,24 @@
     let turn = ctx.starter;
     const picked = [[], []];
     const nums = Array.from({ length: 9 }, (_, i) => i + 1);
-    const threeSum = a => a.some((x, i) => a.slice(i + 1).some((y, j) => a.slice(i + j + 2).includes(15 - x - y)));
+    const winningTriple = a => {
+      for(let i=0;i<a.length-2;i++) for(let j=i+1;j<a.length-1;j++){
+        const k=a.indexOf(15-a[i]-a[j],j+1);
+        if(k>=0)return [a[i],a[j],a[k]].sort((x,y)=>x-y);
+      }
+      return null;
+    };
     const render = () => {
       ctx.clear();
       ctx.turn(turn);
       ctx.say(seatName(turn) + 'の番　自分の数字3枚で15を作る');
-      both(s => ctx.text(s, 'あなた：' + (picked[s].join('・') || 'なし') + '　相手：' + (picked[1 - s].join('・') || 'なし'), 'xgame-text'));
+      both(s => ledger(ctx, s, [
+        ['あなたの札', picked[s].join('・') || '—', 'secured'],
+        ['相手の札', picked[1-s].join('・') || '—', 'opponent']
+      ]));
       board(ctx, nums.map(n => ({
         label: String(n),
+        desc: picked[0].includes(n) ? '1Pが取得済み' : picked[1].includes(n) ? '2Pが取得済み' : '取れる札',
         disabled: picked.some(a => a.includes(n)),
         mark: picked[0].includes(n) ? 0 : picked[1].includes(n) ? 1 : null,
       })), 3, turn, pick);
@@ -53,7 +76,8 @@
       if (picked.some(a => a.includes(n))) return;
       picked[turn].push(n);
       ctx.fx.tap();
-      if (threeSum(picked[turn])) { win(ctx, turn, '3枚で15を完成。'); return; }
+      const triple = winningTriple(picked[turn]);
+      if (triple) { win(ctx, turn, triple.join(' ＋ ') + ' ＝ 15'); return; }
       if (picked[0].length + picked[1].length === 9) { ctx.finish(null, '9枚を取り切って引き分け。'); return; }
       turn = 1 - turn;
       render();
@@ -63,7 +87,7 @@
 
   // ---- 海賊ダイス: push your luck. Roll to build up gold; a skull loses this turn's gold. ----
   const DICE_GOAL = 30;
-  const DICE_FACES = ['☠', '⚀', '⚁', '⚂', '⚃', '⚄'];
+  const DICE_FACES = ['☠', '⚁', '⚂', '⚃', '⚄', '⚅'];
   const DICE_ROLL_MS = 420;
   meta('pirate-dice', '海賊ダイス', 'luck', '🎲', '振るたびに金貨が貯まる。ドクロが出たらその番の分は没収。先に30枚で勝ち。', ctx => {
     let turn = ctx.starter;
@@ -76,12 +100,21 @@
       ctx.turn(turn);
       ctx.say(note || seatName(turn) + 'の番　この番の金貨 ' + pot);
       both(s => {
-        ctx.text(s, 'あなた ' + bank[s] + ' 枚　相手 ' + bank[1 - s] + ' 枚　（' + DICE_GOAL + ' 枚で勝ち）', 'xgame-text');
-        ctx.text(s, rolling ? '🎲' : face == null ? '🎲' : DICE_FACES[face - 1], 'xgame-big' + (rolling ? ' is-rolling' : face === 1 ? ' is-bust' : ''));
-        ctx.text(s, s === turn ? 'この番の金貨　' + pot + ' 枚' : '相手のこの番　' + pot + ' 枚', 'xgame-text');
+        ledger(ctx,s,[
+          ['あなたの確保', bank[s] + ' / ' + DICE_GOAL, 'secured'],
+          ['相手の確保', bank[1 - s] + ' / ' + DICE_GOAL, 'opponent'],
+          [s===turn?'未確保':'相手の未確保', pot + ' 枚', 'risk']
+        ]);
+        const die=ctx.text(s, rolling || face == null ? '🎲' : DICE_FACES[face-1], 'xb-dice-face xgame-big' + (rolling ? ' is-rolling' : face === 1 ? ' is-bust' : ''));
+        die.dataset.face = rolling || face == null ? 'idle' : String(face);
+        die.setAttribute('aria-label', rolling?'振っています':face==null?'ダイス':face===1?'ドクロ':face+'の目');
       });
-      ctx.button(turn, '振る', roll, rolling);
-      ctx.button(turn, '貯めて交代', keep, rolling || pot === 0);
+      both(seat => {
+        const controls = make('div', null, 'xb-dice-controls');
+        controls.append(ctx.button(seat, '振る', roll, rolling || seat !== turn),
+          ctx.button(seat, '貯めて交代', keep, rolling || seat !== turn || pot === 0));
+        ctx.zones[seat].append(controls);
+      });
     };
     function roll() {
       if (rolling) return;
@@ -102,7 +135,7 @@
         pot += face;
         ctx.fx.correct();
         if (bank[turn] + pot >= DICE_GOAL) { bank[turn] += pot; win(ctx, turn, bank[turn] + ' 枚に到達。'); return; }
-        render();
+        render(seatName(turn) + '：' + face + 'の目。未確保 ＋' + face + '枚（計' + pot + '枚）');
       }, DICE_ROLL_MS);
     }
     function keep() {
@@ -145,13 +178,18 @@
       ctx.clear();
       ctx.turn(turn);
       ctx.say(note || seatName(turn) + 'の番　お宝 1P ' + found[0] + '　2P ' + found[1]);
-      both(s => ctx.text(s, 'あなた 💰' + found[s] + '　相手 💰' + found[1 - s] + '　残り ' + (DIG_TREASURES - [...treasure].filter(i => dug[i] !== null).length), 'xgame-text'));
+      const left = DIG_TREASURES - [...treasure].filter(i => dug[i] !== null).length;
+      both(s => ledger(ctx, s, [
+        ['あなたのお宝', found[s], 'secured'],
+        ['相手のお宝', found[1-s], 'opponent'],
+        ['未発掘のお宝', left, 'risk']
+      ]));
       board(ctx, dug.map((v, i) => ({
         label: label(i) || '▒',
         mark: v,
         tone: dug[i] === null ? '' : treasure.has(i) ? 'gold' : skull.has(i) ? 'skull' : 'sand',
         disabled: v !== null,
-        a11y: '行 ' + (1 + Math.floor(i / DIG_SIZE)) + ' 列 ' + (1 + (i % DIG_SIZE)) + (v === null ? ' 未発掘' : ' ' + label(i)),
+        a11y: '行 ' + (1 + Math.floor(i / DIG_SIZE)) + ' 列 ' + (1 + (i % DIG_SIZE)) + (v === null ? ' 未発掘' : treasure.has(i) ? ' お宝' : skull.has(i) ? ' ドクロ' : ' 周囲のお宝 ' + near(i) + 'つ'),
       })), DIG_SIZE, turn, dig);
     };
     function dig(i) {
@@ -161,22 +199,23 @@
         found[turn]++;
         ctx.fx.correct();
         if ([...treasure].every(t => dug[t] !== null)) {
-          ctx.finish(found[0] === found[1] ? null : found[0] > found[1] ? 0 : 1, 'お宝 ' + found[0] + ' 対 ' + found[1]);
+          ctx.finish(found[0] === found[1] ? null : found[0] > found[1] ? 0 : 1, '発掘完了：お宝 1P ' + found[0] + ' 対 2P ' + found[1]);
           return;
         }
         render(seatName(turn) + ' がお宝を発見！ もう一度掘れる');
         return;
       }
       if (skull.has(i)) {
+        const lost = found[turn] > 0;
         found[turn] = Math.max(0, found[turn] - 1);
         ctx.fx.wrong();
         turn = 1 - turn;
-        render('☠ ドクロ！ お宝を1つ没収　' + seatName(turn) + 'の番');
+        render('☠ ドクロ！ ' + (lost ? 'お宝を1つ没収' : '没収なし（0個）') + '　' + seatName(turn) + 'の番');
         return;
       }
       ctx.fx.tap();
       turn = 1 - turn;
-      render();
+      render('手がかり：周囲8マスのお宝 ' + near(i) + 'つ　' + seatName(turn) + 'の番');
     }
     return { start: () => render() };
   });

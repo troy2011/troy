@@ -1,0 +1,77 @@
+/* Three straight-overhead game surfaces, scoped to their own boards. */
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) {
+  --quiz-walnut: url("../assets/tavern-ten-count/wood.webp");
+  --quiz-red: url("../assets/tavern-ten-count/seat-red.webp");
+  --quiz-green: url("../assets/tavern-ten-count/seat-green.webp");
+  background: var(--quiz-walnut) center / cover #362215;
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat {
+  border: 2px solid #ae8546;
+  border-radius: clamp(10px, 4vmin, 25px);
+  box-shadow: inset 0 0 0 2px #422511, inset 0 0 0 4px #e0ae5d70;
+  padding: clamp(5px, 1.65vmin, 13px);
+  align-content: center;
+  gap: clamp(3px, 1vmin, 8px);
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat.a { background: var(--quiz-red) center / cover #521917; }
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat.b { background: var(--quiz-green) center / cover #1a3022; }
+.arena:is([data-extra="quick-math"],[data-extra="color-word"]) .xgame-a-quiz-prompt {
+  flex: 0 0 100%; display: grid; justify-items: center; gap: 3px;
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"]) .xgame-a-instruction {
+  color: #ffedca; font-size: clamp(.74rem,3.7vmin,1rem); font-weight: 800;
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"]) .xgame-a-quiz-prompt > .xgame-big {
+  display: grid; place-items: center; width: min(92%,15rem);
+  margin: 0; text-shadow: none; font-family: Georgia, "Yu Mincho", "Noto Serif CJK JP", serif;
+}
+.arena[data-extra="quick-math"] .xgame-a-quiz-prompt > .xgame-big {
+  min-height: clamp(44px,17vmin,72px); padding: 0 12px;
+  font-size: clamp(1.2rem,7.7vmin,2.75rem); color: #241409;
+  background: url("../assets/tavern-quiz/math-plate.webp") center / 100% 100% no-repeat transparent;
+  border-radius: 8px;
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"]) .xgame-seat .xgame-grid {
+  --cols: 4; gap: 4px; width: min(100%,23rem);
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat .xgame-grid > .xgame-action {
+  min-width: 44px; min-height: 44px; padding: 2px 0; border: 0;
+  font-family: Georgia, "Yu Mincho", "Noto Serif CJK JP", serif;
+  box-shadow: none;
+}
+.arena[data-extra="quick-math"] .xgame-seat .xgame-grid > .xgame-action {
+  min-height: clamp(44px,14vmin,64px); font-size: clamp(1rem,6.6vmin,1.85rem); color: #fff0cf;
+  background: linear-gradient(#4e29132b,#170e08aa), var(--quiz-walnut) center / cover #342011;
+  border: 1px solid #d9ad61; border-radius: 8px; box-shadow: inset 0 0 0 2px #9d723a;
+}
+.arena[data-extra="color-word"] .xgame-a-quiz-prompt > .xgame-big {
+  min-height: clamp(49px,18vmin,80px); padding: 0 12px;
+  width: min(64%, 13rem); font-size: clamp(1.9rem,10.5vmin,3.2rem);
+  text-shadow: 0 0 1px #1a1006, 0 1px 1px #1a1006;
+  background: url("../assets/tavern-quiz/math-plate.webp") center / 100% 100% no-repeat transparent;
+  border-radius: 8px;
+}
+.arena[data-extra="color-word"] .xgame-seat .xgame-grid > .xgame-action {
+  position: relative; flex-direction: column; justify-content: end; gap: 0; min-height: clamp(44px,15vmin,60px); color: #28160a;
+  padding: 4px 4px 6px; font-size: clamp(.8rem,4.2vmin,1.1rem); line-height: 1;
+  background: url("../assets/tavern-quiz/ink-key.webp") center / 100% 100% no-repeat transparent;
+}
+.arena[data-extra="color-word"] .xgame-seat .xgame-grid > .xgame-action::before {
+  content: ""; position: absolute; left: 50%; top: 33%; transform: translate(-50%,-50%);
+  width: clamp(12px, 4.25vmin, 19px); aspect-ratio: 1; border-radius: 50%;
+  background: var(--swatch); border: 1px solid #311a0d;
+}
+.arena[data-extra="number-touch"] .xgame-seat .xgame-grid {
+  flex-basis: auto; width: min(100%, 22rem, clamp(144px,29svh,218px)); gap: 3px;
+  padding: 3px; background: #9d713e; border: 1px solid #f4d385; border-radius: 8px;
+}
+.arena[data-extra="number-touch"] .xgame-seat .xgame-action {
+  aspect-ratio: 1; color: #2a1809; font-size: clamp(1.15rem,7vmin,1.8rem);
+  background: url("../assets/tavern-quiz/number-key.webp") center / 100% 100% no-repeat #e5bd80;
+}
+.arena[data-extra="number-touch"] .xgame-seat .xgame-a-done {
+  opacity: .88; box-shadow: inset 0 0 0 2px #ffca60, inset 0 0 8px #ab5a0a;
+  color: #40240b; text-decoration: line-through;
+}
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat .xgame-grid button:active { filter: brightness(1.24); }
+.arena:is([data-extra="quick-math"],[data-extra="color-word"],[data-extra="number-touch"]) .xgame-seat .xgame-grid button:focus-visible { outline: 2px solid #fff5bc; outline-offset: -3px; }

@@ -1,0 +1,85 @@
+/* Memory only: materials from the straight-overhead TROY concept, separate from gameplay. */
+.arena[data-extra="memory"] {
+  --memory-aqua: url("../assets/tavern-memory/memory-gem-aqua.webp");
+  --memory-ruby: url("../assets/tavern-memory/memory-gem-ruby.webp");
+  --memory-amber: url("../assets/tavern-memory/memory-gem-amber.webp");
+  --memory-emerald: url("../assets/tavern-memory/memory-gem-emerald.webp");
+  --memory-walnut: url("../assets/tavern-ten-count/wood.webp");
+  --memory-red: url("../assets/tavern-ten-count/seat-red.webp");
+  --memory-green: url("../assets/tavern-ten-count/seat-green.webp");
+  --memory-gold: #b08a49;
+  background: var(--memory-walnut) center / cover #342016;
+}
+.arena[data-extra="memory"] > .extra {
+  min-height: 0;
+  padding: clamp(4px, 1.6vmin, 12px);
+  gap: clamp(3px, 1.15vmin, 8px);
+  border: 2px solid var(--memory-gold);
+  border-radius: clamp(9px, 4.4vmin, 26px);
+  box-shadow: inset 0 0 0 2px #392210, inset 0 0 0 4px #e8ba6850, 0 4px 8px #000a;
+}
+.arena[data-extra="memory"] > .extra.a {
+  background: linear-gradient(#12070418, #16050142), var(--memory-red) center / cover #3b1613;
+}
+.arena[data-extra="memory"] > .extra.b {
+  background: linear-gradient(#07100516, #07130542), var(--memory-green) center / cover #10271b;
+}
+.arena[data-extra="memory"] > .extra .seat { color: #f7db9f; }
+.arena[data-extra="memory"] > .extra strong:not(.cue) {
+  min-width: min(60%, 14rem); border-color: #cba253; padding: .22em .5em;
+  color: #fff6dc; background: #14100ce8; font-size: clamp(1rem, 5.1vmin, 1.8rem);
+  box-shadow: inset 0 0 0 1px #f8cd6b43, 0 2px 5px #07020175;
+}
+.arena[data-extra="memory"] > .extra small,
+.arena[data-extra="memory"] > .extra .say { color: #f3dec2; font-size: clamp(.72rem, 3.4vmin, .96rem); line-height: 1.2; }
+.arena[data-extra="memory"] > .extra strong.cue {
+  position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%);
+}
+.arena[data-extra="memory"] .deck { background: #1e140c; border-color: #a47744; }
+.arena[data-extra="memory"] .memory-stage {
+  grid-column: 1 / -1;
+  display: grid; justify-items: center; gap: clamp(4px, 1.3vmin, 8px);
+  width: 100%; padding: clamp(3px, 1.3vmin, 8px) 0;
+}
+.arena[data-extra="memory"] .memory-stage[hidden] { display: none; }
+.arena[data-extra="memory"] .memory-stage-heading {
+  width: min(86%, 19rem); margin: 0; padding: .24rem .5rem;
+  border: 1px solid #c89b52; border-radius: .55rem; color: #fff0d0; text-align: center;
+  background: #15110f; box-shadow: inset 0 0 0 1px #f8c66e3b;
+  font-size: clamp(.9rem, 4.1vmin, 1.3rem); font-weight: 800;
+}
+.arena[data-extra="memory"] .memory-plate {
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
+  justify-items: stretch; gap: clamp(4px, 1.35vmin, 9px);
+  width: min(72vw, 34svh, 15rem); padding: clamp(5px, 2vmin, 12px);
+  border: 2px solid #c99c59; border-radius: clamp(9px, 5vmin, 22px);
+  background: linear-gradient(135deg, #ecc48138, #2f170f22), var(--memory-walnut) center / cover #683d21;
+  box-shadow: inset 0 0 0 2px #5c351a, inset 0 0 0 4px #efc67b85, 0 5px 10px #050302a6;
+}
+.arena[data-extra="memory"] .extra-actions.memory-plate {
+  width: min(70%, 20svh, 10rem); gap: clamp(3px, 1.2vmin, 8px); padding: clamp(4px, 1.15vmin, 8px);
+}
+.arena[data-extra="memory"] .memory-gem {
+  display: grid; place-items: center; aspect-ratio: 1;
+  min-width: 0; min-height: 0; padding: 0; border: 0;
+  border-radius: 23%; color: #fff9eb;
+  background: var(--gem) center / contain no-repeat transparent;
+  text-shadow: 0 1px 2px #000, 0 0 3px #000, 0 0 5px #000;
+  font: 800 clamp(.75rem, 3.5vmin, 1.08rem)/1 system-ui, sans-serif;
+  box-shadow: none; filter: brightness(.79);
+}
+.arena[data-extra="memory"] button.memory-gem { min-width: 44px; min-height: 44px; cursor: pointer; touch-action: manipulation; }
+.arena[data-extra="memory"] .memory-gem[data-gem="aqua"] { --gem:var(--memory-aqua); --pulse:#40e9fa; }
+.arena[data-extra="memory"] .memory-gem[data-gem="ruby"] { --gem:var(--memory-ruby); --pulse:#ff656c; }
+.arena[data-extra="memory"] .memory-gem[data-gem="amber"] { --gem:var(--memory-amber); --pulse:#ffdc62; }
+.arena[data-extra="memory"] .memory-gem[data-gem="emerald"] { --gem:var(--memory-emerald); --pulse:#52e85c; }
+.arena[data-extra="memory"] .memory-gem:is(.is-lit, :hover:not(:disabled), :focus-visible) {
+  filter: brightness(1.23) saturate(1.14); outline: 2px solid var(--pulse); outline-offset: -3px;
+  box-shadow: 0 0 14px var(--pulse);
+}
+.arena[data-extra="memory"] button.memory-gem:disabled { opacity: .62; }
+.arena[data-extra="memory"][data-layout="counter"] .memory-plate { width: min(18rem, 37vmin); }
+.arena[data-extra="memory"][data-layout="counter"] .extra-actions.memory-plate { width: min(75%, 39vmin, 11rem); }
+@media (max-height: 420px) and (orientation: landscape) {
+  .arena[data-extra="memory"] > .extra { gap: 3px; }
+}

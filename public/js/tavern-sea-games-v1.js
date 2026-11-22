@@ -19,7 +19,7 @@
   let lastCourse = -1;
   add('wave-dodge','荒波よけ','reflex','🌊','波がくる列を見て、安全な列へ移動。先にぶつかると負け。12波を同時に越えたら引き分け。',ctx=>{
     lastCourse = (lastCourse + 1 + ctx.random(WAVE_COURSES.length-1)) % WAVE_COURSES.length;
-    const course = WAVE_COURSES[lastCourse], position = [1,1], cells = [[],[]];
+    const course = WAVE_COURSES[lastCourse], position = [1,1], cells = [[],[]], counts = [];
     let wave = 0, blocked, closingAt = 0, settled = false;
     function paint(seat) {
       for (let i=0;i<3;i++) {
@@ -28,14 +28,14 @@
         cells[seat][i].dataset.danger = String(danger);
         cells[seat][i].setAttribute('aria-pressed',String(ship));
         cells[seat][i].setAttribute('aria-label',LANE_NAMES[i] + (danger?'、波が来る':'、安全') + (ship?'、船の位置':''));
-        cells[seat][i].firstChild.textContent = danger ? '🌊' : '·';
-        cells[seat][i].lastChild.textContent = ship ? '⛵' : ' ';
+        cells[seat][i].firstChild.textContent = danger ? '🌊 波が来る' : '安全';
+        cells[seat][i].lastChild.textContent = ship ? '⛵ 自船' : LANE_NAMES[i];
       }
     }
     function next() {
       blocked = HAZARDS[course[wave]];
       closingAt = performance.now() + Math.max(1000, 1500 - wave * 45);
-      both(paint);
+      both(seat=>{paint(seat);counts[seat].textContent='通過 '+wave+' / '+course.length+' 波';});
       ctx.say('第 '+(wave+1)+' / '+course.length+' 波　安全な列をタップ');
       // Resolve both seats from a single deadline, never from the order their boards get painted.
       ctx.later(hit, Math.ceil(Math.max(0, closingAt - performance.now())));
@@ -46,6 +46,7 @@
       if (lost.some(Boolean) || wave+1===course.length) {
         settled = true;
         const winner = lost[0]===lost[1] ? null : (lost[0]?1:0);
+        both(seat=>{counts[seat].textContent=lost[seat]?'第 '+(wave+1)+' 波で座礁':'通過 '+(wave+1)+' / '+course.length+' 波';});
         ctx.finish(winner, winner!==null ? (winner+1)+'P が勝利！ 第 '+(wave+1)+' 波' :
           lost[0] ? 'ふたりとも第 '+(wave+1)+' 波で座礁。引き分け！' : 'ふたりとも12波を突破！ 引き分け');
         return;
@@ -64,6 +65,7 @@
         button.append(make('span','','sea-wave'),make('span','','sea-ship'));
         cells[seat][i]=button;lane.append(button);
       });
+      counts[seat]=ctx.text(seat,'','xgame-text sea-progress');
       ctx.zones[seat].append(lane);
     });
     next();
@@ -94,10 +96,11 @@
     shape.append(trail);
     for(const [direction,key] of [[startDir,'port'],[finishDir,'island']]){
       if(direction<0)continue;
-      const pin = svg('circle'), [x,y]=ANGLES[direction];
+      const pin = svg(key==='port'?'circle':'rect'), [x,y]=ANGLES[direction];
       pin.setAttribute('cx',String(Math.min(43,Math.max(7,x))));
       pin.setAttribute('cy',String(Math.min(43,Math.max(7,y))));
-      pin.setAttribute('r','5');
+      if(key==='port')pin.setAttribute('r','5');
+      else {pin.setAttribute('x',String(Math.min(43,Math.max(7,x))-4));pin.setAttribute('y',String(Math.min(43,Math.max(7,y))-4));pin.setAttribute('width','8');pin.setAttribute('height','8');pin.setAttribute('rx','1');}
       pin.setAttribute('class',key);
       shape.append(pin);
     }
@@ -123,21 +126,27 @@
       // These first three rotations change each tile's ports unless it was already scrambled.
       for(let i=0;i<3;i++) if(!offsets[i]) offsets[i]=1;
     }
-    const rotation=[offsets.slice(),offsets.slice()], pieces=[[],[]], finishes=[null,null];
+    const rotation=[offsets.slice(),offsets.slice()], pieces=[[],[]], finishes=[null,null], progress=[];
     const endsFor=(seat,i)=>solvedEnds[i].map(d=>(d+rotation[seat][i])%4);
-    function connects(seat) {
+    function trace(seat) {
       let i=inlet, direction=from;
       const visited=new Set();
       while(!visited.has(i)){
-        visited.add(i);
         const ends=endsFor(seat,i);
-        if(!ends.includes(direction))return false;
+        if(!ends.includes(direction))break;
+        visited.add(i);
         const next=ends.find(d=>d!==direction);
         const r=Math.floor(i/3)+DR[next], c=i%3+DC[next];
-        if(r<0||r>=3||c<0||c>=3) return i===outlet && next===to && visited.size===9;
+        if(r<0||r>=3||c<0||c>=3) return {visited, complete:i===outlet && next===to && visited.size===9};
         i=r*3+c;direction=(next+2)%4;
       }
-      return false;
+      return {visited,complete:false};
+    }
+    function markProgress(seat) {
+      const {visited,complete}=trace(seat);
+      pieces[seat].forEach((piece,i)=>{piece.dataset.linked=String(visited.has(i));});
+      progress[seat].textContent='航路 '+visited.size+' / 9'+(complete?' 完成':'');
+      return complete;
     }
     const draw = (seat,i)=>{
       const node=pieces[seat][i], ends=endsFor(seat,i);
@@ -155,9 +164,9 @@
       if(finishes[seat]!==null)return;
       rotation[seat][i]=(rotation[seat][i]+1)%4;
       draw(seat,i);
-      if(!connects(seat)){ctx.fx.tap();return;}
+      if(!markProgress(seat)){ctx.fx.tap();return;}
       const now=performance.now();
-      finishes[seat] = event.timeStamp > 0 && event.timeStamp <= now ? event.timeStamp : now;
+      finishes[seat] = event?.timeStamp > 0 && event.timeStamp <= now ? event.timeStamp : now;
       pieces[seat].forEach(button=>{button.disabled=true;});
       if(finishes[1-seat]!==null){finish();return;}
       ctx.say('海図が完成！');
@@ -172,7 +181,8 @@
         node.dataset.tile=String(i);pieces[seat][i]=node;board.append(node);draw(seat,i);
       }
       ctx.zones[seat].append(board);
-      ctx.text(seat,'青：港　金：島','xgame-text sea-legend');
+      ctx.text(seat,'● 港 → ■ 島','xgame-text sea-legend');
+      progress[seat]=ctx.text(seat,'','xgame-text sea-progress');markProgress(seat);
     });
     ctx.say('9マスをひとつの航路に');
   });

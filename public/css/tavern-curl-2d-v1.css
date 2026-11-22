@@ -1,0 +1,25 @@
+/* Shared world coordinates for both launch controls and both sets of coin marks. */
+.arena[data-extra="curling"][data-layout] .curl-lane .curl-world-piece {
+  left: var(--curl-world-x); top: var(--curl-world-y);
+  margin: 0;
+}
+[data-extra="curling"] .curl-lane .curl-world-piece[hidden] { display: none; }
+[data-extra="curling"] .curl-coin.is-sliding {
+  transition: none; pointer-events: none;
+}
+[data-extra="curling"] .curl-lane { container-type: size; }
+[data-extra="curling"] .curl-coin.curl-world-piece::after,
+[data-extra="curling"] .curl-world-piece.curl-landing {
+  width: clamp(12px, min(6cqw, 10cqh), 35px);
+  height: auto; aspect-ratio: 1;
+}
+[data-extra="curling"] .curl-world-piece.curl-landing.is-best { border-radius: 50%; }
+@media (orientation: portrait) {
+  .arena[data-extra="curling"][data-layout="table"] .curl-lane .curl-world-piece {
+    left: var(--curl-world-y); top: var(--curl-world-x);
+  }
+  [data-extra="curling"][data-layout="table"] .curl-coin.curl-world-piece::after,
+  [data-extra="curling"][data-layout="table"] .curl-world-piece.curl-landing {
+    width: clamp(12px, min(10cqw, 6cqh), 35px);
+  }
+}

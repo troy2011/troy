@@ -1,23 +1,9 @@
 
 /* Shared private panels for the two simultaneous sea challenges. */
 .sea-lanes { width:min(100%, 21rem); max-width:100%; }
-.sea-lanes .xgame-action {
-    display:grid;
-    grid-template-rows:1fr 1fr;
-    place-items:center;
-    min-height:68px;
-    padding:5px 1px;
-    background:#173b43;
-    font-size:1.25rem;
-}
-.sea-lanes .xgame-action[data-danger="true"] {
-    background:#2f2232;
-    border-color:#eb7f73;
-}
 .sea-lanes .xgame-action[data-ship="true"] {
     box-shadow:inset 0 0 0 2px #f3cf7d;
 }
-.sea-wave,.sea-ship { min-height:1.2em; line-height:1.06; }
 .xgame-seat .sea-chart { width:min(100%, 11.25rem); flex-basis:auto; }
 .sea-chart .xgame-action {
     aspect-ratio:1;
@@ -33,3 +19,252 @@
 .sea-chart circle.port { fill:#57dcff; }
 .sea-chart circle.island { fill:#ffc55b; }
 .xgame-seat .sea-legend { font-size:.78rem; }
+
+/* Sea drills: readable play-state affordances, not color-only. */
+.sea-lanes .xgame-action {
+    display:grid;
+    grid-template-rows:1fr 1fr;
+    place-items:center;
+    min-height:68px;
+    padding:5px 1px;
+    background:#173b43;
+    font-size:1.25rem;font-size:clamp(.75rem,2.6vw,1rem);gap:.16rem;background:linear-gradient(#25505a,#172f35);}
+.sea-lanes .xgame-action[data-danger="true"] {
+    background:#2f2232;
+    border-color:#eb7f73;background:repeating-linear-gradient(135deg,#3d2427 0 9px,#512d33 9px 18px);}
+.sea-wave,.sea-ship { min-height:1.2em; line-height:1.06;white-space:nowrap;}
+.sea-progress {font-size:.78rem;color:#ffe4a9;font-variant-numeric:tabular-nums;}
+.sea-chart .xgame-action[data-linked="true"] {color:#fff0aa;box-shadow:inset 0 0 0 1px #af9b52;background:#225747;}
+.sea-chart rect.island {fill:#ffca64;stroke:#071b22;stroke-width:1.3px;}
+.sea-balance-neutral {position:absolute;inset:0 34%;background:#afd1a633;border-inline:1px dotted #b8ce9d;pointer-events:none;}
+[data-balance-state="edge"],[data-balance-state="lost"] {outline:1px solid #ee997a;}
+[data-physics-board="rally"]::before {content:"";position:absolute;inset:50% 7% auto;border-top:1px dashed #c29e64;opacity:.65;}
+[data-rally-state="hit"] .sea-rally-barrel {outline:1px solid #ffdf94;}
+[data-rally-state="serve"] .sea-rally-barrel {box-shadow:0 0 0 2px #e6b76366;}
+
+/* TROY tabletop 17–19. New surfaces are strictly overhead; all coordinates,
+   route geometry, collisions and controls still belong to the game code. */
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .xgame-seat {
+  --table-seat:#174b3f;
+  --table-seat-dark:#09231d;
+  --table-foil:#d7af6a;
+  --table-line:#f3d89c;
+  --duel-toner:#102d22ed;
+  --duel-cloth:#183b2d;
+  border:1px solid #a17a45;
+  border-radius:9px;
+  background:linear-gradient(var(--duel-toner),var(--duel-toner)),var(--duel-cloth) url("../assets/tavern-tabletop/barrel-rally-cloth.webp") center / 100% 100%;
+  box-shadow:0 2px 5px #0d0705ac;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .xgame-seat.a {
+  --table-seat:#74292a;
+  --table-seat-dark:#2d1016;
+  --duel-toner:#441b20ed;
+  --duel-cloth:#4b2025;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .xgame-title {
+  color:#f9e6b1;
+  letter-spacing:.10em;
+  text-shadow:0 1px 1px #130c06;
+}
+.arena[data-newgame="sea-chart"] .sea-chart {
+  box-sizing:border-box;
+  gap:3px;
+  padding:3px;
+  border:1px solid #e7bd78;
+  background:linear-gradient(135deg,#ad7138,#5c391d 45%,#8b5427);
+  border-radius:8px;
+  box-shadow:0 0 0 2px #281a11,0 3px 8px #070606aa;
+}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action {
+  background:#cba06f url("../assets/tavern-tabletop/sea-chart-parchment.webp") center / cover;
+  border:1px solid #4e2e17;
+  border-radius:4px;
+  color:#4b250e;
+  box-shadow:inset 0 0 0 1px #ffe1aa8c;
+}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action:nth-child(3n+2) {background-position:35% 20%;background-size:122%;}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action:nth-child(3n) {background-position:right bottom;background-size:119%;}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action[data-linked="true"] {
+  color:#164d33;
+  box-shadow:inset 0 0 0 2px #4f805a,inset 0 0 0 3px #e1d294;
+}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action:active {filter:brightness(1.16);}
+.arena[data-newgame="sea-chart"] .sea-chart .xgame-action:focus-visible {outline:2px solid #fff0b3;outline-offset:1px;z-index:1;}
+.arena[data-newgame="sea-chart"] .sea-chart polyline {stroke-width:4.9px;stroke-dasharray:5 2.2;filter:drop-shadow(0 1px 0 #ead3a9);}
+.arena[data-newgame="sea-chart"] .sea-chart circle.port {fill:#6ae1fa;stroke:#163d4b;}
+.arena[data-newgame="sea-chart"] .sea-chart circle.island {fill:#ffcd61;stroke:#7a3c08;}
+.arena[data-newgame="sea-chart"] .sea-legend {color:#ffe5a7;font-weight:700;}
+.tavern-physical-board {
+  position:relative;
+  width:min(94%,280px);
+  height:clamp(46px,13vh,103px);
+  flex-shrink:0;
+  overflow:hidden;
+  border:1px solid #bd925d;
+  border-radius:8px;
+  box-shadow:0 0 0 2px #2b180d,0 3px 7px #0a0606c4,inset 0 0 0 1px #efc9874d;
+}
+.tavern-physical-board.deck-balance {
+  background:#94623c url("../assets/tavern-tabletop/deck-balance-wood.webp") center / cover;
+}
+.tavern-physical-board.deck-balance::before {
+  content:"";
+  position:absolute;
+  inset:12% 6%;
+  border:1px solid #f5d7a085;
+  border-radius:3px;
+  background:linear-gradient(90deg,transparent calc(50% - .5px),#f5d7a083 50%,transparent calc(50% + .5px));
+  pointer-events:none;
+}
+.tavern-physical-board.deck-balance::after {
+  content:"";
+  position:absolute;
+  inset:14% 3%;
+  border-inline:2px solid #7a1516a3;
+  pointer-events:none;
+}
+.tavern-physical-board.barrel-rally {
+  background:#cb9c6a url("../assets/tavern-tabletop/barrel-rally-cloth.webp") center / cover;
+}
+.tavern-physical-board.barrel-rally::before {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:4%;
+  right:4%;
+  border-top:1px dashed #754326;
+  opacity:.78;
+}
+.tavern-physics-piece {position:absolute;pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box;z-index:1;}
+.tavern-physics-piece.deck-coin {
+  width:clamp(16px,5.25vmin,25px);
+  aspect-ratio:1;
+  z-index:2;
+  border-radius:50%;
+  background:#dbab53 url("../assets/tavern-tabletop/deck-balance-coin.webp") center / contain no-repeat;
+  box-shadow:0 2px 3px #23140fc4;
+}
+.tavern-physics-piece.deck-rail {
+  width:96%;height:9%;
+  border-radius:4px;
+  border:1px solid #673c1b;
+  background:linear-gradient(#ffe1a8,#ad6b2b 52%,#56351b);
+}
+.tavern-physics-piece.rally-barrel {
+  width:clamp(14px,4.6vmin,22px);
+  aspect-ratio:1;
+  z-index:2;
+  background:url("../assets/tavern-tabletop/barrel-rally-token.webp") center / contain no-repeat;
+  filter:drop-shadow(0 2px 1px #372012ba);
+}
+.tavern-physical-board .sea-balance-neutral {
+  z-index:0;
+  background:#cce6a92e;
+  border-color:#d4e9a599;
+}
+.tavern-physics-piece.rally-paddle {
+  width:23%;
+  height:max(6px,8%);
+  border:1px solid #84531f;
+  border-radius:4px;
+  background:linear-gradient(90deg,#8b552b,#f0c67a 6%,transparent 12%,transparent 88%,#f0c67a 94%,#8b552b),
+    linear-gradient(#6b292c,#45161a);
+  box-shadow:inset 0 1px 0 #fff2bf78,0 1px 1px #27140370;
+}
+.tavern-physics-piece.rally-paddle.is-near {
+  background:linear-gradient(90deg,#8b552b,#f0c67a 6%,transparent 12%,transparent 88%,#f0c67a 94%,#8b552b),
+    linear-gradient(#286651,#16392d);
+}
+.tavern-physics-controls {display:flex;gap:7px;justify-content:center;flex:0 0 100%;touch-action:none;}
+.tavern-physics-controls button {
+  min-height:44px;
+  min-width:64px;
+  padding:0 8px;
+  touch-action:none;
+  font-weight:750;
+  color:#ffedc4;
+  border:1px solid var(--table-foil);
+  border-radius:7px;
+  background:linear-gradient(var(--table-seat),var(--table-seat-dark));
+  box-shadow:inset 0 0 0 1px #ffe0a926,0 2px 4px #09060590;
+}
+.tavern-physics-controls button:is(:active,[data-held="true"]) {background:var(--table-seat-dark);box-shadow:inset 0 0 0 2px #f5c977aa;}
+.tavern-physics-controls button:focus-visible {outline:2px solid #fff3be;outline-offset:2px;}
+.arena[data-newgame="barrel-rally"] .tavern-puzzle {
+  color:#f9e6b1;
+  font-size:.9rem;
+  font-weight:750;
+  line-height:1.05;
+}
+@media (max-height:394px) and (orientation:landscape) {
+  .arena[data-layout="table"][data-newgame="sea-chart"] .sea-legend {position:absolute;clip-path:inset(50%);}
+}
+@media (max-width:394px) and (orientation:portrait) {
+  .arena[data-layout="counter"][data-newgame="sea-chart"] .sea-chart {width:min(100%,max(145px,100vw - 100px),170px);}
+}
+@media (orientation:portrait) {
+  .arena[data-layout="table"] .tavern-physical-board {height:clamp(90px,21svh,166px);}
+  .arena[data-layout="table"][data-newgame="sea-chart"] .sea-chart {width:min(100%,max(156px,31svh - 25px),225px);}
+}
+@media (max-height:380px) and (orientation:landscape) {
+  .arena[data-layout="counter"][data-newgame="sea-chart"] .sea-chart {width:min(100%,172px);}
+}
+
+/* Quiet overhead tabletop framing. Shared menu and other games are untouched. */
+body:has(.arena:not([hidden]):is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"])) {
+  background:#201109 linear-gradient(#1b100bd9,#22140dde);
+  background-image:linear-gradient(#170e09d9,#2c190dcf),url("../assets/tavern-tabletop/deck-balance-wood.webp");
+  background-size:auto, min(600px,100vw) auto;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) {
+  --duel-line:#b88d55;
+  --duel-ink:#f5dfad;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .deck {
+  border:1px solid #866137;
+  background:#27190f;
+  box-shadow:0 2px 5px #0d07057a;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .deck .start {
+  background:#68512d;
+  color:#fff0c2;
+  box-shadow:none;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .deck .start:disabled {opacity:.66;}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) :is(.xgame-title,.signal h1) {
+  color:#ffe5a5;
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  font-weight:800;
+  font-size:clamp(1.06rem,5.2vmin,1.46rem);
+  letter-spacing:.09em;
+  line-height:1.08;
+  text-shadow:none;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .seat {
+  color:#dcbd81;
+  letter-spacing:.20em;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .sea-progress {
+  color:#ffe0a0;
+  font-weight:720;
+  letter-spacing:.025em;
+}
+.arena:is([data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .tavern-physics-controls button {
+  min-width:clamp(76px,22vmin,110px);
+  background:var(--table-seat);
+  border-color:#bb915b;
+  box-shadow:0 2px 3px #13080596;
+}
+.arena:is([data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .tavern-physics-controls button:is(:active,[data-held="true"]) {
+  background:var(--table-seat-dark);
+  box-shadow:inset 0 0 0 1px #f5c977aa;
+}
+.arena:is([data-newgame="sea-chart"],[data-newgame="deck-balance"],[data-newgame="barrel-rally"]) .tavern-physical-board,
+.arena[data-newgame="sea-chart"] .sea-chart {box-shadow:0 3px 7px #120905aa;}
+@media (min-height:740px) and (min-width:375px) and (orientation:portrait), (min-height:740px) and (orientation:landscape) {
+  .arena:is([data-newgame="deck-balance"],[data-newgame="barrel-rally"])[data-layout="table"] .tavern-physics-controls button {
+    min-width:104px;
+    min-height:50px;
+  }
+}

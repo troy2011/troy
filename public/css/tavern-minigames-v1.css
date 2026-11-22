@@ -171,20 +171,15 @@ button:focus-visible, a:focus-visible, input:focus-visible + span { outline: 3px
 .player[data-result="win"] { box-shadow: inset 0 0 0 3px #130e0b, inset 0 0 0 5px var(--mine), 0 0 22px #ffd56b66; }
 .player[data-result="win"] strong { border-color: #fff1c4; color: #241304; background: linear-gradient(#f6d995, #c08a3e); }
 .player[data-result="lose"] { filter: saturate(.55) brightness(.8); }
-.player[data-flash="correct"] { box-shadow: inset 0 0 0 3px #130e0b, inset 0 0 0 5px #8fe3a4, 0 0 20px #8fe3a466; }
 @media (prefers-reduced-motion: no-preference) {
   .player:is([data-result="win"], [data-result="lose"]) strong { animation: tavern-verdict .42s cubic-bezier(.2, 1.4, .4, 1); }
   .player[data-result="win"] { animation: tavern-win-glow 1.6s ease-in-out 2; }
-  .player[data-flash="correct"] { animation: tavern-correct .45s ease-out; }
 }
 @keyframes tavern-verdict {
   from { opacity: 0; transform: scale(1.9) rotate(-6deg); }
 }
 @keyframes tavern-win-glow {
   50% { box-shadow: inset 0 0 0 3px #130e0b, inset 0 0 0 6px #fff1c4, 0 0 34px #ffd56b99; }
-}
-@keyframes tavern-correct {
-  from { filter: brightness(1.5); }
 }
 
 .deck { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px; min-width: 0; padding: 3px 5px; border: 1px solid #765233; border-radius: .65rem; background: #221811; }
@@ -232,10 +227,6 @@ button:focus-visible, a:focus-visible, input:focus-visible + span { outline: 3px
 }
 .extra-actions button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #0a0604; }
 .extra-actions button:disabled { opacity: .45; }
-.extra-actions button[data-tone="0"] { background: #75382e; }
-.extra-actions button[data-tone="1"] { background: #324d74; }
-.extra-actions button[data-tone="2"] { background: #604919; }
-.extra-actions button[data-tone="3"] { background: #36533b; }
 @media (prefers-reduced-motion: no-preference) {
   .extra strong.cue { animation: tavern-cue .32s ease-out; }
 }

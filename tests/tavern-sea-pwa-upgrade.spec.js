@@ -7,10 +7,12 @@ const cp = require('node:child_process');
 
 test('installed tavern cache refreshes the lineup without reverting the published quiz fixes', async ({ browser }) => {
   const root = path.join(__dirname,'..'), pub = path.join(root,'public');
-  const parent = 'dcddc932794753b43e6401823037b79201657093';
-  const retired = ['captain-topic','captain-charades','curse','cargo-stow','claim-route','barrel-swords'];
-  const added = ['wave-dodge','sea-chart','deck-balance','barrel-rally','pirate-cipher','harbor-dock'];
-  const changed = ['/tavern-minigames.html','/js/tavern-games-b-v1.js','/js/tavern-extra-v1.js','/js/tavern-expansion-v1.js'];
+  const parent = '0e37495a49444fb073a2bc11d82c341e91c049ae';
+  const retired = ['flags','harbor-dock'];
+  const added = ['bell-rhythm','sail-patch'];
+  const preHtml=cp.execFileSync('git',['show',parent+':public/tavern-minigames.html'],{cwd:root,encoding:'utf8'});
+  const refs=[...preHtml.matchAll(/(?:src|href)="((?:js|css)\/[^"?]+)[^"]*"/g)].map(m=>'/'+m[1]);
+  const changed = ['/tavern-minigames.html', ...new Set(refs)];
   const prior = new Map(changed.map(p=>[p,cp.execFileSync('git',['show',parent+':public'+p],{cwd:root})]));
   const loaded = [];
   let updated = false;
@@ -41,15 +43,18 @@ test('installed tavern cache refreshes the lineup without reverting the publishe
     });
     await page.reload(); // Put the previous code and page route through the real installed worker.
     await expect(page.locator('#games button')).toHaveCount(22);
-    await expect(page.locator('[data-game=captain-topic]')).toHaveCount(1);
+    await expect(page.locator('[data-game=flags]')).toHaveCount(1);
     updated=true;
     await page.reload();
     await expect(page.locator('#games button')).toHaveCount(22);
     for(const id of added)await expect(page.locator('[data-game='+id+']')).toHaveCount(1);
     for(const id of retired)await expect(page.locator('[data-game='+id+']')).toHaveCount(0);
-    await expect(page.locator('script[src$="tavern-games-a-v1.js?v=3"]')).toHaveCount(1);
-    await expect(page.locator('script[src$="tavern-games-b-v1.js?v=3"]')).toHaveCount(1);
-    expect(loaded.some(r=>r.updated&&r.pathname==='/js/tavern-sea-crew-v1.js'&&r.query==='?v=1')).toBe(true);
+    await expect(page.locator('script[src$="tavern-games-a-v1.js?v=20261123-props-05-13-v1"]')).toHaveCount(1);
+    await expect(page.locator('script[src$="tavern-games-b-v1.js?v=20261123-materials-v1"]')).toHaveCount(1);
+    expect(loaded.some(r=>r.updated&&r.pathname==='/js/tavern-curl-physics-v1.js'&&r.query==='?v=1')).toBe(true);
+    await page.locator('[data-game=curling]').click();
+    await page.locator('#start').click();
+    await expect(page.locator('.extra.a .curl-coin')).toHaveClass(/curl-world-piece/);
     expect(errors).toEqual([]);
   } finally {
     await context.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));

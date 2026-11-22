@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 const IDs=['tug-of-war','skull-bomb','quick-math','color-word','number-touch','cannon-power','shell-count','chest-shuffle','take-fifteen','pirate-dice','treasure-dig'];
-const assets=new Set(['/tavern-minigames.html','/favicon.ico','/css/tavern-minigames-v1.css','/css/tavern-expansion-v1.css','/js/tavern-minigames-v1.js','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-expansion-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css']);
+const assets=new Set(['/tavern-minigames.html','/favicon.ico','/css/tavern-minigames-v1.css','/css/tavern-expansion-v1.css','/js/tavern-minigames-v1.js','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-expansion-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css','/js/tavern-bell-v1.js','/css/tavern-bell-v1.css','/js/tavern-sail-patch-v1.js','/css/tavern-sail-patch-v1.css','/css/tavern-polish-v1.css','/css/tavern-qa-polish-a-v1.css','/css/tavern-ten-count-v1.css','/css/tavern-reflex-v1.css','/css/tavern-curling-v1.css','/js/tavern-curl-physics-v1.js','/css/tavern-curl-2d-v1.css','/css/tavern-memory-v1.css','/css/tavern-physical-567-v1.css','/css/tavern-props-08-10-v1.css','/css/tavern-quiz-v1.css','/css/tavern-materials-14-16-v1.css','/assets/tavern-materials-14-16/die.webp','/assets/tavern-materials-14-16/sand.webp','/assets/tavern-materials-14-16/sea.webp','/assets/tavern-materials-14-16/ship.webp','/assets/tavern-materials-14-16/wave.webp','/assets/tavern-tabletop/barrel-rally-cloth.webp','/assets/tavern-tabletop/barrel-rally-token.webp','/assets/tavern-tabletop/deck-balance-coin.webp','/assets/tavern-tabletop/deck-balance-wood.webp','/assets/tavern-tabletop/sea-chart-parchment.webp','/assets/tavern-quiz/ink-key.webp','/assets/tavern-quiz/math-plate.webp','/assets/tavern-quiz/number-key.webp','/css/tavern-props-20-22-v1.css','/images/tavern-props-08-10/shuffle-barrel.webp','/images/tavern-props-08-10/skull-target.webp','/images/tavern-props-08-10/skull-token.webp','/images/tavern-props-08-10/tug-marker.webp','/images/tavern-props-08-10/tug-rope.webp','/assets/tavern-props-20-22/bell-token.webp','/assets/tavern-props-20-22/cipher-key-strip.webp','/assets/tavern-props-20-22/sail-canvas.webp','/assets/tavern-physical-567/cannon-gauge.webp','/assets/tavern-physical-567/fifteen-board.webp','/assets/tavern-physical-567/fifteen-token.webp','/assets/tavern-physical-567/shell-counter.webp','/assets/tavern-memory/memory-gem-amber.webp','/assets/tavern-memory/memory-gem-aqua.webp','/assets/tavern-memory/memory-gem-emerald.webp','/assets/tavern-memory/memory-gem-ruby.webp','/img/tavern-curling/coin-curling-field.webp','/img/tavern-curling/coin-curling-coin.webp','/assets/tavern-reflex/reaction-lantern.webp','/assets/tavern-reflex/reaction-pad.webp','/assets/tavern-ten-count/dial.webp','/assets/tavern-ten-count/wood.webp','/assets/tavern-ten-count/button-red.webp','/assets/tavern-ten-count/button-green.webp','/assets/tavern-ten-count/seat-red.webp','/assets/tavern-ten-count/seat-green.webp']);
 const seat=(p,s)=>p.locator('.xgame-seat').nth(s);
 const cmd=(p,s,n)=>seat(p,s).getByRole('button',{name:n,exact:typeof n==='string'}).click();
 const uid=(p,s,i)=>seat(p,s).locator('button').nth(i).click();
@@ -21,7 +21,14 @@ for(const [layout,w,h] of [['table',320,640],['table',390,844],['table',430,884]
   for(const id of IDs){
     await game(page,id);
     await expect(page.locator('#arena')).toHaveAttribute('data-newgame',id);
+    if (id === 'treasure-dig') {
+      await expect(page.locator('[data-tavern-board=dig]')).toHaveCount(1);
+      if (layout === 'table') {
+        expect(await seat(page,0).locator('.xb-ledger').evaluate(e=>new DOMMatrix(getComputedStyle(e).transform).a)).toBe(-1);
+      }
+    } else {
     expect(await seat(page,0).evaluate(e=>getComputedStyle(e).transform)).toBe(layout==='table'?'matrix(-1, 0, 0, -1, 0, 0)':'none');
+    }
     expect(await seat(page,1).evaluate(e=>getComputedStyle(e).transform)).toBe('none');
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(w);
     expect(await page.locator('.xgame-seat button').evaluateAll(buttons=>buttons.every(b=>b.getBoundingClientRect().height>=44))).toBe(true);
@@ -48,13 +55,14 @@ for(const id of IDs)test('actual completed outcome: '+id,async({page:p})=>{
       await result(p,'合計 3 対 0');break;
     case 'take-fifteen':for(const [s,n] of [[0,1],[1,2],[0,5],[1,3],[0,9]])await cmd(p,s,String(n));await result(p,'15');break;
     case 'pirate-dice':
-      await expect(seat(p,1).getByRole('button',{name:'振る'})).toHaveCount(0);
+      await expect(seat(p,1).getByRole('button',{name:'振る'})).toBeDisabled();
       await cmd(p,0,'振る');await step(500);await expect(p.locator('#signal')).toContainText('ドクロ');
       await p.evaluate(()=>{Math.random=()=>0.99;});
       for(let i=0;i<5;i++){await cmd(p,1,'振る');await step(500);}await result(p,'30 枚に到達');break;
     case 'treasure-dig':
       for(let i=0;i<40&&await p.locator('#arena').getAttribute('data-phase')==='play';i++){
-        const mine=p.locator('.xgame-seat[data-turn=mine]');await mine.locator('.xgame-board button:not(:disabled)').first().click();
+        await expect(p.locator('.xgame-seat[data-turn=mine]')).toHaveCount(1);
+        await p.locator('[data-tavern-board=dig] button:not(:disabled)').first().click();
       }
       await result(p,'お宝');break;
   }

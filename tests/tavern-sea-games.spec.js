@@ -86,31 +86,5 @@ test('four extra games share touch-safe controls, outcomes and cancellation in r
  await p.clock.runFor(100);
  await expect(signal).toContainText('引き分け');
  await p.locator('#exit').click();
- await game(p,'harbor-dock');
- await expect(p.locator('[data-sea-harbor="helm"] button')).toHaveCount(3);
- await expect(p.locator('[data-sea-harbor="speed"] button')).toHaveCount(3);
- const speed=p.locator('[data-sea-harbor="speed"] button[data-value="1"]');
- await speed.evaluate(b=>b.click());
- for(let n=0;n<92;n++){
-  const status=await arena.getAttribute('data-phase');
-  if(status!=='play')break;
-  await p.evaluate(()=>{
-    const panel=document.querySelector('[data-sea-harbor="helm"]');
-    const ship=panel.querySelector('svg path:last-child');
-    const [sx,sy]=ship.getAttribute('transform').split('(')[1].split(')')[0].split(',').map(Number);
-    const x=(sx-100)/23,z=(126-sy)/7;
-    const route=panel.querySelector('polyline').getAttribute('points').split(' ').map(p=>(Number(p.split(',')[0])-100)/23);
-    const ahead=Math.min(14.999,z+.40),i=Math.floor(ahead);
-    const target=route[i]+(route[i+1]-route[i])*(ahead-i);
-    const heading=target>x+.05?1:target<x-.05?-1:0;
-    panel.querySelector('button[data-value="'+heading+'"]').click();
-  });
-  await p.clock.runFor(240);
- }
- await expect(arena).toHaveAttribute('data-phase','done');
- await expect(signal).toHaveText('ふたりで入港成功！');
- await p.locator('#start').click();
- await expect(seat(p,1).locator('[data-sea-harbor="helm"]')).toHaveCount(1);
- await p.locator('#exit').click();
- await p.clock.runFor(45000);await expect(arena).toBeHidden();
+ await expect(arena).toBeHidden();
 });

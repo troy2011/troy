@@ -1,0 +1,262 @@
+/* Portrait table uses one shared orthographic board; native/rotated counter retains two upright tracks. */
+[data-extra="curling"] {
+  --curl-trim: #aa8148;
+  --curl-paper: #ffeaca;
+  --curl-panel-size: clamp(77px, 14svh, 111px);
+}
+[data-extra="curling"] > .extra:not([hidden]) {
+  --curl-seat: #173a2c;
+  --curl-seat-dark: #091810;
+  display: flex;
+  padding: 4px 5px;
+  border: 1px solid #7f603d;
+  background: #1a110d;
+  box-shadow: inset 0 0 0 2px #120b08;
+  filter: none;
+}
+[data-extra="curling"] > .extra.a {
+  --curl-seat: #582921;
+  --curl-seat-dark: #2a120f;
+}
+[data-extra="curling"] .curl-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  align-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 7px;
+  border-radius: 12px;
+  border: 1px solid var(--curl-trim);
+  background: radial-gradient(ellipse at 50% 0, var(--curl-seat), var(--curl-seat-dark) 83%);
+  box-shadow: inset 0 0 0 2px #100a08c7, inset 0 0 0 3px #eec57a35, 0 4px 8px #0b0705bf;
+  background: radial-gradient(ellipse at 50% 4%, var(--curl-seat), var(--curl-seat-dark) 88%);
+  grid-template-columns: minmax(25px, .22fr) minmax(0, 1fr) minmax(4.5em, .38fr);
+  column-gap: clamp(5px, 2vmin, 10px);
+  padding-inline: clamp(8px, 3vw, 16px);
+}
+[data-extra="curling"] .curl-panel .seat { letter-spacing: .04em; font-size: clamp(12px, 3.6vmin, 17px); }
+[data-extra="curling"] .curl-panel strong {
+  min-width: 0;
+  border: 1px solid #e8b97e88;
+  border-radius: 50px;
+  background: #0b09055c;
+  box-shadow: inset 0 0 0 1px #efce9329;
+  padding: 5px 6px;
+  color: var(--curl-paper);
+  font-size: clamp(13px, 4vmin, 19px);
+  text-wrap: balance;
+  min-height: 41px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  border-color: #b78d55;
+  background: linear-gradient(#ffffff0b, #00000038), var(--curl-seat-dark);
+  color: var(--curl-paper);
+  font-size: clamp(15px, 4.3vmin, 20px);
+}
+[data-extra="curling"] .curl-panel :is(small,.say) { color: var(--curl-paper); font-size: clamp(10px, 2.8vmin, 13px); }
+[data-extra="curling"] .curl-panel small { max-width: 7em; line-height: 1.25;
+  font-size: clamp(12px, 3.2vmin, 15px);
+  font-variant-numeric: tabular-nums;
+  white-space: pre-line;
+  justify-self: center; }
+[data-extra="curling"] .curl-panel .say { grid-column: 1 / -1; line-height: 1.23; white-space: normal; max-width: none;min-height:0; }
+[data-extra="curling"] [data-turn="mine"] .curl-panel strong,
+[data-extra="curling"] [data-result="win"] .curl-panel strong { background: linear-gradient(#f4d69d, #b4844a); color: #21150d;
+  color: #fff0d1;
+  background: linear-gradient(#ffffff21, #00000032), var(--curl-seat);
+  border-color: #e0b574;
+  box-shadow: inset 0 0 0 2px #120b078f, inset 0 0 0 3px #eac58355, 0 3px 0 #100907;
+  text-shadow: 0 1px 2px #100908;
+  font-size: clamp(17px, 5vmin, 24px); }
+[data-extra="curling"] .curl-lane {
+  --curl-rings: #f4cf83;
+  width: 100%;
+  height: clamp(66px, 19vmin, 104px);
+  margin: 0;
+  border: 1px solid #8b6138;
+  border-radius: 8px;
+  background: linear-gradient(#190d0522,#160b033f), url("../img/tavern-curling/coin-curling-field.webp") center / 100% 100%;
+  box-shadow: inset 0 0 16px #12090699;
+}
+[data-extra="curling"] .curl-target {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(27%, 88px, 16vmin);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--curl-rings);
+  border-radius: 50%;
+  box-shadow: 0 1px 1px #0e0400, inset 0 0 0 1px #2c1b0da6;
+  background: #2c1d0f24;
+}
+[data-extra="curling"] .curl-target::before,
+[data-extra="curling"] .curl-target::after {
+  content: ""; position: absolute; border: 1px solid var(--curl-rings); border-radius: 50%;
+}
+[data-extra="curling"] .curl-target::before { inset: 16%; }
+[data-extra="curling"] .curl-target::after { inset: 34%; box-shadow: inset 0 0 8px #f2db9a51; }
+[data-extra="curling"] .curl-lane::before { border-color: #ffe5aab3; }
+[data-extra="curling"] .curl-lane :is(.curl-coin,.curl-landing) { left: var(--curl-pos); }
+[data-extra="curling"] .curl-coin {
+  width: clamp(44px, 13vmin, 56px); padding: 0; border: 0; background: none; box-shadow: none;
+}
+[data-extra="curling"] .curl-coin::after,
+[data-extra="curling"] .curl-landing {
+  background: url("../img/tavern-curling/coin-curling-coin.webp") center / contain no-repeat;
+}
+[data-extra="curling"] .curl-coin::after {
+  content: ""; display: block; width: 78%; aspect-ratio: 1; margin: auto; filter: drop-shadow(0 3px 2px #110802bd);
+}
+[data-extra="curling"] .a .curl-coin::after,
+[data-extra="curling"] .curl-landing[data-owner="0"] { filter: sepia(.35) hue-rotate(-24deg) saturate(1.3) brightness(.84); }
+[data-extra="curling"] .curl-coin:focus-visible { outline: 2px solid #fff1bd; outline-offset: -4px; }
+[data-extra="curling"] .curl-landing { border: 0; width: 17px; height: 17px; }
+[data-extra="curling"] .curl-landing.is-best { width: 20px; height: 20px; outline: 1px solid #ffdf8c; }
+[data-extra="curling"] .curl-landing[data-owner="0"].is-best { outline: 2px dashed #ffdbbd; }
+[data-extra="curling"] .curl-landing[data-owner="0"] { margin-top: 8px; }
+[data-extra="curling"] .curl-landing[data-owner="1"] { margin-top: -8px; }
+[data-extra="curling"][data-layout="counter"] > .extra { justify-content: center; }
+[data-extra="curling"][data-layout="counter"] .curl-panel .say { min-height: 2.46em; min-height: 0; }
+@media (orientation: portrait) {
+  .arena[data-extra="curling"][data-layout="table"]:not([hidden]) {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0,1fr) auto;
+    gap: 5px;
+    max-width: 540px;
+  }
+  .arena[data-extra="curling"][data-layout="table"] > .extra:not([hidden]) {
+    grid-area: 1 / 1;
+    position: relative; min-height: 0; padding: 0; border: 0;
+    background: none; box-shadow: none; transform: none;
+    pointer-events: none; animation: none;
+  }
+  [data-extra="curling"][data-layout="table"] .deck { grid-area: 2 / 1; }
+  [data-extra="curling"][data-layout="table"] .curl-panel { position: absolute; left: 0; right: 0; height: var(--curl-panel-size); }
+  [data-extra="curling"][data-layout="table"] .a .curl-panel { top: 0; transform: rotate(180deg); }
+  [data-extra="curling"][data-layout="table"] .b .curl-panel { bottom: 0; }
+  [data-extra="curling"][data-layout="table"] .curl-lane {
+    position: absolute; inset: calc(var(--curl-panel-size) + 4px) 0;
+    height: auto; width: auto; overflow: hidden;
+  }
+  [data-extra="curling"][data-layout="table"] .b .curl-lane {
+    background: none; border-color: transparent; box-shadow: none;
+  }
+  [data-extra="curling"][data-layout="table"] .curl-lane::before { inset: 30% 12% auto; border: 0; border-top: 2px dashed #ffe5aa99; }
+  [data-extra="curling"][data-layout="table"] .b .curl-lane::before { inset: auto 12% 30%; }
+  [data-extra="curling"][data-layout="table"] .b :is(.curl-target,.curl-landing) { display: none; }
+  [data-extra="curling"][data-layout="table"] .curl-target { width: min(56%, 214px, 29svh); }
+  [data-extra="curling"][data-layout="table"] .curl-lane :is(.curl-coin,.curl-landing) { left: 50%; }
+  [data-extra="curling"][data-layout="table"] .a .curl-coin { top: var(--curl-pos); }
+  [data-extra="curling"][data-layout="table"] .b .curl-coin { top: calc(100% - var(--curl-pos)); }
+  [data-extra="curling"][data-layout="table"] .curl-landing { top: var(--curl-table-pos); margin-top: 0; }
+  [data-extra="curling"][data-layout="table"] .curl-landing[data-owner="1"] { margin-left: -8px; }
+  [data-extra="curling"][data-layout="table"] .curl-landing[data-owner="0"] { margin-left: 8px; }
+  [data-extra="curling"][data-layout="table"] .curl-coin:not(:disabled) { pointer-events: auto; }
+  [data-extra="curling"][data-layout="table"] .curl-coin.is-sliding { transition-property: top; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-extra="curling"] .curl-coin.is-sliding { transition: none; }
+}
+
+/* Opposed, tactile release plates keep the turn state readable without changing the gesture. */
+[data-extra="curling"] .curl-lane:has(.curl-coin:not(:disabled, .is-sliding))::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: 22px;
+  height: 18px;
+  inset: 50% auto auto calc(8% + 30px);
+  transform: translateY(-50%) rotate(90deg);
+  background: #fce1b280;
+  clip-path: polygon(50% 0, 95% 50%, 75% 50%, 75% 100%, 25% 100%, 25% 50%, 5% 50%);
+}
+@media (orientation: portrait) {
+  [data-extra="curling"][data-layout="table"] .curl-lane:has(.curl-coin:not(:disabled, .is-sliding))::after {
+    inset: max(17%, 46px) auto auto 50%;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+  [data-extra="curling"][data-layout="table"] .b .curl-lane:has(.curl-coin:not(:disabled, .is-sliding))::after {
+    inset: auto auto max(17%, 46px) 50%;
+    transform: translate(-50%, 50%);
+  }
+}
+@media (max-height: 420px) and (orientation: landscape) {
+  [data-extra="curling"] .curl-panel strong { min-height: 34px; }
+}
+
+/* Preserve the previous per-seat shot history without displacing the outer HUD. */
+[data-extra="curling"] .curl-panel .tavern-curl-shots {
+  grid-column:1 / -1;
+  display:flex;
+  flex-wrap:nowrap;
+  justify-content:center;
+  gap:4px;
+  min-width:0;
+}
+[data-extra="curling"] .curl-panel .tavern-curl-shots span {
+  min-inline-size:20px;min-block-size:15px;font-size:clamp(.64rem,2.45vmin,.79rem);
+}
+
+
+/* Counter is one shared table. The two overlapping control planes retain their own live
+   coin, while only the first draws a target, settled pieces and structural trim. */
+.arena[data-extra="curling"][data-layout="counter"] {
+  --counter-console: clamp(74px, 10vmin + 46px, 96px);
+}
+.arena[data-extra="curling"][data-layout="counter"] > .extra:not([hidden]) {
+  grid-area: 2 / 1 / 3 / -1;
+  position: relative; min-height: 0;
+  padding: 0; border: 0; animation: none;
+  background: none; box-shadow: none;
+  pointer-events: none;
+}
+[data-extra="curling"][data-layout="counter"] .curl-panel {
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: var(--counter-console);
+  width: calc(50% - 3px);
+}
+[data-extra="curling"][data-layout="counter"] .b .curl-panel { inset: 0 0 auto auto; }
+[data-extra="curling"][data-layout="counter"] .curl-lane {
+  position: absolute;
+  inset: calc(var(--counter-console) + 6px) 0 0;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  background-size: auto, 100% 100%;
+}
+[data-extra="curling"][data-layout="counter"] .curl-target {
+  width: auto;
+  height: min(80%, 190px);
+}
+[data-extra="curling"][data-layout="counter"] .b .curl-lane {
+  border-color: transparent; background: none; box-shadow: none;
+}
+[data-extra="curling"][data-layout="counter"] .b .curl-lane::before,
+[data-extra="curling"][data-layout="counter"] .b :is(.curl-target, .curl-landing) { display: none; }
+[data-extra="curling"][data-layout="counter"] .curl-coin:not(:disabled) { pointer-events: auto; }
+@media (max-height: 340px) and (orientation: landscape), (max-width: 340px) and (orientation: portrait) {
+  [data-extra="curling"][data-layout="counter"] .curl-panel { gap: 2px 5px; padding-block: 3px; }
+  [data-extra="curling"][data-layout="counter"] .curl-panel strong { min-height: 25px; padding-block: 2px; }
+}
+
+/* Counter: measure both seats from their own baseline toward the shared center. */
+[data-extra="curling"][data-layout="counter"] .b .curl-lane .curl-coin,
+[data-extra="curling"][data-layout="counter"] .curl-lane .curl-landing[data-owner="1"] {
+  left: calc(100% - var(--curl-pos));
+}
+[data-extra="curling"][data-layout="counter"] .b .curl-lane:has(.curl-coin:not(:disabled, .is-sliding))::after {
+  inset: 50% calc(8% + 30px) auto auto;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/* Both launch ends have a deadline stripe, at the same normalized 30% release limit. */
+[data-extra="curling"][data-layout="counter"] .curl-lane::before {
+  display:block;inset:12% auto 12% 30%;
+  border:0;border-left:2px dashed #ffe5aab3;
+}
+[data-extra="curling"][data-layout="counter"] .b .curl-lane::before {
+  display:block;inset:12% auto 12% 70%;
+}

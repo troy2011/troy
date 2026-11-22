@@ -1,0 +1,125 @@
+
+/* Reflex only. Real player buttons and the controller's existing cues stay live. */
+#arena[data-active-game="reflex"] {
+  --reflex-wood:url('../assets/tavern-ten-count/wood.webp');
+  --reflex-lantern:url('../assets/tavern-reflex/reaction-lantern.webp');
+  --reflex-lamp:min(40vw,23svh,180px);
+  --reflex-pad:url('../assets/tavern-reflex/reaction-pad.webp');
+  position:relative;
+  isolation:isolate;
+  gap:0;
+  border-inline:2px solid #7e552d;
+  background:linear-gradient(90deg,#080402b3,transparent 11% 89%,#080402b3),var(--reflex-wood) center/cover,#25160d;
+  box-shadow:inset 0 0 0 2px #d6aa6563,inset 0 0 44px #050302b3;
+}
+#arena[data-active-game="reflex"]::before {
+  content:"";position:absolute;z-index:1;pointer-events:none;
+  left:50%;top:calc(50% - 27px);width:var(--reflex-lamp);aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  background:var(--reflex-lantern) center / contain no-repeat;
+  filter:saturate(.35) brightness(.40) drop-shadow(0 4px 9px #000b);
+}
+#arena[data-active-game="reflex"][data-phase="go"]::before {
+  filter:drop-shadow(0 0 23px #72ff6580);
+}
+#arena[data-active-game="reflex"] > .player:not([hidden]) {
+  z-index:2;
+  border:0;box-shadow:none;background:none;
+  gap:4px;padding:5px 7px;
+}
+#arena[data-active-game="reflex"] .player::before {display:none}
+#arena[data-active-game="reflex"] .player > strong {
+  box-sizing:border-box;isolation:isolate;position:relative;
+  display:grid;place-items:center;min-width:0;width:min(94%,25rem);
+  min-height:clamp(64px,12.7svh,106px);padding:5px 14px;
+  border:0;background:none;box-shadow:none;color:#fff0cd;
+  font-size:clamp(22px,7.6vmin,34px);font-weight:900;
+  letter-spacing:.026em;text-shadow:0 2px 3px #090504,0 0 7px #000;
+}
+#arena[data-active-game="reflex"] .player strong::before {
+  content:"";z-index:-1;position:absolute;inset:0;
+  background:var(--reflex-pad) center / 100% 100% no-repeat;
+  filter:drop-shadow(0 3px 6px #0007);
+}
+#arena[data-active-game="reflex"] .player.a strong::after {
+  content:"";z-index:-1;position:absolute;inset:7% 2.5%;
+  clip-path:polygon(7% 0,93% 0,100% 19%,100% 81%,93% 100%,7% 100%,0 81%,0 19%);
+  background:#b62c25;mix-blend-mode:color;
+}
+#arena[data-active-game="reflex"] .player > .count-hud {
+  display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.6em;
+  order:5;width:min(93%,25rem);min-height:30px;padding:3px 8px;
+  border:1px solid #d9aa697e;border-radius:5px;outline:1px solid #1a0f07;
+  background:linear-gradient(#17130d,#090907);
+  box-shadow:inset 0 0 0 1px #6a482a;
+}
+#arena[data-active-game="reflex"] .count-hud > b {display:none}
+#arena[data-active-game="reflex"] .count-hud > span:last-child {display:none}
+#arena[data-active-game="reflex"] .count-hud::after {
+  content:"\53cd\5c04\795e\7d4c\30d0\30c8\30eb";
+  justify-self:center;color:#fff0cd;
+  font:850 clamp(14px,4.8vmin,21px)/1.2 system-ui,sans-serif;
+}
+#arena[data-active-game="reflex"] .player .say {
+  max-width:100%;font-size:clamp(10px,3.1vmin,14px);
+  color:#ffedc7;line-height:1.16;
+}
+#arena[data-active-game="reflex"]:is([data-phase="waiting"],[data-phase="go"]) .player .say {display:none}
+#arena[data-active-game="reflex"] .player small:empty {display:none}
+#arena[data-active-game="reflex"] .core-game-feedback {
+  order:-1;
+  font-size:clamp(13px,4.7vmin,19px);padding:.18em .49em;
+  border-radius:.3em;color:#ffedc9;
+}
+#arena[data-active-game="reflex"] .core-game-feedback[data-cue="press"] {
+  background:#08180d;border-color:#87d396;color:#e4ffdf;
+}
+#arena[data-active-game="reflex"] .player[aria-disabled="false"]:active strong {transform:translateY(2px)}
+#arena[data-active-game="reflex"] .player[data-result="win"] strong {
+  outline:2px solid #ffe6a1;outline-offset:-1px;
+}
+#arena[data-active-game="reflex"] .player[data-result="lose"] {filter:none}
+#arena[data-active-game="reflex"] .deck {
+  z-index:3; min-width:0;
+  padding:2px 5px; border-color:#b48852;
+  background:linear-gradient(#312216,#17110c);
+}
+#arena[data-active-game="reflex"] .deck button {min-height:44px}
+#arena[data-active-game="reflex"] .deck h1 {color:#ffdda3;font-size:clamp(12px,4vmin,20px)}
+#arena[data-active-game="reflex"][data-layout="table"] {
+  padding:env(safe-area-inset-top) 2px max(53px,calc(51px + env(safe-area-inset-bottom)));
+  grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,.72fr) minmax(0,1fr);
+}
+#arena[data-active-game="reflex"][data-layout="table"] > .player {grid-column:1}
+#arena[data-active-game="reflex"][data-layout="table"] > .player.b {grid-row:3}
+#arena[data-active-game="reflex"][data-layout="table"] .deck {
+  position:absolute;inset:auto 7px 4px;
+  grid-template-columns:auto minmax(0,1fr) auto auto;gap:3px;
+}
+#arena[data-active-game="reflex"][data-layout="table"] .deck .signal {
+  position:static;width:auto;height:auto;overflow:visible;clip-path:none;
+}
+#arena[data-active-game="reflex"][data-layout="table"] .deck .signal p {display:none}
+#arena[data-active-game="reflex"][data-layout="table"] .start {min-width:0;white-space:nowrap}
+#arena[data-active-game="reflex"][data-layout="table"][data-phase="go"]::after {
+  content:"\4eca\3060\ff01";
+  pointer-events:none;position:absolute;z-index:1;
+  left:50%;top:calc(50% - 27px + var(--reflex-lamp) / 2 + 7px);
+  transform:translateX(-50%);white-space:nowrap;
+  color:#fff6d5;text-shadow:0 0 12px #70f55c84,0 2px 3px #000;
+  font:900 clamp(18px,7.7vmin,36px)/1 system-ui,sans-serif;
+}
+#arena[data-active-game="reflex"][data-layout="counter"] {--reflex-lamp:min(34vmin,144px);gap:5px}
+#arena[data-active-game="reflex"][data-layout="counter"]::before {top:56%}
+#arena[data-active-game="reflex"][data-layout="counter"] .player.a {margin-inline-end:calc(var(--reflex-lamp) / 2)}
+#arena[data-active-game="reflex"][data-layout="counter"] .player.b {margin-inline-start:calc(var(--reflex-lamp) / 2)}
+#arena[data-active-game="reflex"][data-layout="counter"] .player > strong {min-height:64px;font-size:clamp(17px,6vmin,24px)}
+#arena[data-active-game="reflex"][data-layout="counter"] .count-hud::after {font-size:clamp(13px,4.4vmin,18px)}
+#arena[data-active-game="reflex"][data-layout="counter"] .player .say {display:none}
+@media (orientation:portrait) {
+  #arena[data-active-game="reflex"][data-layout="counter"] {position:fixed}
+}
+@media (max-height:680px) and (orientation:portrait) {
+  #arena[data-active-game="reflex"][data-layout="table"] {--reflex-lamp:min(35vw,20svh,160px)}
+  #arena[data-active-game="reflex"][data-layout="table"] .player > strong {min-height:62px}
+}

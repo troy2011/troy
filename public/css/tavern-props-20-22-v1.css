@@ -1,0 +1,71 @@
+/* 20–22: distinct materials on the real local playing surfaces, after the base rules. */
+.arena:is([data-newgame="pirate-cipher"],[data-newgame="bell-rhythm"],[data-newgame="sail-patch"]){
+ --wood:url('../assets/tavern-ten-count/wood.webp');
+ --parchment:url('../assets/tavern-props-20-22/cipher-key-strip.webp');
+ --bell-token:url('../assets/tavern-props-20-22/bell-token.webp');
+ --sail-canvas:url('../assets/tavern-props-20-22/sail-canvas.webp');
+ border:1px solid #6e4930;background:#322014 var(--wood) center/380px 380px;
+}
+.arena:is([data-newgame="pirate-cipher"],[data-newgame="bell-rhythm"],[data-newgame="sail-patch"]) .xgame-seat {
+ --mat:#234035;--deep:#122b23;
+ background:radial-gradient(ellipse at center,transparent 46%,#11090770),var(--mat)!important;
+ border:1px solid #a88759;border-radius:13px;outline:1px solid #27170c;
+ box-shadow:inset 0 0 0 4px #25170f,inset 0 0 0 5px #9c7c48,inset 0 0 0 7px var(--deep);
+}
+.arena:is([data-newgame="pirate-cipher"],[data-newgame="bell-rhythm"],[data-newgame="sail-patch"]) .xgame-seat.a{--mat:#492d26;--deep:#2c1a17;}
+.arena:is([data-newgame="pirate-cipher"],[data-newgame="bell-rhythm"],[data-newgame="sail-patch"]) .xgame-title{
+ color:#ffdfa0;font-family:'Yu Mincho','Hiragino Mincho ProN',serif;font-weight:800;letter-spacing:.055em;
+}
+.arena:is([data-newgame="pirate-cipher"],[data-newgame="bell-rhythm"],[data-newgame="sail-patch"]) .deck{
+ background:linear-gradient(#1d130caf,#23160ccb),var(--wood) center/350px 350px;border-color:#9f7950;
+}
+.sea-cipher,.bell-panel,.sea-sail{
+ box-sizing:border-box;padding:clamp(4px,2vmin,13px);width:min(100%,24rem);border:1px solid #a38255;border-radius:9px;
+ box-shadow:inset 0 0 0 2px #1c150d,inset 0 0 0 3px #8b6138,0 3px 10px #170b08;
+ background:linear-gradient(#26190e7f,#1e130cc0),var(--wood) center/280px 280px;
+}
+.sea-cipher {gap:clamp(3px,1.2vmin,6px);}
+.sea-cipher-code {
+ box-sizing:border-box;width:100%;background:var(--parchment) center / 105% 172% no-repeat;color:#3a2110;min-height:36px;
+ display:grid;place-items:center;border-radius:5px;font-size:clamp(20px,7vmin,32px);letter-spacing:.11em;
+}
+.sea-cipher-key {padding:3px 1px;box-sizing:border-box;background:var(--parchment) center / 108% 172% no-repeat;}
+.sea-cipher-key span {background:#9d5a2124;border-color:#91603660;color:#381d0d;font-size:clamp(11px,3.1vmin,16px);}
+.sea-cipher-read {color:#fff0cd;font-size:clamp(14px,4.4vmin,18px);border-bottom:1px solid #a88457;padding:0 12px;}
+.xgame-seat .sea-cipher-keys button {
+ min-height:44px;border-color:#bb8e4f;background:linear-gradient(#604126,#332215);color:#fff3d1;box-shadow:inset 0 0 0 1px #402811;
+}
+.xgame-seat .sea-cipher-keys button:active {background:#b17a44;color:#190f07;}
+.bell-panel {grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;}
+.bell-track {height:clamp(31px,10vmin,48px);border-color:#b38d52;background:
+ linear-gradient(0deg,transparent 47%,#b6905466 47% 52%,transparent 52%),repeating-linear-gradient(90deg,#223c32 0 9%,#152d24 9.5% 10%);}
+.bell-line {width:10px;background:#d4af5f;box-shadow:0 0 0 1px #f2ddaf,inset 0 0 0 2px #80542c;}
+.bell-marker {background:#ffdd82;border:2px solid #825c34;box-shadow:0 0 6px #f3c469;width:17px;height:17px;}
+.bell-track[data-on-beat=true] {outline-color:#ffde8f;}
+.bell-score,.bell-feedback {font-size:clamp(.72rem,3vmin,.95rem);color:#ffe6b5;}
+.xgame-seat .bell-panel .bell-pad{
+ display:grid;place-items:end center;background:var(--bell-token) center / contain no-repeat;
+ width:clamp(77px,26vmin,126px);min-height:44px;aspect-ratio:1;padding:0 2px 4px;
+ color:#ffeec4;font-size:clamp(.68rem,3vmin,.83rem);text-shadow:0 2px 2px #000;
+ border:1px solid transparent;border-radius:50%;box-shadow:none;filter:drop-shadow(1px 3px 2px #170a05);
+}
+.xgame-seat .bell-panel .bell-pad:active {background:var(--bell-token) center/contain no-repeat;filter:brightness(1.22);}
+.sea-sail {grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:4px 7px;}
+.sea-sail-label {color:#ffe8b9;}
+.sea-sail-example{width:min(100%,116px);box-sizing:border-box;background:#20343b;border-color:#988b62;box-shadow:inset 0 0 0 1px #121e21;}
+.sea-sail-edit {width:min(100%,145px);}
+.xgame-seat .sea-sail-edit button {min-width:44px;min-height:44px;padding:3px;background:#211710;border-color:#a58458;}
+.xgame-seat .sea-sail-edit button[data-match=true] {border-color:#b6cf94;box-shadow:inset 0 0 0 1px #769965;}
+.sea-sail-fabric, .sea-sail-example .sea-sail-fabric {background:var(--sail-canvas) center/118% 118%;border:1px solid #a9844d;}
+.sea-sail-example .sea-sail-fabric {filter:sepia(.15) brightness(.96);}
+.sea-sail-gap,.sea-sail-example .sea-sail-gap {background:#0b141b;border:1px dashed #b39b7799;}
+@media(max-height:600px){
+ .sea-cipher,.bell-panel,.sea-sail {padding:4px;}
+ .sea-cipher-code {min-height:32px;}
+ .sea-sail-example {width:min(100%,90px);}
+ .sea-sail-edit {width:min(100%,112px);}
+}
+@media(max-height:420px) and (orientation:landscape) {
+ .xgame-seat .bell-panel .bell-pad {width:clamp(62px,21vmin,96px);}
+ .sea-cipher-key{padding:1px;}
+}

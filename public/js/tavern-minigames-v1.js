@@ -3,12 +3,32 @@
   const $ = id => document.getElementById(id);
   const chooser = $('chooser'), arena = $('arena'), startButton = $('start');
   const players = [...arena.querySelectorAll('button.player')], portrait = matchMedia('(orientation: portrait)');
-  const countPreviews = players.map(player => {
+  const countDial = document.createElement('div');
+  countDial.className = 'count-instrument';
+  countDial.setAttribute('aria-hidden', 'true');
+  arena.append(countDial);
+  const countPreviews = players.map((player, seat) => {
+    const hud = document.createElement('span');
+    hud.className = 'count-hud';
+    const name = document.createElement('b');
+    name.textContent = '\u30c6\u30f3\u30ab\u30a6\u30f3\u30c8';
+    const objective = document.createElement('span');
+    objective.textContent = '10\u79d2\u76ee\u6a19';
+    const seatLabel = player.querySelector('.seat');
+    seatLabel.after(hud);
+    hud.append(seatLabel, name, objective);
     const preview = document.createElement('span');
-    preview.className = 'count-preview';
+    preview.className = 'count-preview count-face-' + seat;
     preview.setAttribute('aria-hidden', 'true');
-    player.querySelector('small').before(preview);
+    countDial.append(preview);
     return preview;
+  });
+  const feedback = players.map(player => {
+    const row = document.createElement('span');
+    row.className = 'core-game-feedback';
+    row.hidden = true;
+    player.querySelector('small').after(row);
+    return row;
   });
   const categories = { reflex: '反射・スピード', timing: '時間の感覚', memory: '記憶・観察', strategy: '戦略・読み合い', luck: '運試し', party: 'パーティー' };
   const catalog = [
@@ -20,7 +40,7 @@
   const START_PROMPT = '「開始」を押すと始まります';
   const TIE_WINDOW = 18; // Process near-simultaneous input before comparing its actual millisecond timestamps.
   let game, phase = 'idle', startedAt = 0, waitingTimer, finishTimer, stamps, outcome, message;
-  let countPreviewFrame;
+  let countPreviewFrame, early;
   const clear = () => {
     clearTimeout(waitingTimer);
     clearTimeout(finishTimer);
@@ -73,15 +93,31 @@
         : phase === 'go' ? (stored == null ? '今だ！ 押す' : '押しました') : '準備';
       b.querySelector('.say').textContent = say;
       b.querySelector('.wins').textContent = winsLabel(seat);
+      const row = feedback[seat];
+      if (game === 'count' && complete && stored != null) {
+        const delta = stored - TARGET;
+        row.textContent = delta === 0 ? '10秒ぴったり！'
+          : '目標との差 ' + (Math.abs(delta) / 1000).toFixed(3) + ' 秒（' + (delta < 0 ? '早い' : '遅い') + '）';
+        row.dataset.cue = 'time';
+        row.hidden = false;
+      } else if (game === 'reflex' && (phase === 'waiting' || phase === 'go')) {
+        row.textContent = phase === 'waiting' ? '■　待つ' : stored == null ? '●　押す' : '✓　入力済み';
+        row.dataset.cue = phase === 'waiting' ? 'hold' : stored == null ? 'press' : 'set';
+        row.hidden = false;
+      } else {
+        row.hidden = true;
+        row.textContent = '';
+        delete row.dataset.cue;
+      }
       b.querySelector('small').textContent = complete && stored != null
         ? (game === 'count' ? (stored / 1000).toFixed(3) + ' 秒' : stored + ' ms')
-        : complete && message.includes('フライング') && seat !== outcome ? 'フライング' : '';
+        : complete && early[seat] ? 'フライング' : complete && message.includes('フライング') && seat !== outcome ? 'フライング' : '';
     });
   }
   // How many games each player has won since choosing this game, shown beside 1P / 2P.
   const winsLabel = seat => (fx.wins(seat) ? '　' + fx.wins(seat) + '勝' : '');
   function reset() {
-    clear(); phase = 'idle'; stamps = [null, null]; outcome = null;
+    clear(); phase = 'idle'; stamps = [null, null]; early = [false, false]; outcome = null;
     message = game === 'count' ? '10秒だと思ったら押す' : '「今だ！」の合図で押す';
     render();
   }
@@ -102,7 +138,18 @@
     }, 1600 + Math.floor(Math.random() * 2600));
   }
   function press(seat, event) {
-    if (phase === 'waiting') { end(1 - seat, (seat + 1) + 'P フライング'); return; }
+    if (phase === 'waiting') {
+      if (early[seat]) return;
+      early[seat] = true;
+      clearTimeout(waitingTimer);
+      if (early.every(Boolean)) {
+        end(null, '両者フライング。引き分け');
+      } else {
+        // Give inputs from the same tap burst a seat-neutral adjudication window.
+        finishTimer = setTimeout(() => end(1 - seat, (seat + 1) + 'P フライング'), TIE_WINDOW);
+      }
+      return;
+    }
     if (phase !== 'counting' && phase !== 'go' || stamps[seat] != null) return;
     const timestamp = time(event);
     if (phase === 'go' && timestamp < startedAt) { end(1 - seat, (seat + 1) + 'P フライング'); return; }
@@ -147,12 +194,13 @@
     if (!button) return;
     game = button.dataset.game;
     fx.resetWins();
+    arena.dataset.activeGame = game;
     arena.dataset.layout = chooser.querySelector('input:checked').value;
     chooser.hidden = true; arena.hidden = false; if(extra.select(game)){$('title').textContent=games.get(game).name;extra.update();}else reset(); startButton.focus();
   });
   $('exit').addEventListener('click', () => {
     clear(); extra.clear(); phase = 'idle'; finishTimer = undefined;
-    const focus = chooser.querySelector('[data-game="' + game + '"]'); arena.hidden = true; chooser.hidden = false; focus.focus();
+    const focus = chooser.querySelector('[data-game="' + game + '"]'); arena.hidden = true; delete arena.dataset.activeGame; chooser.hidden = false; focus.focus();
   });
   $('sound').addEventListener('click', event => {
     fx.soundOn = !fx.soundOn;
@@ -160,6 +208,7 @@
     if (fx.soundOn) fx.tap();
   });
   window.addEventListener('keydown', event => {
+    if (!arena.hidden && event.key === 'Escape' && !event.repeat) { event.preventDefault(); $('exit').click(); return; }
     if (arena.hidden || extra.handles() || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
     const seat = ['f', 'j'].indexOf(event.key.toLowerCase());
     if (seat !== -1) { event.preventDefault(); press(seat, event); }

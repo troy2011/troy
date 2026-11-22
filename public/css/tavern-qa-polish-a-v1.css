@@ -1,0 +1,28 @@
+/* Game-specific feedback only; all layout, timer and navigation logic remains shared. */
+.xgame-seat :is(.xgame-a-instruction, .xgame-a-chest-stage) {
+  flex-basis: 100%; margin: 0; text-align: center; font-size: clamp(.75rem, 2.9vmin, 1rem);
+  line-height: 1.25; color: #f1d399;
+}
+.xgame-seat .xgame-a-tug-board {
+  display: flex; width: min(100%, 24rem); justify-content: space-between; align-items: baseline;
+  gap: .45rem; color: #ffe5ac; font-weight: 700; font-size: clamp(.73rem, 2.8vmin, 1rem);
+}
+.xgame-seat .xgame-a-clock { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.xgame-seat .xgame-a-bomb-stages { display: flex; justify-content: center; gap: .42rem; flex-basis: 100%; }
+.xgame-seat .xgame-a-bomb-stages span {
+  display: grid; place-items: center; min-width: 1.48rem; min-height: 1.48rem;
+  padding: 0 .3rem; background: #2b2015; color: #eacb91; border: 1px solid #a77f4d;
+  border-radius: 50%; font-size: .84rem; font-weight: 800;
+}
+.xgame-seat .xgame-a-bomb-stages .is-hit { background: #745226; color: #ffebbb; }
+.xgame-seat .xgame-a-quiz-prompt { display: grid; justify-items: center; gap: .25rem; flex-basis: 100%; }
+.xgame-seat .xgame-a-quiz-prompt p { margin: 0; font-size: clamp(1.35rem, 7.6vmin, 2.9rem); font-variant-numeric: tabular-nums; }
+.xgame-seat .xgame-a-done { text-decoration: line-through; }
+.xgame-seat .xgame-a-bullseye { background: #ffde7a; box-shadow: 0 0 6px #ffde7a; }
+.xgame-seat .xgame-a-shell { font-size: clamp(.8rem, 4.7vmin, 1.55rem); }
+.xgame-seat .xgame-field:has(.xgame-a-shell) { min-width: 0; overflow: hidden; }
+.xgame-a-bomb-field .xgame-target {
+  --radius: clamp(26px, 7.5vmin, 36px);
+  left: clamp(var(--radius), var(--target-x), calc(100% - var(--radius)));
+  top: clamp(var(--radius), var(--target-y), calc(100% - var(--radius)));
+}

@@ -1,0 +1,79 @@
+/* Photographic-material props with code-native game state, scoped to these three boards. */
+.tavern-shuffle-board, .tavern-tug-deck, .tavern-skull-board {
+  --deck-brass:#b08147;
+  isolation:isolate;
+  background:
+    linear-gradient(90deg,#160c08a8,transparent 15% 85%,#160c08a8),
+    repeating-linear-gradient(1deg,#ffffff03 0 1px,#0000 1px 8px,#09050238 9px 11px),
+    radial-gradient(ellipse at 50% 30%,#69422c,#2c1a13 92%);
+  border:1px solid var(--deck-brass);box-shadow:inset 0 0 0 3px #26180f,inset 0 0 0 4px #805f39;
+ background:linear-gradient(0deg,#1a0d06bb,#29150761),var(--board-wood) center/285px 285px;
+}
+.xgame-seat .tavern-shuffle-board {height:clamp(78px,27vmin,110px);flex-basis:auto;width:min(100%,24rem);width:min(100%,27rem);height:clamp(97px,37vmin,162px);}
+.tavern-shuffle-marks {position:absolute;inset:auto 2% 4px;display:grid;grid-template-columns:repeat(3,1fr);text-align:center;color:#ecce91;font-size:.65rem;line-height:1.1;inset:auto 2% 8px;font-size:.72rem;color:#ffeabb;}
+.tavern-shuffle-marks span::before {content:"";display:block;width:30%;margin:0 auto 2px;border-top:1px dashed #b49259;}
+.xgame-seat .tavern-shuffle-barrel {
+  background:transparent url('../images/tavern-props-08-10/shuffle-barrel.webp') center/contain no-repeat;
+  border:1px solid transparent;box-shadow:none;top:45%;
+  width:clamp(45px,16vmin,77px);height:clamp(45px,16vmin,77px);width:clamp(59px,22vmin,104px);height:clamp(59px,22vmin,104px);top:45%;filter:drop-shadow(0 2px 2px #20100c);
+}
+.xgame-seat .tavern-shuffle-barrel:disabled:not(.is-picked):not(.is-right):not(.is-wrong) {opacity:1;filter:none;}
+.tavern-shuffle-coin {position:absolute;inset:20% 0 auto;line-height:1;text-align:center;font-size:clamp(1.35rem,7vmin,2.1rem);color:#ffea90;text-shadow:0 0 6px #6e3308,0 0 11px #da9a25;pointer-events:none;}
+.xgame-seat .tavern-shuffle-barrel.is-picked {border-color:#ffe299;box-shadow:0 0 0 1px #ffe29988;}
+.xgame-seat .tavern-shuffle-barrel.is-right {border-color:#9bc77b;}
+.xgame-seat .tavern-shuffle-barrel.is-wrong {border-color:#e5907e;}
+.xgame-seat .tavern-tug-deck {
+  position:relative;flex-basis:auto;width:min(100%,19rem);height:clamp(64px,28vmin,135px);
+  border-radius:7px;overflow:hidden;width:min(100%,22rem);height:clamp(85px,35vmin,161px);
+}
+.tavern-tug-hemp {position:absolute;inset:9% 43%;background:url('../images/tavern-props-08-10/tug-rope.webp') center/contain no-repeat;filter:drop-shadow(1px 2px 1px #1a0d09);inset:6% 37%;}
+.tavern-tug-mid {position:absolute;inset:50% 14% auto;border-top:1px dashed #c8a16a8a;}
+.tavern-tug-deck .xgame-rope-end {z-index:2;font-size:.66rem;white-space:nowrap;left:12%;right:auto;transform:none;color:#ffeac3;}
+.tavern-tug-deck .xgame-rope-end.is-mine {top:auto;bottom:9%;}
+.tavern-tug-deck .xgame-rope-end.is-theirs {top:9%;}
+.tavern-tug-deck .tavern-tug-pennant {z-index:3;left:48%;width:34%;height:31%;transform:translate(-9%,-50%);transition:top 75ms linear;background:url('../images/tavern-props-08-10/tug-marker.webp') left center/contain no-repeat;filter:drop-shadow(1px 1px 1px #1a0b06);width:43%;height:38%;}
+.xgame-seat .tavern-tug-pull {min-height:44px;}
+.tavern-skull-status {display:flex;align-items:center;justify-content:center;gap:.3rem;}
+.tavern-skull-holder {display:inline-block;width:clamp(42px,19vmin,90px);aspect-ratio:1;background:url('../images/tavern-props-08-10/skull-token.webp') center/contain no-repeat;width:clamp(59px,25vmin,110px);}
+.tavern-skull-status .tavern-skull-holder {width:clamp(28px,9vmin,38px);filter:drop-shadow(0 0 4px #d59236);width:clamp(32px,10vmin,42px);}
+.xgame-seat .tavern-skull-board {height:clamp(80px,28vmin,124px);flex-basis:auto;width:min(100%,20rem);border-radius:7px;width:min(100%,24rem);height:clamp(104px,41vmin,170px);}
+.tavern-skull-target-area {position:absolute;inset:25px 27px;inset:31px;}
+.xgame-seat .tavern-skull-target {background:transparent url('../images/tavern-props-08-10/skull-target.webp') center/contain no-repeat;border:1px solid transparent;box-shadow:none;width:clamp(44px,14vmin,56px);height:clamp(44px,14vmin,56px);filter:drop-shadow(0 0 4px #d59236);width:clamp(48px,17vmin,68px);height:clamp(48px,17vmin,68px);}
+.xgame-seat .tavern-skull-target:focus-visible,.xgame-seat .tavern-shuffle-barrel:focus-visible {outline:2px solid #fff4b0;outline-offset:2px;}
+@media (prefers-reduced-motion:reduce) {.tavern-tug-deck .tavern-tug-pennant {transition:none;}}
+/* The whole play surface is one overhead tavern table; only real controls remain raised. */
+.arena:is([data-newgame="chest-shuffle"],[data-newgame="tug-of-war"],[data-newgame="skull-bomb"]){
+ --board-wood:url('../assets/tavern-ten-count/wood.webp');
+ background:#2c1b12 var(--board-wood) center/400px 400px;
+ border:1px solid #503622;box-shadow:inset 0 0 0 2px #150e0a;
+}
+.arena:is([data-newgame="chest-shuffle"],[data-newgame="tug-of-war"],[data-newgame="skull-bomb"]) .xgame-seat{
+ --felt:#244437;--felt-deep:#142b22;--felt-line:#71816b;
+ box-sizing:border-box;align-content:center;gap:clamp(4px,1.5vmin,10px);
+ background:radial-gradient(ellipse at center,#0000 58%,#07050373),linear-gradient(#ffe9b410,transparent 45%,#08060054),var(--felt)!important;
+ border:1px solid #a28153;border-radius:13px;outline:1px solid #211407;
+ box-shadow:inset 0 0 0 4px #20140e,inset 0 0 0 5px #9c7c48,inset 0 0 0 7px var(--felt-deep),0 2px 4px #170e09;
+}
+.arena:is([data-newgame="chest-shuffle"],[data-newgame="tug-of-war"],[data-newgame="skull-bomb"]) .xgame-seat.a{--felt:#52302b;--felt-deep:#301d19;--felt-line:#a4775a;}
+.arena:is([data-newgame="chest-shuffle"],[data-newgame="tug-of-war"],[data-newgame="skull-bomb"]) .xgame-seat .xgame-title{
+ color:#ffde9e;letter-spacing:.075em;font-family:'Yu Mincho','Hiragino Mincho ProN',serif;font-weight:800;text-shadow:0 1px #160c06;
+}
+.arena:is([data-newgame="chest-shuffle"],[data-newgame="tug-of-war"],[data-newgame="skull-bomb"]) .deck{
+ background:linear-gradient(#20150cac,#1d110cc9),var(--board-wood) center/350px 350px;
+ border-color:#a38050;box-shadow:inset 0 0 0 2px #291d13,inset 0 0 0 3px #91673d88;
+}
+.xgame-seat .tavern-tug-pull,
+.xgame-seat .tavern-tug-pull:active{
+ color:#251811;background:linear-gradient(0deg,#c49349,#e8c882 56%,#f3deb0);
+ border:1px solid #fff2c7;box-shadow:inset 0 0 0 2px #8b582e,inset 0 0 0 4px #f4d89d,0 4px 9px #170a06;
+ min-height:clamp(48px,15vmin,63px);font-size:clamp(1.1rem,5vmin,1.5rem);
+}
+.xgame-seat .tavern-tug-pull:active{background:linear-gradient(#bc8448,#f6db9d);}
+@media (max-height:600px){
+ .xgame-seat .tavern-tug-deck{height:clamp(73px,30vmin,112px);}
+ .xgame-seat .tavern-skull-board{height:clamp(89px,35vmin,132px);}
+}
+@media (max-height:420px) and (orientation:landscape){
+ .xgame-seat .tavern-tug-deck{height:clamp(67px,27vmin,101px);}
+ .xgame-seat .tavern-tug-pull{min-height:44px;}
+}

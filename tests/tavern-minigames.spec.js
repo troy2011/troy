@@ -4,7 +4,7 @@ const shots=process.env.TAVERN_SHOTS;
 async function open(page,width,height){
  await page.setViewportSize({width,height});
  const remote=[], bad=[];
- page.on('request',r=>{const u=new URL(r.url());if(!['/tavern-minigames.html','/js/tavern-minigames-v1.js','/css/tavern-minigames-v1.css','/favicon.ico','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css','/js/tavern-expansion-v1.js','/css/tavern-expansion-v1.css'].includes(u.pathname) || u.hostname!=='127.0.0.1') remote.push(r.url());});
+ page.on('request',r=>{const u=new URL(r.url());if(!['/tavern-minigames.html','/js/tavern-minigames-v1.js','/css/tavern-minigames-v1.css','/favicon.ico','/js/tavern-extra-v1.js','/js/tavern-fx-v1.js','/js/tavern-games-a-v1.js','/js/tavern-games-b-v1.js','/js/tavern-sea-games-v1.js','/css/tavern-sea-games-v1.css','/js/tavern-sea-deck-v1.js','/js/tavern-sea-crew-v1.js','/css/tavern-sea-crew-v1.css','/js/tavern-bell-v1.js','/css/tavern-bell-v1.css','/js/tavern-sail-patch-v1.js','/css/tavern-sail-patch-v1.css','/css/tavern-polish-v1.css','/css/tavern-qa-polish-a-v1.css','/css/tavern-ten-count-v1.css','/css/tavern-reflex-v1.css','/css/tavern-curling-v1.css','/js/tavern-curl-physics-v1.js','/css/tavern-curl-2d-v1.css','/css/tavern-memory-v1.css','/css/tavern-physical-567-v1.css','/css/tavern-props-08-10-v1.css','/css/tavern-quiz-v1.css','/css/tavern-materials-14-16-v1.css','/assets/tavern-materials-14-16/die.webp','/assets/tavern-materials-14-16/sand.webp','/assets/tavern-materials-14-16/sea.webp','/assets/tavern-materials-14-16/ship.webp','/assets/tavern-materials-14-16/wave.webp','/assets/tavern-tabletop/barrel-rally-cloth.webp','/assets/tavern-tabletop/barrel-rally-token.webp','/assets/tavern-tabletop/deck-balance-coin.webp','/assets/tavern-tabletop/deck-balance-wood.webp','/assets/tavern-tabletop/sea-chart-parchment.webp','/assets/tavern-quiz/ink-key.webp','/assets/tavern-quiz/math-plate.webp','/assets/tavern-quiz/number-key.webp','/css/tavern-props-20-22-v1.css','/images/tavern-props-08-10/shuffle-barrel.webp','/images/tavern-props-08-10/skull-target.webp','/images/tavern-props-08-10/skull-token.webp','/images/tavern-props-08-10/tug-marker.webp','/images/tavern-props-08-10/tug-rope.webp','/assets/tavern-props-20-22/bell-token.webp','/assets/tavern-props-20-22/cipher-key-strip.webp','/assets/tavern-props-20-22/sail-canvas.webp','/assets/tavern-physical-567/cannon-gauge.webp','/assets/tavern-physical-567/fifteen-board.webp','/assets/tavern-physical-567/fifteen-token.webp','/assets/tavern-physical-567/shell-counter.webp','/assets/tavern-memory/memory-gem-amber.webp','/assets/tavern-memory/memory-gem-aqua.webp','/assets/tavern-memory/memory-gem-emerald.webp','/assets/tavern-memory/memory-gem-ruby.webp','/img/tavern-curling/coin-curling-field.webp','/img/tavern-curling/coin-curling-coin.webp','/assets/tavern-reflex/reaction-lantern.webp','/assets/tavern-reflex/reaction-pad.webp','/assets/tavern-ten-count/dial.webp','/assets/tavern-ten-count/wood.webp','/assets/tavern-ten-count/button-red.webp','/assets/tavern-ten-count/button-green.webp','/assets/tavern-ten-count/seat-red.webp','/assets/tavern-ten-count/seat-green.webp','/js/tavern-expansion-v1.js','/css/tavern-expansion-v1.css'].includes(u.pathname) || u.hostname!=='127.0.0.1') remote.push(r.url());});
  page.on('pageerror',e=>bad.push(e.message));
  await page.addInitScript(()=>{Math.random=()=>0; for(const key of ['localStorage','sessionStorage']) Object.defineProperty(window,key,{get(){throw Error('persistent storage not permitted');}});});
  await page.goto('/tavern-minigames.html');
@@ -16,7 +16,7 @@ for(const w of [320,390,430])test('table layout is tap-safe at '+w,async({page})
  await expect(page.locator('[data-game]')).toHaveCount(22);
  await page.locator('#category').selectOption('reflex');
  expect(await page.locator('[data-game]').evaluateAll(g=>g.map(x=>x.dataset.game).sort())).toEqual(
-  ['barrel-rally','color-word','flags','number-touch','quick-math','reflex','tug-of-war','wave-dodge']);
+  ['barrel-rally','color-word','number-touch','quick-math','reflex','tug-of-war','wave-dodge']);
  await page.locator('#category').selectOption('all');
  if(shots&&w===390)await page.screenshot({path:path.join(shots,'chooser-390.png')});
  await page.locator('[data-game=count]').click();
@@ -55,7 +55,7 @@ test('counter landscape, keyboard false start, cancellation, simultaneous cue an
  expect(await one.evaluate(n=>getComputedStyle(n).transform)).toBe('none');
  expect(await page.evaluate(()=>[document.documentElement.scrollWidth,document.documentElement.scrollHeight])).toEqual([640,320]);
  await page.clock.install({time: 2000000});await page.clock.pauseAt(2001000);
- await page.locator('#start').dispatchEvent('click');await page.keyboard.press('j');
+ await page.locator('#start').dispatchEvent('click');await page.keyboard.press('j');await page.clock.runFor(18);
  await expect(one).toHaveAttribute('data-result','win');await expect(two).toContainText('フライング');
  await page.locator('#start').dispatchEvent('click');await page.locator('#exit').dispatchEvent('click');await page.clock.runFor(2000);
  await expect(arena).toBeHidden();await expect(page.locator('[data-game=reflex]')).toBeFocused();
@@ -86,13 +86,6 @@ for(const orientation of ['table','counter'])test('two simultaneous touch contac
  }
  await clean();
 });
-test('flags read both labels, wrong hit never scores, alternating new targets, first to three',async({page})=>{
- const {clean}=await open(page,640,320);await page.locator('input[value=counter]').check();await page.locator('[data-game=flags]').click();await page.locator('#start').click();
- const a=page.locator('.extra.a'), b=page.locator('.extra.b');
- await b.getByRole('button',{name:'▲ 青'}).click();await expect(b).toContainText('0 点　違う旗');
- for(const f of ['● 赤','▲ 青','◆ 金']){await expect(a.locator('.flag-target')).toContainText(f);await a.getByRole('button',{name:f}).click();}
- await expect(a).toHaveAttribute('data-result','win');await expect(b).toHaveAttribute('data-result','lose');await clean();
-});
 test('memory presents same cue, scores independently and can tie on replay',async({page})=>{
  const {clean}=await open(page,390,844);await page.locator('[data-game=memory]').click();await page.locator('#start').click();
  const a=page.locator('.extra.a'), b=page.locator('.extra.b');
@@ -111,20 +104,23 @@ for(const layout of ['table','counter'])test('curling: flick and keyboard throws
  await expect(a).toHaveAttribute('data-turn','mine');await expect(b).toHaveAttribute('data-turn','theirs');
  // Dragging the coin backwards is not a throw, even in the turned-around 1P half (its screen-left is the lane's right).
  const coin=await a.locator('.curl-coin').boundingBox();
- const backwards=vertical?30:-30;
  await page.mouse.move(coin.x+coin.width/2,coin.y+coin.height/2);await page.mouse.down();
- await page.mouse.move(coin.x+coin.width/2+backwards,coin.y+coin.height/2,{steps:4});await page.mouse.up();
- await expect(a).toContainText('投数 0/3');await expect(a).toContainText('もっと勢いよく');
- // Keyboard power: 1P sets a strong enough throw once and keeps it; 2P throws with no power.
+ await page.mouse.move(coin.x+coin.width/2+(vertical?0:-30),coin.y+coin.height/2+(vertical?-14:0),{steps:4});await page.mouse.up();
+ await expect(a).toContainText('投球 0/3');await expect(a).toContainText('斜めにもはじけます');
+ // 1P launches toward center; 2P uses minimum positive power.
  for(let i=0;i<3;i++){
   const mine=a.locator('.curl-coin');await mine.focus();
   if(i===0)for(let k=0;k<16;k++)await mine.press('ArrowRight');
+  if(i===1)for(let k=0;k<3;k++)await mine.press('ArrowUp');
+  if(i===2)for(let k=0;k<6;k++)await mine.press('ArrowDown');
   await mine.press('Enter');
-  const next=b.locator('.curl-coin');await expect(next).toBeVisible();await next.focus();await next.press('Enter');
-  if(i<2)await expect(a.locator('.curl-coin')).toBeVisible();
+  const next=b.locator('.curl-coin');await expect(next).toBeEnabled();await next.focus();
+  if(i===0)await next.press('ArrowRight');
+  await next.press('Enter');
+  if(i<2)await expect(a.locator('.curl-coin')).toBeEnabled();
  }
- await expect(a).toHaveAttribute('data-result','win');await expect(a).toContainText('投数 3/3');
- await expect(b).toContainText('投数 3/3');await expect(a.locator('.curl-landing.is-mine')).toHaveCount(3);await clean();
+ await expect(a).toHaveAttribute('data-result','win');await expect(a).toContainText(/3\/3/);
+ await expect(b).toContainText(/3\/3/);await expect(a.locator('.curl-landing.is-mine').first()).toBeVisible();await clean();
  if(shots)await page.screenshot({path:path.join(shots,'curling-'+layout+'.png')});
 });
 test('chooser fits 22 game links with mobile scrolling',async({page})=>{
@@ -153,8 +149,8 @@ test('win count follows rematches, memory shows the answer, sound can be switche
  await clean();
 });
 
-test('six retired games have no launcher, registry entry, or hash launch', async({page})=>{
- const retired=['captain-topic','captain-charades','curse','cargo-stow','claim-route','barrel-swords'];
+test('eight retired games have no launcher, registry entry, or hash launch', async({page})=>{
+ const retired=['captain-topic','captain-charades','curse','cargo-stow','claim-route','barrel-swords','flags','harbor-dock'];
  for(const layout of ['table','counter']){
   for(const id of retired){
    await page.goto('/tavern-minigames.html#'+id);

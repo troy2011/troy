@@ -1,0 +1,189 @@
+
+/* #05-07: live controls set into three different tabletop instruments. */
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) {
+  --troy-grain:url('../assets/tavern-ten-count/wood.webp');
+  --troy-plate:url('../assets/tavern-physical-567/fifteen-token.webp');
+  background:radial-gradient(ellipse at center,#311a0b11,#100803b0),var(--troy-grain) center/cover,#352012;
+  gap:4px;
+}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .xgame-seat:not([hidden]) {
+  --face:#182016; --trim:#bf975c; --seat-surface:#734b2722;
+  isolation:isolate;gap:clamp(3px,1.4vmin,7px);padding:7px;
+  background:radial-gradient(ellipse at center,var(--seat-surface),#110907da),var(--troy-grain) center/cover;
+  border:1px solid var(--trim);outline:1px solid #c88f5055;outline-offset:-5px;
+  box-shadow:inset 0 0 20px #0704029d;
+}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .xgame-seat.b {
+  --seat-surface:#1d5c3b38;
+}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .xgame-seat::before {display:none}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .xgame-seat .xgame-title {
+  color:#fff0cb;font-weight:900;letter-spacing:.055em;
+}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .xgame-seat .xgame-text {
+  color:#ffebbc;font-weight:750;font-variant-numeric:tabular-nums;
+}
+#arena:is([data-active-game="take-fifteen"],[data-active-game="cannon-power"],[data-active-game="shell-count"]) .deck {
+  border-color:#d8b77b;background:linear-gradient(#342419,#170d06);
+}
+#arena[data-active-game="take-fifteen"] [data-tavern-board="fifteen"] {
+  --bside:clamp(155px,min(63vmin,31svh),265px);
+  flex:0 0 auto; width:var(--bside);height:var(--bside);
+  padding:calc(var(--bside)*.087);gap:calc(var(--bside)*.045);
+  background:url('../assets/tavern-physical-567/fifteen-board.webp') center/100% 100% no-repeat;
+  filter:drop-shadow(0 3px 9px #000a);
+}
+#arena[data-active-game="take-fifteen"] [data-tavern-board] .xgame-action {
+  min-height:44px;min-width:44px;border:0;box-shadow:none;aspect-ratio:unset;padding:0;
+  background:var(--troy-plate) center/100% 100% no-repeat;
+  color:#30150b;font-weight:900;font-size:clamp(19px,7.3vmin,30px);
+}
+#arena[data-active-game="take-fifteen"] [data-tavern-board] .xgame-action:disabled {opacity:.72}
+#arena[data-active-game="take-fifteen"] [data-tavern-board] .xgame-action[data-mark] {
+  outline:2px solid #f6ca7f;outline-offset:-7px;
+  filter:sepia(.5) saturate(1.7);opacity:1;
+}
+#arena[data-active-game="take-fifteen"] [data-tavern-board] .xgame-action[data-mark="theirs"] {
+  outline-color:#b0e1ec;filter:sepia(.48) saturate(1.7) hue-rotate(119deg);
+}
+#arena[data-active-game="take-fifteen"] [data-turn="theirs"] {filter:none}
+#arena[data-active-game="take-fifteen"] .xb-ledger {width:min(100%,19rem)}
+#arena[data-active-game="take-fifteen"][data-layout="counter"] [data-tavern-board] {--bside:clamp(168px,53vmin,210px)}
+@media (orientation:portrait) {
+  #arena[data-active-game="take-fifteen"][data-layout="counter"] [data-tavern-board] {--bside:clamp(155px,53vmin,210px)}
+}
+#arena[data-active-game="cannon-power"] .xgame-gauge {
+  position:relative;flex:0 0 auto;width:min(90%,255px);height:auto;aspect-ratio:2 / 1;
+  border:0;border-radius:0;background:url('../assets/tavern-physical-567/cannon-gauge.webp') center/100% 100% no-repeat;
+  box-shadow:none;overflow:visible;isolation:isolate;
+}
+#arena[data-active-game="cannon-power"] .xgame-gauge-band {
+  display:block;position:absolute;left:50%;bottom:9%;width:11%;height:80%;top:auto;
+  transform-origin:50% 100%;
+  transform:translateX(-50%) rotate(var(--cannon-angle,0deg));
+  clip-path:polygon(0 0,100% 0,50% 100%);
+  border:0;border-radius:0;box-shadow:none;
+  background:linear-gradient(#80d9a4 0 37%,transparent 78%);
+  background:linear-gradient(#f7d393 0 45%,#e7b34b68 74%,transparent 90%);
+}
+#arena[data-active-game="cannon-power"] .xgame-gauge-needle {
+  display:block;position:absolute;left:50%;bottom:9%;top:auto;width:7px;height:69%;
+  transform-origin:50% 100%;transform:translateX(-50%) rotate(var(--cannon-angle,-90deg));
+  clip-path:polygon(50% 0,100% 100%,0 100%);
+  background:#ffddb0;box-shadow:none;border:0;border-radius:0;
+}
+#arena[data-active-game="cannon-power"] .xgame-gauge-needle.is-stopped {background:#ffac78}
+#arena[data-active-game="cannon-power"] .xgame-gauge-needle.xgame-a-bullseye {background:#caffa3}
+#arena[data-active-game="cannon-power"] .xgame-gauge::after {
+  content:"";position:absolute;bottom:5%;left:50%;width:13px;aspect-ratio:1;transform:translateX(-50%);
+  border-radius:50%;background:radial-gradient(circle at 39% 31%,#ffe6a8,#aa7435 63%,#402110 68%);
+}
+#arena[data-active-game="cannon-power"] .xgame-pad {
+  flex:0 0 auto;min-height:47px;width:min(69%,190px);
+  color:#2e190c;font-weight:900;background:var(--troy-plate) center/100% 100% no-repeat;border:0;box-shadow:none;
+  color:#fff0cd;text-shadow:0 2px 3px #000;
+  background:url('../assets/tavern-reflex/reaction-pad.webp') center/100% 100% no-repeat;
+  width:min(72%,218px);min-height:52px;
+}
+#arena[data-active-game="shell-count"] .xgame-seat {
+  --shell:url('../assets/tavern-physical-567/shell-counter.webp');
+  --tray:radial-gradient(ellipse at 50% 42%,#503726,#20110c 79%);
+}
+#arena[data-active-game="shell-count"] .xgame-field {
+  flex:0 0 auto; width:min(91%,350px);height:clamp(111px,31vmin,167px);
+  background:var(--tray);border-radius:15px;
+  border:3px solid #966639;outline:1px solid #f1c981a1;outline-offset:-5px;
+  box-shadow:inset 0 0 0 6px #250f1c50,inset 0 0 19px #050303cc,0 5px 10px #07040399;
+}
+#arena[data-active-game="shell-count"] .xgame-shell {
+  display:block; width:clamp(17px,8.6vmin,40px);aspect-ratio:1;
+  height:auto;color:transparent;font-size:0;line-height:0;
+  background:var(--shell) center/contain no-repeat;
+  filter:drop-shadow(0 2px 3px #0008);
+}
+#arena[data-active-game="shell-count"] .xgame-grid {
+  flex:0 0 auto;width:min(92%,360px);border-radius:15px;padding:6px;
+  border:1px solid #ac8356;box-shadow:0 3px 9px #080402;
+  background:linear-gradient(#2e261f,#1a110c);
+}
+#arena[data-active-game="shell-count"] .xgame-grid .xgame-action {
+  color:#30150b;font-weight:900;font-size:clamp(19px,6vmin,24px);min-height:44px;
+  background:var(--troy-plate) center/100% 100% no-repeat;border:0;box-shadow:none;
+}
+#arena[data-active-game="shell-count"] .xgame-grid .xgame-action:disabled {opacity:.65}
+
+/* Keep the numbered brass grid truly square; its background wells match the nine real cells. */
+#arena[data-active-game="take-fifteen"] .xgame-seat:not([hidden]) .xgame-board {
+  box-sizing:border-box;max-width:none;grid-template-rows:repeat(3,minmax(0,1fr));
+}
+#arena[data-active-game="take-fifteen"] .xgame-seat:not([hidden]) {
+  gap:3px;
+}
+#arena[data-active-game="take-fifteen"] .xgame-board .xgame-action {align-self:stretch}
+#arena[data-active-game="take-fifteen"] .xb-ledger-item {padding:1px 4px}
+#arena[data-active-game="take-fifteen"] .xb-ledger-value {min-height:auto;padding:2px .42em;font-size:clamp(14px,5.45vmin,22px)}
+#arena[data-active-game="cannon-power"] .xgame-seat.a .xgame-pad {
+  background:url('../assets/tavern-ten-count/button-red.webp') center/100% 100% no-repeat;
+}
+#arena[data-active-game="shell-count"] {
+  --shell:url('../assets/tavern-physical-567/shell-counter.webp');
+  position:relative;isolation:isolate;
+}
+#arena[data-active-game="shell-count"][data-layout="table"] {
+  grid-template-rows:minmax(0, 1fr) minmax(0, .86fr) minmax(0, 1fr);
+  grid-template-columns:minmax(0,1fr);
+  padding:env(safe-area-inset-top) 7px max(53px,calc(51px + env(safe-area-inset-bottom)));
+}
+#arena[data-active-game="shell-count"][data-layout="table"] .deck {
+  position:absolute;inset:auto 7px 5px; z-index:2;
+}
+#arena[data-active-game="shell-count"][data-layout="table"] .deck button {min-height:44px}
+#arena[data-active-game="shell-count"][data-layout="table"] .xgame-seat {grid-column:1}
+#arena[data-active-game="shell-count"][data-layout="table"] .xgame-seat.b {grid-row:3}
+#arena[data-active-game="shell-count"] .xgame-seat:not([hidden]) {
+  position:static;
+  --seat-surface:#59190c80;
+  background:radial-gradient(ellipse at center,var(--seat-surface),#0e0706e3),var(--troy-grain) center/cover;
+}
+#arena[data-active-game="shell-count"] .xgame-seat.b:not([hidden]) {--seat-surface:#093d247d}
+#arena[data-active-game="shell-count"] .xgame-seat.a .xgame-field {display:none}
+#arena[data-active-game="shell-count"] .xgame-seat.b .xgame-field,
+#arena[data-active-game="shell-count"]:has(.xgame-grid)::before {
+  --case-width: min(74vmin,285px);
+  position:absolute;z-index:1;pointer-events:none;left:50%;top:calc(50% - 24px);
+  width:var(--case-width);height:auto;aspect-ratio:1.85;
+  transform:translate(-50%,-50%);border-radius:45% / 57%;
+  border:3px solid #b78245;outline:1px solid #efd09b89;outline-offset:-6px;
+  box-shadow:inset 0 0 0 6px #21140a50,inset 0 0 19px #050303cc,0 5px 14px #090502a8;
+}
+#arena[data-active-game="shell-count"]:has(.xgame-grid)::before {
+  content:"";
+  background:var(--shell) center / 22% auto no-repeat,radial-gradient(ellipse at center,#382822,#151112 75%);
+  background:radial-gradient(ellipse at center,#3a2922,#171210 75%);
+}
+#arena[data-active-game="shell-count"] .xgame-seat .xgame-grid {background:none;box-shadow:none;border:0}
+#arena[data-active-game="shell-count"] .xgame-seat .xgame-text {font-size:clamp(14px,4.4vmin,19px)}
+#arena[data-active-game="shell-count"][data-layout="counter"] .xgame-seat.a {margin-inline-end:21px}
+#arena[data-active-game="shell-count"][data-layout="counter"] .xgame-seat.b {margin-inline-start:21px}
+#arena[data-active-game="shell-count"][data-layout="counter"] .xgame-seat.b .xgame-field,
+#arena[data-active-game="shell-count"][data-layout="counter"]:has(.xgame-grid)::before {--case-width:min(43vmin,175px);top:57%}
+#arena[data-active-game="shell-count"][data-layout="counter"] .xgame-shell {width:clamp(14px,5.1vmin,22px)}
+@media (orientation:portrait) {
+  #arena[data-active-game="shell-count"][data-layout="counter"] {position:fixed}
+}
+#arena[data-active-game="shell-count"] .xgame-seat.b .xgame-field {
+  border-radius:12%;
+}
+#arena[data-active-game="shell-count"]:has(.xgame-grid)::after {
+  content:"";
+  position:absolute;left:50%;top:calc(50% - 24px);z-index:2;pointer-events:none;
+  transform:translate(-50%,-50%);width:clamp(28px,11vmin,44px);aspect-ratio:1;
+  background:var(--shell) center/contain no-repeat;
+  filter:grayscale(.8) sepia(1) brightness(.57);
+}
+#arena[data-active-game="shell-count"][data-layout="counter"]:has(.xgame-grid)::after {top:57%}
+#arena[data-active-game="shell-count"] .xgame-seat .xgame-grid .xgame-action:disabled {
+  background:var(--troy-plate) center/100% 100% no-repeat !important;
+  color:#342119;border:0;outline:0;box-shadow:none;filter:none;opacity:.70;
+  transition:none;
+}

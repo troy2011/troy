@@ -1,17 +1,50 @@
 /* Compact boards inherit the shared game palette and seat rotation. */
-.sea-cipher,.sea-harbor{display:grid;justify-items:center;min-width:0;gap:clamp(2px, .55svh, 7px);width:min(100%,330px);margin-inline:auto}
+.sea-cipher{display:grid;justify-items:center;min-width:0;gap:clamp(2px, .55svh, 7px);width:min(100%,330px);margin-inline:auto}
 .sea-cipher-code{margin:0;line-height:1.15;color:#ffe3a8;font:700 clamp(20px,4.5vw,30px)/1.15 ui-monospace,monospace;letter-spacing:.04em}
 .sea-cipher-key{display:grid;width:100%;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;font:700 clamp(11px,3.4vw,15px)/1.25 ui-monospace,monospace}
 .sea-cipher-key span{display:block;border:1px solid #cda96467;background:#20130c;padding:3px 0;border-radius:4px;text-align:center;white-space:nowrap;color:#ffedd3}
-.sea-cipher-read{min-height:1.3em;line-height:1.25;font-size:clamp(13px,3.5vw,16px);font-weight:750;color:#ffe1a1}
 .sea-cipher-read[data-error=true]{color:#ffb1a5}
 .sea-cipher-keys{display:grid;width:100%;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
-.sea-cipher-keys button,.sea-harbor-buttons button{width:100%;min-width:0;padding:2px 1px;white-space:nowrap;min-height:34px;min-height:clamp(29px,5.2svh,44px);margin:0}
-.sea-cipher-keys button{font-size:clamp(15px,4.4vw,21px)}
+.sea-cipher-keys button{width:100%;min-width:0;padding:2px 1px;white-space:nowrap;min-height:34px;min-height:clamp(29px,5.2svh,44px);margin:0;font-size:clamp(15px,4.4vw,21px)}
 .sea-cipher-keys .sea-cipher-erase{font-size:clamp(9px,3vw,13px)}
-.sea-harbor-title,.sea-harbor-info{margin:0;line-height:1.18;text-align:center;color:#ffe7bb}
-.sea-harbor-title{font-weight:800;font-size:clamp(13px,3.9vw,19px);letter-spacing:.1em}
-.sea-harbor-info{font-size:clamp(11px,3.2vw,14px);white-space:nowrap}
-.sea-harbor-map{display:block;height:clamp(57px,14svh,125px);width:100%;border:1px solid #587782;background:#0d2836;border-radius:6px;background-image:repeating-linear-gradient(0deg,transparent 0 14px,#95deff0c 15px 16px)}
-.sea-harbor-buttons{display:grid;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
-.sea-harbor-buttons button[aria-pressed=true]{background:#e6bf73;color:#25160a;text-shadow:none;box-shadow:inset 0 0 0 1px #fff3bd}
+
+/* Distinct readouts for the three Batch-B games. No shared controller/game rules. */
+.xgame-seat .xb-ledger{width:min(100%,20rem);display:flex;gap:3px;justify-content:center}
+.xb-ledger-item{min-width:0;flex:1;display:grid;place-items:center;gap:1px;padding:3px 4px;border:1px solid #795e41;background:#241910;border-radius:4px;color:#f8e5c6}
+.xb-ledger-label{font-size:clamp(9px,2.7vw,12px);font-weight:650;line-height:1.15;text-align:center}
+.xb-ledger-value{font-variant-numeric:tabular-nums;font-size:clamp(12px,3.6vw,17px);line-height:1.1;text-align:center}
+.xb-ledger-item[data-tone=secured]{border-color:#c7ab6e;background:#2d3929;color:#fff0ba}
+.xb-ledger-item[data-tone=opponent]{border-color:#6e8791;background:#243039;color:#e8eef0}
+.xb-ledger-item[data-tone=risk]{border-color:#ba7864;background:#40271f;color:#ffe5b8}
+.xgame-seat :is([data-tavern-board=fifteen],[data-tavern-board=dig]){gap:clamp(2px,.9vmin,5px)}
+.xgame-seat [data-tavern-board=fifteen] button:not([data-mark]){color:#fff1cd;background:linear-gradient(#594124,#362812);border-color:#a58355}
+.xgame-seat [data-tavern-board=dig] button[data-tone=sand]{color:#251909;background:#c5a572;border-color:#e2c388}
+.xgame-seat [data-tavern-board=dig] button[data-tone=skull]{color:#fff1d7;background:#623429;border-color:#d59976}
+.xgame-seat [data-tavern-board=dig] button:not([data-tone]){color:#edd3a0;background:repeating-linear-gradient(33deg,#4d3423 0 8px,#483020 9px 14px);border-color:#997348}
+.xgame-seat .xb-dice-face{flex-basis:100%;min-height:1.1em}
+
+/* Glyph-to-digit mapping is public; only fill markers, never digits, are shown as input. */
+.xgame-seat .sea-cipher{gap:clamp(2px,.55svh,6px)}
+.sea-cipher-key .sea-cipher-pair{display:grid;grid-template-columns:1fr 1fr;align-items:center;min-height:22px;border-color:#a28452;background:#332318;color:#ffefcc}
+.sea-cipher-symbol{font-style:normal;color:#ffdda0}
+.sea-cipher-value{border-inline-start:1px solid #a284526e;color:#fff8e8}
+.sea-cipher-entry{display:flex;justify-content:center;align-items:center;gap:8px;width:100%}
+.sea-cipher-read{min-height:1.3em;line-height:1.25;font-size:clamp(13px,3.5vw,16px);font-weight:750;color:#ffe1a1;display:grid;grid-template-columns:repeat(4,minmax(16px,1fr));gap:3px}
+.sea-cipher-read span{min-width:19px;line-height:1.25;text-align:center;border:1px solid #8d7153;border-radius:2px;color:#e8b876;background:#271a12}
+.sea-cipher-read .sea-cipher-next{border-color:#f2cc86;color:#fff0bc}
+.sea-cipher-status{min-width:5em;font-size:clamp(10px,3vw,14px);font-weight:700;color:#f3d9ac}
+.sea-cipher-entry[data-error=true] .sea-cipher-status{color:#ffb1a5}
+
+/* Keep the full grid and readout in view without shrinking the tap hit zones. */
+.arena[data-layout="table"] .xgame-seat :is([data-tavern-board=fifteen],[data-tavern-board=dig]) {
+  max-width:13rem;
+}
+@media (orientation:portrait) and (max-width:360px) {
+  .arena[data-layout="counter"][data-phase="play"]:is([data-active-game="take-fifteen"],[data-active-game="treasure-dig"]) .xgame-status {
+    display:none; /* The upright, shared header already shows this status. */
+  }
+}
+
+@media (orientation:portrait) and (max-width:360px) {
+  .arena[data-layout="counter"][data-active-game="treasure-dig"] .xgame-seat { padding-block:4px; gap:3px; }
+}

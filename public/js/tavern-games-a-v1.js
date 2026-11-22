@@ -24,8 +24,8 @@
   function pad(ctx, seat, label, onPress, className = 'xgame-pad') {
     const button = make('button', label, 'xgame-action ' + className);
     button.type = 'button';
-    button.addEventListener('pointerdown', event => { if (event.button === 0 && !button.disabled) onPress(); });
-    button.addEventListener('click', event => { if (event.detail === 0 && !button.disabled) onPress(); });
+    button.addEventListener('pointerdown', event => { if (event.button === 0 && !button.disabled && button.isConnected) onPress(); });
+    button.addEventListener('click', event => { if (event.detail === 0 && !button.disabled && button.isConnected) onPress(); });
     ctx.zones[seat].append(button);
     return button;
   }
@@ -45,31 +45,50 @@
   add('tug-of-war', '綱引き', 'reflex', '⚓', '連打で綱を引く。旗を自分の側まで引き込んだら勝ち。', ctx => {
     let rope = 0; // Negative: toward 1P. Positive: toward 2P.
     let open = false;
-    const markers = [];
+    const markers = [], leads = [], clocks = [];
+    let endsAt = 0;
     countdown(ctx, () => {
       open = true;
+      endsAt = Date.now() + TUG_TIME_MS;
       ctx.clear();
       ctx.say('引け！');
       both(seat => {
-        const track = make('div', null, 'xgame-rope');
+        const board = make('div', null, 'xgame-a-tug-board');
+        leads[seat] = make('span', '', 'xgame-a-lead');
+        clocks[seat] = make('span', '', 'xgame-a-clock');
+        board.append(leads[seat], clocks[seat]);
+        ctx.zones[seat].append(board);
+        const track = make('div', null, 'xgame-rope tavern-tug-deck');
+        track.append(make('span', null, 'tavern-tug-hemp'), make('span', null, 'tavern-tug-mid'));
         track.append(make('span', 'あなた', 'xgame-rope-end is-mine'), make('span', '相手', 'xgame-rope-end is-theirs'));
-        markers[seat] = make('span', '⚑', 'xgame-rope-flag');
+        markers[seat] = make('span', null, 'xgame-rope-flag tavern-tug-pennant');
+        markers[seat].setAttribute('role', 'img');
         track.append(markers[seat]);
         ctx.zones[seat].append(track);
-        pad(ctx, seat, '引く！', () => pull(seat));
+        pad(ctx, seat, '引く！', () => pull(seat), 'xgame-pad tavern-tug-pull');
       });
       draw();
-      ctx.later(() => settle('時間切れ'), TUG_TIME_MS);
+      tick();
     });
+    function tick() {
+      if (!open) return;
+      const left = endsAt - Date.now();
+      if (left <= 0) { settle('時間切れ'); return; }
+      both(seat => { clocks[seat].textContent = '残り ' + Math.ceil(left / 1000) + ' 秒'; });
+      ctx.later(tick, left % 1000 || 1000);
+    }
     // Each half draws the rope with its own player on the left.
     function draw() {
       both(seat => {
         const towardMe = seat === 0 ? -rope : rope;
-        markers[seat].style.left = 50 - (towardMe / TUG_LIMIT) * 45 + '%';
+        markers[seat].style.top = 50 + (towardMe / TUG_LIMIT) * 34 + '%';
+        markers[seat].setAttribute('aria-label', towardMe === 0 ? '旗は中央' : '旗は' + (towardMe > 0 ? '自分側に ' : '相手側に ') + Math.abs(towardMe));
+        leads[seat].textContent = !towardMe ? '互角' : (towardMe > 0 ? 'あと ' + (TUG_LIMIT - towardMe) + ' 回で引き切る' : '相手が ' + (-towardMe) + ' 回リード');
       });
     }
     function pull(seat) {
       if (!open) return;
+      if (Date.now() >= endsAt) { settle('時間切れ'); return; }
       rope += seat === 0 ? -1 : 1;
       draw();
       if (Math.abs(rope) >= TUG_LIMIT) settle('引き切った！');
@@ -92,26 +111,41 @@
     let live = true;
     const fuseMs = BOMB_MIN_MS + ctx.random(BOMB_SPREAD_MS);
     const lit = Date.now();
+    function expiry() {
+      if (live && Date.now() - lit >= fuseMs) {
+        live = false;
+        ctx.finish(1 - holder, '💥 ドカン！ ' + (holder + 1) + 'P の手の中で爆発');
+      }
+      return !live;
+    }
     function draw() {
       ctx.clear();
       ctx.turn(holder);
       ctx.say((holder + 1) + 'P が爆弾を持っている');
       both(seat => {
-        if (seat !== holder) { ctx.text(seat, '相手が爆弾を持っている…', 'xgame-text'); ctx.text(seat, '💣', 'xgame-big is-calm'); return; }
-        ctx.text(seat, '的を押して渡せ！（' + hits + ' / 2）', 'xgame-text');
-        const field = make('div', null, 'xgame-field');
-        const spot = make('button', '💣', 'xgame-action xgame-target');
+        const sigil = make('span', null, 'tavern-skull-holder');
+        sigil.setAttribute('aria-hidden', 'true');
+        if (seat !== holder) { ctx.text(seat, '相手の手番', 'xgame-text tavern-skull-status'); ctx.zones[seat].append(sigil); return; }
+        const status = ctx.text(seat, hits ? 'あと1つで渡す！' : '光った的を2つ押せ！', 'xgame-text tavern-skull-status');
+        status.prepend(sigil);
+        const stages = make('div', null, 'xgame-a-bomb-stages');
+        stages.setAttribute('aria-label', hits + ' / 2 成功');
+        for (let i = 0; i < 2; i++) stages.append(make('span', i < hits ? '✓' : String(i + 1), i < hits ? 'is-hit' : ''));
+        ctx.zones[seat].append(stages);
+        const field = make('div', null, 'xgame-field xgame-a-bomb-field tavern-skull-board');
+        const inset = make('div', null, 'tavern-skull-target-area');
+        const spot = make('button', null, 'xgame-action xgame-target tavern-skull-target');
         spot.type = 'button';
         spot.setAttribute('aria-label', '的');
-        spot.style.left = 12 + ctx.random(76) + '%';
-        spot.style.top = 15 + ctx.random(70) + '%';
-        spot.addEventListener('click', () => hit(seat));
-        field.append(spot);
+        spot.style.setProperty('--target-x', 12 + ctx.random(76) + '%');
+        spot.style.setProperty('--target-y', 15 + ctx.random(70) + '%');
+        spot.addEventListener('click', () => { if (spot.isConnected) hit(seat); });
+        inset.append(spot);field.append(inset);
         ctx.zones[seat].append(field);
       });
     }
     function hit(seat) {
-      if (!live || seat !== holder) return;
+      if (expiry() || seat !== holder) return;
       ctx.fx.tap();
       if (++hits < 2) { draw(); return; }
       hits = 0;
@@ -120,9 +154,8 @@
     }
     // The fuse is hidden, but the ticking speeds up as it burns down.
     function tick() {
-      if (!live) return;
+      if (expiry()) return;
       const left = fuseMs - (Date.now() - lit);
-      if (left <= 0) { live = false; ctx.finish(1 - holder, '💥 ドカン！ ' + (holder + 1) + 'P の手の中で爆発'); return; }
       ctx.fx.tap();
       ctx.later(tick, Math.max(160, Math.min(BOMB_TICK_MS, left / 6)));
     }
@@ -149,17 +182,23 @@
       ctx.say(note || '第 ' + n + ' 問　' + points[0] + ' 対 ' + points[1]);
       both(seat => {
         ctx.text(seat, 'あなた ' + points[seat] + ' 点　相手 ' + points[1 - seat] + ' 点', 'xgame-text');
-        if (!question) return;
-        const prompt = make('p', question.prompt, 'xgame-big');
+        if (!question) {
+          if (note) ctx.text(seat, note, 'xgame-text is-warn');
+          return;
+        }
+        const task = make('div', null, 'xgame-a-quiz-prompt');
+        task.append(make('span', question.colour ? '文字の「色」を選ぶ' : '計算の答えを選ぶ', 'xgame-a-instruction'));
+        const prompt = make('p', question.prompt + (question.colour ? '' : ' ＝ ?'), 'xgame-big');
         if (question.colour) prompt.style.color = question.colour;
-        ctx.zones[seat].append(prompt);
+        task.append(prompt);
+        ctx.zones[seat].append(task);
         const grid = make('div', null, 'xgame-grid is-two');
         question.choices.forEach(choice => {
           const button = make('button', choice.label, 'xgame-action');
           button.type = 'button';
           button.disabled = locked[seat];
           if (choice.swatch) button.style.setProperty('--swatch', choice.swatch);
-          button.addEventListener('click', () => answer(seat, choice.value));
+          button.addEventListener('click', () => { if (button.isConnected) answer(seat, choice.value); });
           grid.append(button);
         });
         ctx.zones[seat].append(grid);
@@ -172,16 +211,24 @@
         locked[seat] = true;
         ctx.fx.wrong();
         if (locked.every(Boolean)) { question = null; ctx.later(next, 700); draw('ふたりともお手つき'); return; }
-        draw();
+        // Leave the opponent's buttons in place: replacing both halves can swallow
+        // a nearly-simultaneous tap during this click.
+        const zone = ctx.zones[seat];
+        zone.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        ctx.text(seat, 'お手つき！ 次の問題まで待つ', 'xgame-text is-warn');
         return;
       }
+      const answerLabel = question.choices.find(c => c.value === value)?.label;
       points[seat]++;
       ctx.fx.correct();
       question = null;
       if (points[seat] >= toWin) { ctx.finish(seat, points[0] + ' 対 ' + points[1]); return; }
       ctx.clear();
       ctx.say((seat + 1) + 'P 正解！');
-      both(s => ctx.text(s, s === seat ? '正解！' : '相手が正解', 'xgame-big'));
+      both(s => {
+        ctx.text(s, s === seat ? '正解！' : '相手が正解', 'xgame-big');
+        ctx.text(s, '答え：' + answerLabel + ' ／ あなた ' + points[s] + ' 点', 'xgame-text');
+      });
       ctx.later(next, 700);
     }
     next();
@@ -208,10 +255,10 @@
   });
 
   const INKS = [
-    { name: '赤', css: '#ff6b5b' },
-    { name: '青', css: '#6aa8ff' },
-    { name: '黄', css: '#ffd84a' },
-    { name: '緑', css: '#62d38a' },
+    { name: '赤', css: '#a81d27' },
+    { name: '青', css: '#154599' },
+    { name: '黄', css: '#8a5900' },
+    { name: '緑', css: '#17622f' },
   ];
   add('color-word', '色の早押し', 'reflex', '色', '文字ではなく「文字の色」を押す。先に当てた方が1点。3点先取。', ctx => {
     questionRace(ctx, {
@@ -234,37 +281,54 @@
   const TOUCH_PENALTY_MS = 900;
   add('number-touch', '数字タッチ', 'reflex', '①', 'ばらばらの1〜9を順番にタッチ。先に9まで押した方が勝ち。', ctx => {
     const layout = shuffled(ctx, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    const next = [1, 1];
-    const frozen = [false, false];
-    countdown(ctx, () => { ctx.say('1から順に！'); draw(); });
-    function draw() {
+    const next = [1, 1], frozen = [false, false], buttons = [[], []], readouts = [];
+    let live = false;
+    countdown(ctx, () => {
+      live = true;
+      ctx.say('1から順に！');
       ctx.clear();
       both(seat => {
-        ctx.text(seat, frozen[seat] ? 'お手つき！ 少し待って' : '次：' + next[seat] + '　（相手は ' + Math.min(9, next[1 - seat]) + ' 番）', frozen[seat] ? 'xgame-text is-warn' : 'xgame-text');
+        readouts[seat] = ctx.text(seat, '', 'xgame-text');
         const grid = make('div', null, 'xgame-grid is-three');
         layout.forEach(n => {
           const button = make('button', String(n), 'xgame-action');
           button.type = 'button';
-          button.disabled = n < next[seat] || frozen[seat];
-          button.addEventListener('pointerdown', event => { if (event.button === 0) touch(seat, n); });
-          button.addEventListener('click', event => { if (event.detail === 0) touch(seat, n); });
+          button.addEventListener('pointerdown', event => { if (event.button === 0 && button.isConnected) touch(seat, n); });
+          button.addEventListener('click', event => { if (event.detail === 0 && button.isConnected) touch(seat, n); });
+          buttons[seat][n] = button;
           grid.append(button);
         });
         ctx.zones[seat].append(grid);
       });
+      update();
+    });
+    function update() {
+      both(seat => {
+        readouts[seat].textContent = frozen[seat] ? 'お手つき！ 少し待って' : '次：' + next[seat] + ' ／ ' + (next[seat] - 1) + ' / 9 済み';
+        readouts[seat].classList.toggle('is-warn', frozen[seat]);
+        buttons[seat].forEach((button, n) => {
+          const done = n < next[seat];
+          button.disabled = done || frozen[seat];
+          button.classList.toggle('xgame-a-done', done);
+        });
+      });
     }
     function touch(seat, n) {
-      if (frozen[seat] || n < next[seat]) return;
+      if (!live || frozen[seat] || n < next[seat]) return;
       if (n !== next[seat]) {
         frozen[seat] = true;
         ctx.fx.wrong();
-        draw();
-        ctx.later(() => { frozen[seat] = false; draw(); }, TOUCH_PENALTY_MS);
+        update();
+        ctx.later(() => { frozen[seat] = false; update(); }, TOUCH_PENALTY_MS);
         return;
       }
       ctx.fx.tap();
-      if (++next[seat] > 9) { ctx.finish(seat, (seat + 1) + 'P が先に9まで'); return; }
-      draw();
+      if (++next[seat] > 9) {
+        live = false;
+        ctx.finish(seat, (seat + 1) + 'P が先に9まで');
+        return;
+      }
+      update();
     }
   });
 
@@ -278,7 +342,7 @@
     let target = 0;
     let stops = [null, null];
     let started = 0;
-    const needles = [];
+    const needles = [], triggers = [], notes = [];
     function fire() {
       target = 20 + ctx.random(61);
       stops = [null, null];
@@ -287,13 +351,14 @@
       ctx.say('第 ' + (shot + 1) + ' 発　金の帯で止めろ');
       both(seat => {
         ctx.text(seat, '第 ' + (shot + 1) + ' / ' + CANNON_SHOTS + ' 発　誤差の合計 ' + miss[seat], 'xgame-text');
+        notes[seat] = ctx.text(seat, '金の帯をねらえ', 'xgame-a-instruction');
         const gauge = make('div', null, 'xgame-gauge');
         const band = make('span', null, 'xgame-gauge-band');
-        band.style.left = target + '%';
+        band.style.setProperty('--cannon-angle', (target * 1.8 - 90) + 'deg');
         needles[seat] = make('span', null, 'xgame-gauge-needle');
         gauge.append(band, needles[seat]);
         ctx.zones[seat].append(gauge);
-        pad(ctx, seat, '撃つ！', () => stop(seat));
+        triggers[seat] = pad(ctx, seat, '撃つ！', () => stop(seat));
       });
       sweep();
     }
@@ -305,17 +370,25 @@
     function sweep() {
       if (stops.every(v => v != null)) return;
       const now = position();
-      both(seat => { needles[seat].style.left = (stops[seat] ?? now) + '%'; });
+      both(seat => { needles[seat].style.setProperty('--cannon-angle', ((stops[seat] ?? now) * 1.8 - 90) + 'deg'); });
       ctx.later(sweep, CANNON_FRAME_MS);
     }
     function stop(seat) {
       if (stops[seat] != null) return;
       stops[seat] = position();
-      needles[seat].style.left = stops[seat] + '%';
+      needles[seat].style.setProperty('--cannon-angle', (stops[seat] * 1.8 - 90) + 'deg');
       needles[seat].classList.add('is-stopped');
       ctx.fx.tap();
+      triggers[seat].disabled = true;
+      triggers[seat].textContent = '発射済み';
+      notes[seat].textContent = '相手の発射を待っています';
       if (stops.some(v => v == null)) return;
-      stops.forEach((v, s) => { miss[s] += Math.abs(target - v); });
+      stops.forEach((v, s) => {
+        const error = Math.abs(target - v);
+        miss[s] += error;
+        notes[s].textContent = (error === 0 ? 'ど真ん中！' : '今回の誤差 ' + error) + ' ／ 合計 ' + miss[s];
+        needles[s].classList.toggle('xgame-a-bullseye', error === 0);
+      });
       shot++;
       ctx.say('目標 ' + target + '　1P ' + stops[0] + '　2P ' + stops[1]);
       if (shot === CANNON_SHOTS) { ctx.later(() => ctx.finish(higher(-miss[0], -miss[1]), '誤差の合計　1P ' + miss[0] + '　2P ' + miss[1]), 900); return; }
@@ -335,14 +408,18 @@
     function scatter() {
       count = 6 + ctx.random(7) + round;
       answers = [null, null];
-      // The same scatter in both halves, so the count is equally hard for each player.
-      const spots = Array.from({ length: count }, (_, i) => ({ left: 8 + ((i * 37 + ctx.random(30)) % 84), top: 10 + ((i * 53 + ctx.random(40)) % 78) }));
+      // Same randomized scatter for both seats. Use separate cells so shells
+      // never overlap and turn a true count into a guess at narrow widths.
+      const spots = shuffled(ctx, Array.from({ length: 15 }, (_, i) => i)).slice(0, count).map(i => ({
+        left: 10 + (i % 5) * 20 + (ctx.random(5) - 2),
+        top: 17 + Math.floor(i / 5) * 33 + (ctx.random(5) - 2)
+      }));
       ctx.clear();
       ctx.say('第 ' + (round + 1) + ' 回　数えて！');
       both(seat => {
         const field = make('div', null, 'xgame-field');
         spots.forEach(spot => {
-          const shell = make('span', '🐚', 'xgame-shell');
+          const shell = make('span', '🐚', 'xgame-shell xgame-a-shell');
           shell.style.left = spot.left + '%';
           shell.style.top = spot.top + '%';
           field.append(shell);
@@ -362,7 +439,7 @@
           const button = make('button', String(v), 'xgame-action');
           button.type = 'button';
           button.disabled = answers[seat] != null;
-          button.addEventListener('click', () => answer(seat, v));
+          button.addEventListener('click', () => { if (button.isConnected) answer(seat, v); });
           grid.append(button);
         }
         ctx.zones[seat].append(grid);
@@ -382,7 +459,11 @@
       round++;
       ctx.clear();
       ctx.say('正解 ' + count + ' 個　' + points[0] + ' 対 ' + points[1]);
-      both(s => ctx.text(s, '正解 ' + count + ' 個（あなた ' + answers[s] + '）', 'xgame-big'));
+      both(s => {
+        ctx.text(s, '正解 ' + count + ' 個（あなた ' + answers[s] + '）', 'xgame-big');
+        const gap = Math.abs(answers[s] - count);
+        ctx.text(s, (gap === 0 ? 'ぴったり ＋2点' : gap === 1 ? '1つ違い ＋1点' : '今回は0点') + ' ／ 合計 ' + points[s] + ' 点', 'xgame-text');
+      });
       if (round === SHELL_ROUNDS) { ctx.later(() => ctx.finish(higher(...points), '正解 ' + count + ' 個　合計 ' + points[0] + ' 対 ' + points[1]), 1000); return; }
       ctx.later(scatter, 1300);
     }
@@ -404,14 +485,20 @@
       ctx.clear();
       both(seat => {
         ctx.text(seat, 'あなた ' + points[seat] + ' 点　相手 ' + points[1 - seat] + ' 点', 'xgame-text');
-        const field = make('div', null, 'xgame-field is-row');
+        ctx.text(seat, pickable ? '樽を1つ選ぶ' : (showCoin ? '金貨の位置を覚える' : '樽を目で追う'), 'xgame-a-chest-stage');
+        const field = make('div', null, 'xgame-field is-row tavern-shuffle-board');
+        const glyphs = make('div', null, 'tavern-shuffle-marks');
+        glyphs.setAttribute('aria-hidden','true');
+        ['左', '中', '右'].forEach(label => glyphs.append(make('span', label)));
+        field.append(glyphs);
         [0, 1, 2].forEach(barrel => {
-          const node = make('button', showCoin && barrel === coin ? '🪙' : '🛢', 'xgame-action xgame-barrel');
+          const node = make('button', null, 'xgame-action xgame-barrel tavern-shuffle-barrel');
+          if (showCoin && barrel === coin) node.append(make('span', '✦', 'tavern-shuffle-coin'));
           node.type = 'button';
           node.disabled = !pickable || picks[seat] != null;
           node.style.left = 18 + slots[barrel] * 32 + '%';
-          node.setAttribute('aria-label', ['左', '中央', '右'][slots[barrel]] + 'の樽');
-          node.addEventListener('click', () => pick(seat, barrel));
+          node.setAttribute('aria-label', ['左', '中央', '右'][slots[barrel]] + 'の樽' + (showCoin && barrel === coin ? '・金貨あり' : ''));
+          node.addEventListener('click', () => { if (node.isConnected && !node.disabled && pickable) pick(seat, barrel); });
           barrels[seat][barrel] = node;
           field.append(node);
         });
@@ -445,12 +532,15 @@
       picks[seat] = barrel;
       ctx.fx.tap();
       barrels[seat].forEach(b => { b.disabled = true; });
-      barrels[seat][barrel].classList.add('is-picked');
+      ctx.zones[seat].querySelector('.xgame-a-chest-stage').textContent = '回答済み。相手を待っています';
       if (picks.some(p => p == null)) return;
       picks.forEach((p, s) => { if (p === coin) points[s]++; });
       round++;
       drawBarrels(true, false);
-      picks.forEach((p, s) => barrels[s][p].classList.add(p === coin ? 'is-right' : 'is-wrong'));
+      picks.forEach((p, s) => {
+        barrels[s][p].classList.add(p === coin ? 'is-right' : 'is-wrong');
+        ctx.zones[s].querySelector('.xgame-a-chest-stage').textContent = p === coin ? '正解！ ＋1点' : 'はずれ。金貨は表示の樽';
+      });
       ctx.say('金貨は ' + ['左', '中央', '右'][slots[coin]] + '　' + points[0] + ' 対 ' + points[1]);
       if (round === SHUFFLE_ROUNDS) { ctx.later(() => ctx.finish(higher(...points), '合計 ' + points[0] + ' 対 ' + points[1]), 1100); return; }
       ctx.later(play, 1400);

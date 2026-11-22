@@ -1,0 +1,174 @@
+
+/* The dial is a single shared device; its readout is live DOM, not part of the image. */
+#arena[data-active-game="count"] {
+  isolation:isolate;
+  position:relative;
+  --dial-size: min(90vw,50svh,350px);
+  --count-wood:url('../assets/tavern-ten-count/wood.webp');
+  --count-dial:url('../assets/tavern-ten-count/dial.webp');
+  background:radial-gradient(ellipse at center,#381e0c21,#080402a8),var(--count-wood) center/cover,#26150d;
+  grid-template-rows:minmax(0,1fr) auto minmax(0,1fr);
+  gap:0;
+  border:1px solid #886137;padding-inline:0;border-radius:0;
+}
+#arena .count-instrument {display:none}
+#arena[data-active-game="count"] .count-instrument {
+  position:absolute;z-index:1;inset:50% auto auto 50%;
+  width:var(--dial-size);aspect-ratio:1;
+  display:grid;place-items:center;
+  transform:translate(-50%,-50%);
+  background:var(--count-dial) center/contain no-repeat;
+  pointer-events:none;filter:drop-shadow(0 3px 10px #080401ae);
+}
+#arena[data-active-game="count"] .count-preview {
+  display:none;position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);
+  color:#ffe5af;text-shadow:0 1px 3px #000;
+  font:800 clamp(15px,5.5vmin,27px)/1 system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+  font-size:clamp(20px,6.6vmin,28px);
+}
+#arena[data-active-game="count"][data-phase="counting"] .count-preview {display:block;opacity:1}
+#arena[data-active-game="count"][data-phase="counting"][data-count-preview="fade"] .count-preview {
+  opacity:0;visibility:hidden;transition:opacity .75s ease-out,visibility 0s .75s;
+}
+@media (prefers-reduced-motion:reduce) {
+  #arena[data-active-game="count"][data-phase="counting"][data-count-preview="fade"] .count-preview {transition:none}
+}
+#arena[data-active-game="count"][data-layout="table"] .count-face-0 {top:42%;transform:translate(-50%,-50%) rotate(180deg)}
+#arena[data-active-game="count"][data-layout="table"] .count-face-1 {top:55%}
+#arena[data-active-game="count"] .player {
+  display:flex;justify-content:flex-start;align-items:center;gap:4px;
+  border:0;border-radius:0;padding:9px 4px 0;
+  background:none;box-shadow:none;
+  --count-plate:url('../assets/tavern-ten-count/button-red.webp');
+  --count-color:#642a23;
+  z-index:1;justify-content:center;padding:10px 6px;
+  border:1px solid #c59b64;outline:1px solid #664527;outline-offset:-4px;border-radius:13px;
+  background:radial-gradient(ellipse at center,#05030242,#050302b0),var(--count-color);
+  --count-seat:url('../assets/tavern-ten-count/seat-red.webp');
+  background:var(--count-seat) center/100% 100% no-repeat,var(--count-color);
+  border:0;outline:0;
+}
+#arena[data-active-game="count"] .player.b {
+  --count-plate:url('../assets/tavern-ten-count/button-green.webp');
+  --count-color:#215341;
+  --count-seat:url('../assets/tavern-ten-count/seat-green.webp');
+}
+#arena[data-active-game="count"] .player::before {display:none}
+#arena[data-active-game="count"] .player > .seat {
+  line-height:1.25;color:#f1ce8d;letter-spacing:.15em;text-shadow:0 1px 4px #000;display:none
+}
+#arena[data-active-game="count"] .player > strong {
+  display:grid;place-items:center;pointer-events:none;
+  min-width:0;width:min(76%,270px);min-height:44px;
+  padding:6px 8px;border:1px solid #e2b978a5;border-radius:12px;
+  background:var(--count-plate) center/100% 100% no-repeat,var(--count-color);
+  color:#fff2cd;text-shadow:0 2px 3px #130d06,0 0 6px #000;
+  box-shadow:0 2px 6px #080503e0;
+  font-size:clamp(14px,4.8vmin,24px);
+  width:min(83%,355px);min-height:clamp(48px,9svh,88px);
+  font-size:clamp(16px,6.4vmin,32px);letter-spacing:.065em;background-color:transparent;border:0;box-shadow:none;
+}
+#arena[data-active-game="count"] .player[aria-disabled="false"]:active > strong {transform:translateY(2px);filter:brightness(1.25)}
+#arena[data-active-game="count"] .player[data-result="win"] > strong {outline:2px solid #fee6a0}
+#arena[data-active-game="count"] .player[data-result="lose"] {filter:none}
+#arena[data-active-game="count"] .player > small:empty,
+#arena[data-active-game="count"][data-phase="idle"] .player > small {display:none}
+#arena[data-active-game="count"] .player .say {
+  font-size:clamp(11px,3.3vmin,15px);line-height:1.25;color:#ffe3ad;
+  text-shadow:0 1px 3px #000,0 1px 5px #000;max-width:100%;font-size:clamp(10px,3.15vmin,14px);
+}
+#arena[data-active-game="count"] .deck {
+  z-index:2;background:linear-gradient(#382716,#1e110b);
+  border-color:#b98750;box-shadow:inset 0 0 0 1px #3e2719,0 2px 8px #0008;
+  padding:2px 5px;
+}
+#arena[data-active-game="count"] .deck button {min-height:44px}
+#arena[data-active-game="count"] .deck h1 {color:#ffe2a4;font-size:clamp(13px,4.3vmin,20px);letter-spacing:.03em}
+#arena[data-active-game="count"][data-layout="table"] .deck {
+  position:absolute;z-index:2;inset:auto 8px 5px;
+  grid-template-columns:auto minmax(0,1fr) auto auto;gap:3px;
+}
+#arena[data-active-game="count"][data-layout="table"] .deck .signal {
+  position:static;width:auto;height:auto;overflow:visible;clip-path:none;white-space:normal;
+}
+#arena[data-active-game="count"][data-layout="table"] .deck .signal p {display:none}
+#arena[data-active-game="count"][data-layout="table"] .start {min-width:0;white-space:nowrap}
+#arena[data-active-game="count"][data-layout="table"] {padding-bottom:57px;
+  grid-template-rows:minmax(0,1fr) minmax(0,1.66fr) minmax(0,1fr);
+  --dial-size:min(69vw,34svh,305px);
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:max(53px,calc(51px + env(safe-area-inset-bottom)));grid-template-columns:minmax(0,1fr)}
+#arena[data-active-game="count"][data-layout="table"] .player.b {grid-row:3}
+#arena[data-active-game="count"][data-layout="table"] .count-instrument {top:calc(50% - 25px);
+  position:relative;inset:auto;transform:none;grid-row:2;grid-column:1;place-self:center}
+#arena[data-active-game="count"][data-layout="counter"] {
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr);
+  --dial-size:min(50vmin,204px);padding-inline:7px;--dial-size:min(46vmin,190px);gap:5px;
+}
+#arena[data-active-game="count"][data-layout="counter"] .count-instrument {top:57%}
+#arena[data-active-game="count"][data-layout="counter"] .count-face-0 {display:none}
+#arena[data-active-game="count"][data-layout="counter"] .player {justify-content:center}
+#arena[data-active-game="count"][data-layout="counter"] .player.a {padding-inline:0 calc(var(--dial-size)/2 + 5px);margin-right:calc(var(--dial-size)/2 + 2px);padding:3px}
+#arena[data-active-game="count"][data-layout="counter"] .player.b {padding-inline:calc(var(--dial-size)/2 + 5px) 0;margin-left:calc(var(--dial-size)/2 + 2px);padding:3px}
+#arena[data-active-game="count"][data-layout="counter"] .player .say {display:none}
+@media (max-height:685px) and (orientation:portrait) {
+  #arena[data-active-game="count"][data-layout="table"] {--dial-size:min(70vw,37svh)}
+}
+
+/* Overhead face-to-face instrument: two colored consoles frame the walnut clock well. */
+#arena[data-active-game="count"][data-layout="table"] .count-instrument::before {
+  content:"3\79d2\3060\3051\8868\793a";
+  position:absolute;left:50%;top:-13px;transform:translate(-50%,-50%);
+  width:max-content;padding:.36em .75em;color:#ffe6b4;
+  border:1px solid #cc9d55;background:linear-gradient(#211b15,#12100e);
+  outline:2px solid #38251a;outline-offset:0;border-radius:4px;
+  font:800 clamp(12px,3.75vmin,18px)/1.15 system-ui,sans-serif;
+  font-size:clamp(14px,4vmin,17px);
+}
+#arena[data-active-game="count"] .count-hud {
+  width:calc(100% - 12px);display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+  gap:5px;align-items:center;padding:4px;border-block:1px solid #d1a36591;
+  color:#fff2d1;line-height:1.05;
+}
+.arena .count-hud {display:none}
+#arena[data-active-game="count"] .player .count-hud > b {font-size:clamp(13px,4.35vmin,20px);white-space:nowrap}
+#arena[data-active-game="count"] .player .count-hud > .seat {font-size:clamp(10px,2.75vmin,14px)}
+#arena[data-active-game="count"] .player .count-hud > span:last-child {font-size:clamp(10px,3vmin,14px);white-space:nowrap}
+#arena[data-active-game="count"] .player > small {min-height:0}
+#arena[data-active-game="count"][data-layout="counter"] .player > strong {min-height:48px;font-size:clamp(14px,4.65vmin,22px);
+  min-height:52px;font-size:clamp(19px,5.8vmin,24px)}
+#arena[data-active-game="count"][data-layout="counter"] .count-preview.count-face-0 {display:none}
+#arena[data-active-game="count"] .player[data-result="win"] {box-shadow:inset 0 0 19px #f9da7c6e}
+@media (max-height:685px) and (orientation:portrait) {
+  #arena[data-active-game="count"][data-layout="table"] {--dial-size:min(63vw,30svh)}
+  #arena[data-active-game="count"][data-layout="table"] .player > strong {min-height:44px}
+}
+#arena:not([data-active-game="count"]) .count-hud {display:contents}
+#arena:not([data-active-game="count"]) .count-hud > :not(.seat) {display:none}
+
+/* Hidden game-system seats must never participate in the Ten Count grid. */
+#arena[data-active-game="count"] > .player[hidden] {display:none}
+#arena[data-active-game="count"][data-layout="table"] > .player {grid-column:1}
+#arena[data-active-game="count"] .player .count-hud {width:calc(100% - 30px)}
+@media (orientation:portrait) {
+  #arena[data-active-game="count"][data-layout="counter"] {position:fixed}
+}
+#arena[data-active-game="count"][data-layout="table"] .player .count-hud {
+  position:absolute;top:11px;left:50%;transform:translateX(-50%);width:calc(100% - 38px);
+}
+#arena[data-active-game="count"][data-layout="table"] .player {
+  padding-top:33px;
+}
+#arena[data-active-game="count"][data-layout="table"] .player > strong {
+  min-height:clamp(56px,10svh,88px);
+  background-size:100% 108%;
+  font-size:clamp(25px,7.9vmin,32px);
+}
+@media (max-height:685px) and (orientation:portrait) {
+  #arena[data-active-game="count"][data-layout="table"] .player {padding-top:25px}
+  #arena[data-active-game="count"][data-layout="table"] .player .count-hud {top:7px}
+  #arena[data-active-game="count"][data-layout="table"] .player > strong {min-height:55px}
+  #arena[data-active-game="count"][data-layout="table"][data-phase="done"] .player > strong {min-height:40px}
+}

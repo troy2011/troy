@@ -1,0 +1,20 @@
+.sea-sail{width:min(100%,330px);display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);align-items:start;gap:2px 10px;margin:auto;color:#fce7c1}
+.sea-sail-label,.sea-sail-status{margin:0;text-align:center;font-size:clamp(11px,3.4vw,15px);line-height:1.25;font-weight:750}
+.sea-sail-blueprint,.sea-sail-work{display:grid;justify-items:center;gap:3px;min-width:0}
+.sea-sail-example,.sea-sail-edit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;border-radius:5px}
+.sea-sail-edit{width:clamp(77px,19svh,120px);padding:0;gap:3px}
+.sea-sail-edit button[data-match=true]{box-shadow:inset 0 0 0 1px #c5e099;border-color:#c5e099}
+.sea-sail-piece{display:grid;width:100%;min-width:0;aspect-ratio:1;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:1px}
+.sea-sail-fabric{background:linear-gradient(135deg,#ebd8ac,#af875a);border:1px solid #d7b585;box-sizing:border-box}
+.sea-sail-gap{background:#21181040;border:1px dashed #a1825960;box-sizing:border-box}
+.sea-sail-example .sea-sail-fabric{background:#c8dbe1;border-color:#e2f0ee}
+.sea-sail-example .sea-sail-gap{background:#12202a;border-color:#69878a99}
+.sea-sail-status{grid-column:1/-1;min-height:1.3em;color:#f3d496}
+.sea-sail-label{letter-spacing:.035em;color:#ffebc4}
+.sea-sail-example{background:#182b37;border:1px solid #72909b;padding:3px;gap:3px;width:clamp(62px,14svh,106px);background-color:#20343c;background-image:linear-gradient(#7ea4ab24 1px,transparent 1px),linear-gradient(90deg,#7ea4ab24 1px,transparent 1px);background-size:8px 8px;border-color:#98aeb1}
+.sea-sail-edit button{margin:0;min-width:0;min-height:36px;width:100%;height:100%;padding:2px;display:grid;place-items:center;border-radius:4px;position:relative}
+.sea-sail-edit .sea-sail-fabric{background:repeating-linear-gradient(45deg,#fcdda52c 0 1px,transparent 1px 4px),linear-gradient(135deg,#ebd8ac,#a6784e)}
+.sea-sail-tile-mark{position:absolute;inset:auto 1px 1px auto;min-width:16px;border-radius:3px;background:#232320;color:#fff0ca;font-size:11px;line-height:15px;font-weight:900;pointer-events:none}
+.sea-sail-edit button[data-match=true] .sea-sail-tile-mark{color:#ecf7bd;background:#293d26}
+.sea-sail-stitches{grid-column:1/-1;display:flex;justify-content:center;gap:7px;color:#e5c596;font-size:.76rem;line-height:1}
+.sea-sail-stitch[data-match=true]{color:#e5f3ad}

@@ -1,0 +1,34 @@
+
+const {test,expect}=require('@playwright/test');
+test('tavern score ledgers and cipher progress expose the right information',async({page:p})=>{
+ await p.setViewportSize({width:390,height:844});
+ await p.addInitScript(()=>{Math.random=()=>0;});await p.clock.install();
+ await p.goto('/tavern-minigames.html');await p.locator('input[value=counter]').check();
+ const seat=i=>p.locator('.xgame-seat').nth(i), signal=p.locator('#signal');
+ const begin=async key=>{await p.locator('[data-game='+key+']').click();await p.locator('#start').click();};
+ const quit=()=>p.locator('#exit').click();
+ await begin('take-fifteen');
+ for(const [s,n] of [[0,1],[1,2],[0,5],[1,3],[0,9]])await seat(s).getByRole('button',{name:String(n),exact:true}).click();
+ await expect(signal).toContainText('1 ＋ 5 ＋ 9 ＝ 15');
+ await quit();
+ await p.evaluate(()=>{Math.random=()=>.32;});
+ await begin('pirate-dice');
+ await seat(0).getByRole('button',{name:'振る',exact:true}).click();await p.clock.runFor(490);
+ await expect(seat(0).locator('.xb-ledger-item[data-tone=secured] .xb-ledger-value')).toHaveText('0 / 30');
+ await expect(seat(0).locator('.xb-ledger-item[data-tone=risk] .xb-ledger-value')).toHaveText('2 枚');
+ await seat(0).getByRole('button',{name:'貯めて交代',exact:true}).click();
+ await expect(seat(0).locator('.xb-ledger-item[data-tone=secured] .xb-ledger-value')).toHaveText('2 / 30');
+ await quit();await p.evaluate(()=>{Math.random=()=>0;});
+ await begin('treasure-dig');
+ const buttons=seat(0).locator('.xgame-board button');
+ await expect(buttons.nth(1)).toHaveAttribute('aria-label',/未発掘/);
+ await buttons.nth(1).click();
+ await expect(seat(0).locator('.xb-ledger-item[data-tone=risk] .xb-ledger-value')).toHaveText('3');
+ await expect(buttons.nth(1)).toHaveAttribute('aria-label',/お宝/);
+ await quit();await begin('pirate-cipher');
+ await seat(0).locator('[data-cipher-digit="1"]').click();
+ await expect(seat(0).locator('.sea-cipher-status')).toHaveText('1 / 4');
+ await expect(seat(0).locator('.sea-cipher-read')).not.toContainText('1');
+ await expect(seat(1).locator('.sea-cipher-status')).toHaveText('0 / 4');
+ await quit();
+});

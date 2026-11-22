@@ -1,0 +1,111 @@
+
+/* Functional finish cues for TROY's shared tavern stage. Per-game theme sheets may refine --scene-accent. */
+.arena { --scene-accent:#e3b866; }
+.arena[data-active-game="count"] { --scene-accent:#a5dee0; }
+.arena[data-active-game="reflex"] { --scene-accent:#a4e7b6; }
+.arena[data-active-game="memory"] { --scene-accent:#d0b8ff; }
+.arena[data-active-game="curling"] { --scene-accent:#f1ca78; }
+.arena .deck { border-color:color-mix(in srgb, var(--scene-accent) 42%, #3e2920); }
+.arena .player:focus-visible { outline-offset:-5px; }
+.arena .deck button:focus-visible { outline-offset:1px; }
+.arena .player[data-result="win"] > .seat { color:#fff2b9; }
+.arena .player[data-result="lose"] > .seat { color:#ead1aa; }
+.core-game-feedback {
+  color:#ffe8b8;
+  padding:.22em .68em;
+  border:1px solid color-mix(in srgb, var(--scene-accent) 50%, #3e2920);
+  border-radius:100px;
+  background:#130e0cdd;
+  font-size:clamp(.75rem,2.9vmin,.97rem);
+  font-weight:750;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.core-game-feedback[hidden] { display:none; }
+.core-game-feedback[data-cue="hold"] { color:#ffcbab; }
+.core-game-feedback[data-cue="press"] { color:#b9ffd2; }
+.tavern-progress-strip {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:center;
+  gap:clamp(3px,1.1vmin,7px);
+  width:100%;
+}
+.tavern-progress-strip span {
+  display:inline-grid;
+  place-items:center;
+  min-width:clamp(21px,6vmin,30px);
+  min-height:clamp(17px,5vmin,25px);
+  padding:0 .25em;
+  border:1px solid #806a54;
+  border-radius:4px;
+  color:#e8d3af;
+  background:#211813;
+  font-size:clamp(.67rem,2.6vmin,.86rem);
+  font-weight:750;
+  font-variant-numeric:tabular-nums;
+}
+.tavern-progress-strip [data-state="used"] { color:#e2eedb; border-color:#5d8268; background:#294635; }
+.tavern-progress-strip [data-state="next"] { color:#ffebbf; border-color:var(--scene-accent); }
+.tavern-progress-strip [data-state="off"] { color:#ffc2b3; border-color:#975752; }
+.tavern-progress-strip [data-state="best"] { color:#26180b; border-color:#ecd495; background:#eac681; }
+
+/* The live seat keeps its own controls: all decoration stays behind the useful UI. */
+.arena[data-active-game] .player {
+  isolation:isolate;
+  position:relative;
+}
+.arena[data-active-game] .player::before {
+  content:"";
+  position:absolute;
+  inset:8px;
+  z-index:-1;
+  pointer-events:none;
+  border:1px solid color-mix(in srgb,var(--scene-accent) 24%,transparent);
+  border-radius:inherit;
+  box-shadow:inset 0 0 24px #09060445;
+}
+.arena[data-active-game="count"] .player > strong {
+  border-color:color-mix(in srgb,var(--scene-accent) 55%,#9c6334);
+  box-shadow:inset 0 0 0 2px #d6a95726,inset 0 0 13px #a6e3e326,0 3px 12px #090604bd;
+}
+.arena[data-active-game="reflex"] .core-game-feedback[data-cue="hold"] { box-shadow:0 0 15px #ed906e22; }
+.arena[data-active-game="reflex"] .core-game-feedback[data-cue="press"] { box-shadow:0 0 16px #8bffc45c; }
+.arena[data-active-game="memory"] .extra strong.cue {
+  background:radial-gradient(ellipse at 50% 42%,#72509e,#26173c 65%,#161021);
+  border:1px solid #a785d7;
+}
+.arena[data-active-game="curling"] .curl-lane { border-color:#d1a44f; box-shadow:0 0 0 2px #321f14,inset 0 2px 12px #05090bbd; }
+
+:is(.games [data-game="count"], .arena[data-active-game="count"]) { --scene-accent:#a5dee0; }
+:is(.games [data-game="reflex"], .arena[data-active-game="reflex"]) { --scene-accent:#a4e7b6; }
+:is(.games [data-game="memory"], .arena[data-active-game="memory"]) { --scene-accent:#d0b8ff; }
+:is(.games [data-game="curling"], .arena[data-active-game="curling"]) { --scene-accent:#f1ca78; }
+:is(.games [data-game="tug-of-war"], .arena[data-active-game="tug-of-war"]) { --scene-accent:#dfa260; }
+:is(.games [data-game="skull-bomb"], .arena[data-active-game="skull-bomb"]) { --scene-accent:#f39b88; }
+:is(.games [data-game="quick-math"], .arena[data-active-game="quick-math"]) { --scene-accent:#efdb8c; }
+:is(.games [data-game="color-word"], .arena[data-active-game="color-word"]) { --scene-accent:#b4d194; }
+:is(.games [data-game="number-touch"], .arena[data-active-game="number-touch"]) { --scene-accent:#e1ad6d; }
+:is(.games [data-game="cannon-power"], .arena[data-active-game="cannon-power"]) { --scene-accent:#ff9e75; }
+:is(.games [data-game="shell-count"], .arena[data-active-game="shell-count"]) { --scene-accent:#92e2db; }
+:is(.games [data-game="chest-shuffle"], .arena[data-active-game="chest-shuffle"]) { --scene-accent:#d8b8e8; }
+:is(.games [data-game="take-fifteen"], .arena[data-active-game="take-fifteen"]) { --scene-accent:#c9d7ef; }
+:is(.games [data-game="pirate-dice"], .arena[data-active-game="pirate-dice"]) { --scene-accent:#efbc71; }
+:is(.games [data-game="treasure-dig"], .arena[data-active-game="treasure-dig"]) { --scene-accent:#d3c775; }
+:is(.games [data-game="wave-dodge"], .arena[data-active-game="wave-dodge"]) { --scene-accent:#79dfeb; }
+:is(.games [data-game="sea-chart"], .arena[data-active-game="sea-chart"]) { --scene-accent:#95ceff; }
+:is(.games [data-game="deck-balance"], .arena[data-active-game="deck-balance"]) { --scene-accent:#8ee0bf; }
+:is(.games [data-game="barrel-rally"], .arena[data-active-game="barrel-rally"]) { --scene-accent:#efae8b; }
+:is(.games [data-game="pirate-cipher"], .arena[data-active-game="pirate-cipher"]) { --scene-accent:#b6aefa; }
+:is(.games [data-game="bell-rhythm"], .arena[data-active-game="bell-rhythm"]) { --scene-accent:#f6b979; }
+:is(.games [data-game="sail-patch"], .arena[data-active-game="sail-patch"]) { --scene-accent:#f1d5a7; }
+.games button[data-game] {
+  border-color:color-mix(in srgb,var(--scene-accent) 70%,#805a37);
+  background:linear-gradient(110deg,color-mix(in srgb,var(--scene-accent) 14%,#3a2320),#2a1d19 70%,#201610);
+}
+.games button[data-game] > span {
+  border-color:var(--scene-accent); color:var(--scene-accent);
+  background:radial-gradient(ellipse at 35% 23%,color-mix(in srgb,var(--scene-accent) 23%,#1c1713),#1c1713 73%);
+  box-shadow:inset 0 0 0 2px #1e1611,0 1px 6px #0007;
+}
