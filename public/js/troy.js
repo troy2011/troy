@@ -199,15 +199,28 @@ function toggleFavoriteDrink(menuId, item, optionLabel = '', sizeLabel = '') {
     return true;
 }
 
+const CUP_NOODLE = 'カップラーメン';
+const FOOD_CARRY_IN_NOTE = 'フード持ち込み料：¥500';
+const menuName = item => String(item?.concept || item?.name || '').normalize('NFKC').trim();
+const isCupNoodle = item => [CUP_NOODLE, 'カップ麺'].includes(menuName(item));
+
+function isHiddenCustomerFood(item) {
+    const category = String(item?.menuId || item?.category || '').trim();
+    if (['food', '酒場のフード', 'フード'].includes(category)) return !isCupNoodle(item);
+    const name = menuName(item);
+    const knownFood = [...TROY_PRODUCT_MENUS.food.items, ...getCustomMenuItems('food')];
+    return !isCupNoodle(item) && knownFood.some(entry => menuName(entry) === name);
+}
+
 function getFavoriteDrinkMenuData() {
     return {
         title: 'いつもの',
-        items: _favoriteDrinkEntries.map((entry) => ({ ...entry }))
+        items: _favoriteDrinkEntries.filter(entry => !isHiddenCustomerFood(entry)).map((entry) => ({ ...entry }))
     };
 }
 
 function getFoodMenuData() {
-    return TROY_PRODUCT_MENUS.food;
+    return { ...TROY_PRODUCT_MENUS.food, items: TROY_PRODUCT_MENUS.food.items.filter(isCupNoodle) };
 }
 
 function getCustomMenuItems(menuId) {
@@ -238,20 +251,22 @@ function getMenuDataById(menuId) {
         case 'favorite':
             return getFavoriteDrinkMenuData();
         case 'food':
-            return withCustomItems(getFoodMenuData());
+            return getFoodMenuData();
         case 'bottle':
             return withCustomItems({ title: 'BOTTLE MENU', items: TROY_BOTTLE_ITEMS });
-        case 'specials':
-            return _menuSpecials.length > 0
-                ? { title: 'おすすめ', items: _menuSpecials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
+        case 'specials': {
+            const specials = _menuSpecials.filter(entry => !isHiddenCustomerFood(entry));
+            return specials.length > 0
+                ? { title: 'おすすめ', items: specials.map((s) => ({ concept: s.name, content: '', price: s.price, emoji: s.emoji || '⭐' })) }
                 : null;
+        }
         default:
             return withCustomItems(TROY_PRODUCT_MENUS[menuId]);
     }
 }
 
 function getMenuCategoryList() {
-    const ids = _menuSpecials.length > 0 ? ['specials', ...TROY_MENU_IDS] : TROY_MENU_IDS;
+    const ids = getMenuDataById('specials') ? ['specials', ...TROY_MENU_IDS] : TROY_MENU_IDS;
     return ids
         .map((id) => ({ id, data: getMenuDataById(id) }))
         .filter((entry) => !!entry.data)
@@ -669,6 +684,11 @@ async function submitMenuBoardOrder() {
     }
 
     const { menuId, index, item } = _menuBoardOrderDraft;
+    if ((menuId === 'food' && !isCupNoodle(item)) || isHiddenCustomerFood(item)) {
+        setTroyMenuBoardOrderModalVisible(false);
+        showTroyNotice('このフードは現在注文できません。');
+        return;
+    }
     const optionLabel = option && !option.closest('[hidden]') ? setMenuItemOption(menuId, item, index, option.value) : getMenuItemOption(menuId, item, index);
     const sizeLabel = _menuBoardOrderDraft.sizeLabel ? setMenuItemSize(menuId, item, index, _menuBoardOrderDraft.sizeLabel) : getMenuItemSize(menuId, item, index);
     const quantity = qty ? setMenuItemQty(menuId, item, index, qty.value) : getMenuItemQty(menuId, item, index);
@@ -731,6 +751,11 @@ function renderTroyMenuBoard() {
     const data = getMenuDataById(_menuBoardActiveId);
     const items = Array.isArray(data?.items) ? data.items : [];
     listEl.innerHTML = '';
+    const foodNote = document.getElementById('troyFoodCarryInNote');
+    if (foodNote) {
+        foodNote.hidden = _menuBoardActiveId !== 'food';
+        foodNote.textContent = FOOD_CARRY_IN_NOTE;
+    }
     if (!items.length) {
         const empty = document.createElement('div');
         empty.className = 'troy-calendar-empty';
@@ -1168,7 +1193,7 @@ function getMenuSubnote(menuId) {
         case 'bottle':
             return '🍾 BOTTLE MENU';
         case 'food':
-            return '🍴 酒場のフード';
+            return `🍴 酒場のフード · ${FOOD_CARRY_IN_NOTE}`;
         default:
             return '';
     }

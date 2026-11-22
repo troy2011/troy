@@ -985,7 +985,7 @@ const troySnapshot = {
     nation: 'fire',
     isOpen: true,
     menuDisabled: ['ナゲット'],
-    menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }],
+    menuSpecials: [{ name: '船長の一杯', price: 900, emoji: '⚓' }, { name: 'ナゲット', price: 500 }, { name: '特製カレー', menuId: 'food', price: 700 }],
     menuCustomItems: [{ menuId: 'food', concept: '氷', content: '割材', price: 500, emoji: '🧊' }]
   }),
   docs: [{ id: 'PF_PLAYWRIGHT', data: () => ({ displayName: 'テスト船長', joinedAt: Date.now() }) }]
@@ -1051,6 +1051,14 @@ export function onSnapshot(_ref, next) {
     });
   });
 
+  await page.addInitScript(() => {
+    localStorage.setItem('troy-favorite-drinks:PF_PLAYWRIGHT', JSON.stringify([
+      { menuId:'food', concept:'ナゲット',price:500 },
+      { menuId:'food', concept:'氷',price:500 },
+      { menuId:'food', concept:'カップラーメン',price:500 },
+      { menuId:'soft', concept:'コーラ',price:500 }
+    ]));
+  });
   await bootstrapMainApp(page, { mockFirebaseFirestore: false });
   await page.evaluate(async () => {
     await window.showTab('troy');
@@ -1141,34 +1149,17 @@ export function onSnapshot(_ref, next) {
   ]);
 
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: '酒場のフード' }).click();
-  await expect(page.locator('#troyMenuBoardList')).toContainText('ナゲット');
-  await expect(page.locator('#troyMenuBoardList')).toContainText('SOLD OUT');
-  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: 'ナゲット' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_fried_chicken_nuggets\.png/);
-  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '梅水晶' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_ume_crystal_bowl\.png/);
-  await expect(page.locator('#troyMenuBoardList')).toContainText('氷');
-  await expect(page.locator('#troyMenuBoardList .troy-menu-board-item', { hasText: '氷' }).locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/drinks\/cocktail_clear_soda_tumbler\.png/);
-  const noriItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^韓国のり$/ }) });
-  await expect(noriItem.locator('.troy-menu-board-price')).toHaveText('¥300');
-  const addedFoodItems = [
-    ['フライドポテト', /Sprites\/food\/pirate_french_fries_bucket\.png/],
-    ['フランク', /Sprites\/food\/snack_sausage_skillet\.png/],
-    ['ミックスナッツ', /Sprites\/food\/pirate_mixed_nuts_barrel\.png/],
-    ['ピザトースト', /Sprites\/food\/snack_mini_pizza_plate\.png/],
-    ['ビーフジャーキー', /Sprites\/food\/pirate_jerky_platter\.png/],
-    ['ポテトチップス', /Sprites\/food\/snack_potato_chips_bowl\.png/],
-    ['カップ麺', /Sprites\/food\/snack_ramen_bowl\.png/],
-    ['みそ汁', /Sprites\/food\/snack_miso_soup_bowl\.png/],
-    ['ピクルス', /Sprites\/food\/pirate_pickle_barrel\.png/],
-    ['珍味', /Sprites\/food\/pirate_dried_squid_plate\.png/]
-  ];
-  for (const [foodName, imagePattern] of addedFoodItems) {
-    const foodItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: new RegExp(`^${foodName}$`) }) });
-    await expect(foodItem.locator('.troy-menu-board-price')).toHaveText('¥500');
-    await expect(foodItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', imagePattern);
-  }
-  const pockyItem = page.locator('#troyMenuBoardList .troy-menu-board-item').filter({ has: page.locator('.troy-menu-board-name', { hasText: /^ポッキー$/ }) });
-  await expect(pockyItem.locator('.troy-menu-board-price')).toHaveText('¥300');
-  await expect(pockyItem.locator('.troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/pirate_dried_fish_sticks\.png/);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-name')).toHaveText(['カップ麺']);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-price')).toHaveText(['¥500']);
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-icon img')).toHaveAttribute('src', /Sprites\/food\/snack_ramen_bowl\.png/);
+  await expect(page.locator('#troyFoodCarryInNote')).toHaveText('フード持ち込み料：¥500');
+  await expect(page.locator('#troyFoodCarryInNote')).toBeVisible();
+  if (process.env.TROY_FOOD_SHOT) await page.screenshot({path:process.env.TROY_FOOD_SHOT});
+  await page.locator('#troyMenuBoardCategoryTabs [data-menu-id="specials"]').click();
+  await expect(page.locator('#troyMenuBoardList .troy-menu-board-name')).toHaveText(['船長の一杯']);
+  await expect(page.locator('#troyFoodCarryInNote')).toBeHidden();
+  const favorites = await page.evaluate(() => JSON.parse(localStorage.getItem('troy-favorite-drinks:PF_PLAYWRIGHT')));
+  expect(favorites).toHaveLength(4);
 
   await page.locator('#troyMenuBoardCategoryTabs .troy-menu-board-tab', { hasText: 'BOTTLE MENU' }).click();
   await expect(page.locator('#troyMenuBoardList')).not.toContainText('ワイン各種');
