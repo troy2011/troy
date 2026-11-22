@@ -149,6 +149,7 @@
       ctx.say(note || '第 ' + n + ' 問　' + points[0] + ' 対 ' + points[1]);
       both(seat => {
         ctx.text(seat, 'あなた ' + points[seat] + ' 点　相手 ' + points[1 - seat] + ' 点', 'xgame-text');
+        if (!question) return;
         const prompt = make('p', question.prompt, 'xgame-big');
         if (question.colour) prompt.style.color = question.colour;
         ctx.zones[seat].append(prompt);
@@ -355,7 +356,7 @@
       ctx.say('貝殻は何個？');
       const low = Math.max(1, count - 2 - ctx.random(3));
       both(seat => {
-        ctx.text(seat, answers[seat] == null ? '貝殻は何個？' : answers[seat] + ' 個と答えた', 'xgame-text');
+        ctx.text(seat, answers[seat] == null ? '貝殻は何個？' : '回答済み。相手を待っています', 'xgame-text');
         const grid = make('div', null, 'xgame-grid is-three');
         for (let v = low; v < low + 6; v++) {
           const button = make('button', String(v), 'xgame-action');
@@ -372,9 +373,9 @@
       answers[seat] = value;
       ctx.fx.tap();
       if (answers.some(v => v == null)) {
-        // Only this half changes, so the other player is not distracted.
+        // Both halves can be seen on one phone; hide the number until both players lock in.
         ctx.zones[seat].querySelectorAll('button').forEach(b => { b.disabled = true; });
-        ctx.zones[seat].querySelector('.xgame-text').textContent = value + ' 個と答えた';
+        ctx.zones[seat].querySelector('.xgame-text').textContent = '回答済み。相手を待っています';
         return;
       }
       answers.forEach((v, s) => { points[s] += v === count ? 2 : Math.abs(v - count) === 1 ? 1 : 0; });
