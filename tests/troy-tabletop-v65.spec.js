@@ -3,19 +3,26 @@ const { bootstrapMainApp } = require('./helpers/main-app-harness');
 const url = '/tarot-kingdom-table.html?v=65';
 
 for (const width of [320, 390, 430]) {
-  test('TROY native menu and offline v65 tabletop at '+width+'px', async ({page}) => {
+  test('TROY ゲーム menu and offline v65 tabletop at '+width+'px', async ({page}) => {
     await page.setViewportSize({width,height:844});
     await bootstrapMainApp(page);
     await page.locator('#navTroy').click();
-    const cta=page.locator('#troyTabletopV65');
+    await expect(page.locator('#navCompanions')).toHaveCount(0);
+    await expect(page.locator('#troyTabletopV65')).toHaveCount(0);
+    await page.locator('#navGames').click();
+    await expect(page).toHaveURL(/#games$/);
+    await expect(page.locator('#navGames')).toHaveClass(/active/);
+    await page.goBack();
+    await expect(page.locator('#navTroy')).toHaveClass(/active/);
+    await page.goForward();
+    await expect(page.locator('#navGames')).toHaveClass(/active/);
+    const cta=page.locator('#tarotTabletopV65');
     await expect(cta).toBeVisible();
     await expect(cta).toHaveAttribute('href',url);
     if(width===390 && process.env.TROY_PORT_SHOTS) await page.screenshot({path:process.env.TROY_PORT_SHOTS+'/troy-entry.png'});
-    await page.evaluate(() => window.showTab('tarot'));
     await expect(page.locator('#tarotModePoker')).toBeVisible();
     await expect(page.locator('#tarotModeKingdom')).toBeHidden();
     await expect(page.locator('#tarotTabletopV65')).toHaveAttribute('href',url);
-    await page.locator('#navTroy').click();
     const requests=[],errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{ if(/\/tarot-kingdom-table|\/tabletop-v65\//.test(r.frame().url()) && /\/api\/|sign.?in|chatgpt\.site/.test(r.url())) requests.push(r.url()); });
@@ -42,3 +49,19 @@ for (const width of [320, 390, 430]) {
     expect(errors).toEqual([]);
   });
 }
+test('old companion deep link returns home without fetching companion features', async ({page}) => {
+  await bootstrapMainApp(page);
+  await page.evaluate(() => { location.hash='companions'; });
+  await expect(page).not.toHaveURL(/#companions$/);
+  await expect(page.locator('#navHome')).toHaveClass(/active/);
+  await expect(page.locator('#tabContentCompanions')).toBeHidden();
+  await expect(page.locator('#btnOpenCompanionsFromQr')).toHaveCount(0);
+  await page.evaluate(() => { location.hash='tarot'; });
+  await expect(page.locator('#navGames')).toHaveClass(/active/);
+  await expect(page.locator('#tarotModePoker')).toBeVisible();
+  await page.locator('#tarotModePoker').click();
+  await expect(page.locator('#tarotPokerRoot')).toBeVisible();
+  await page.locator('#navGames').click();
+  await expect(page.locator('#tarotModePoker')).toBeVisible();
+  await expect(page.locator('#tarotModeSpin')).toBeVisible();
+});

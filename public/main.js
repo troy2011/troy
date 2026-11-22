@@ -1746,6 +1746,7 @@ async function initializeLiff() {
                     await homeReady;
                     if (activeProfileUid !== user.uid) return;
                     __perfLog('showTab(home) done');
+                    void syncGameRoute();
                     await handleTroyEntryRequest(troyEntryRequest, { clearUrl: true, preserveSelectedTab: true });
                     const prefetchHeavy = () => {
                         ensureShipCatalogLoaded();
@@ -3206,7 +3207,34 @@ async function startShipVoyageUI(shipId) {
 
 // --- グローバルスコープへの登録 ---
 // HTMLのonclick属性から呼び出せるように、モジュールスコープ内の関数をwindowオブジェクトに登録します。
-window.showTab = (tabId) => showTab(tabId, { playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
+const publicTabInfo = () => ({ playFabId: myPlayFabId, race: myAvatarBaseInfo.Race, nation: myAvatarBaseInfo.Nation });
+const isGamesHash = () => ['#games', '#tarot'].includes(location.hash);
+let tabBeforeGames = 'home';
+function syncGameRoute() {
+    if (['#companions', '#crew'].includes(location.hash)) {
+        const clean = new URL(location.href);
+        clean.hash = '';
+        history.replaceState(history.state, '', clean);
+        if (myPlayFabId) return showTab('home', publicTabInfo());
+    }
+    if (!myPlayFabId) return;
+    if (isGamesHash()) return showTab('games', publicTabInfo());
+    if (document.body.dataset.currentTab === 'tarot') return showTab(tabBeforeGames, publicTabInfo());
+}
+window.addEventListener('popstate', () => { void syncGameRoute(); });
+window.showTab = (tabId) => {
+    const url = new URL(location.href);
+    if (tabId === 'games' && !isGamesHash()) {
+        const current = document.body.dataset.currentTab;
+        tabBeforeGames = ['home','troy','inventory','ranking'].includes(current) ? current : 'home';
+        url.hash = 'games';
+        history.pushState(history.state, '', url);
+    } else if (tabId !== 'games' && tabId !== 'tarot' && isGamesHash()) {
+        url.hash = '';
+        history.pushState(history.state, '', url);
+    }
+    return showTab(tabId, publicTabInfo());
+};
 window.equipItem = (itemId, slot) => Inventory.equipItem(myPlayFabId, itemId, slot);
 window.equipTarotCardToDeck = (itemId, deckType) => Inventory.equipTarotCardToDeck(myPlayFabId, itemId, deckType);
 window.unequipTarotCardFromDeck = (itemId, deckType) => Inventory.unequipTarotCardFromDeck(myPlayFabId, itemId, deckType);

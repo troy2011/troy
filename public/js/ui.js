@@ -1220,6 +1220,8 @@ function updateHomeAvatarSeaTone() {
 }
 
 export async function showTab(tabId, playerInfo, options = {}) {
+    if (tabId === 'games') return showTab('tarot', playerInfo, options);
+    if (tabId === 'companions') return showTab('home', playerInfo, options);
     // Old map, island and naval battle screens have been retired.
     if (['map', 'islands', 'battle'].includes(tabId)) {
         return showTab('home', playerInfo, options);
@@ -1369,6 +1371,7 @@ export async function showTab(tabId, playerInfo, options = {}) {
     if (contentEl) contentEl.style.display = 'block';
 
     const navProxyMap = {
+        tarot: 'games',
         islands: 'map',
         qr: 'home'
     };

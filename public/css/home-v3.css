@@ -1958,8 +1958,8 @@ body[data-sea-tone] .home-hero-card {
     --nav-icon-image: var(--icon-nav-troy);
 }
 
-#navCompanions {
-    --nav-icon-image: var(--icon-nav-companions);
+#navGames {
+    --nav-icon-image: var(--icon-tarot);
 }
 
 #navInventory {
