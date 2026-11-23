@@ -21228,10 +21228,6 @@ body[data-tarot-kingdom-atmosphere-tone="final-eclipse"] #tarotKingdomRoot .taro
     align-items: flex-start;
 }
 
-#tabContentTarot .tarot-kingdom-header-meta {
-    margin-left: auto;
-}
-
 #tabContentTarot .tarot-state-text {
     margin: 8px 0 10px;
     padding: 10px 12px;
@@ -36255,6 +36251,7 @@ body.tarot-kingdom-fullscreen #tabContentTarot .tarot-kingdom-header {
 
 #tabContentTarot .tarot-kingdom-header-meta {
     align-items: center;
+    margin-left: auto;
 }
 
 #tabContentTarot .tarot-kingdom-exit-button {
