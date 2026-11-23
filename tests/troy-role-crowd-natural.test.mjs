@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
-import {previewCrowdPlan,selectCrowdVoices,readCrowdCategories,selectRoundVoice} from '../public/tabletop-v65/js/kingdomTable/roleCrowdPreview.js';
+import {previewCrowdPlan,selectCrowdVoices,readCrowdCategories,selectRoundVoice,roundOutTier} from '../public/tabletop-v65/js/kingdomTable/roleCrowdPreview.js';
 const catalog=JSON.parse(readFileSync(new URL('../public/tabletop-v65/assets/tarot-kingdom-table/role-crowd-preview/catalog.json',import.meta.url)));
 const categories=readCrowdCategories(catalog);
 const ready=new Set([...Object.values(catalog).filter(Array.isArray).flat(),...Object.values(categories.groups).flat()]);
@@ -48,4 +48,11 @@ test('every ranked and round-out file resolves in the shipped crowd directory',(
    assert.ok(tracks.length>=3);
    for(const file of tracks) assert.ok(existsSync(new URL('../public/tabletop-v65/assets/tarot-kingdom-table/role-crowd-preview/'+file,import.meta.url)),file);
  }
+});
+
+test('round-out uses only the settled winning han tier and falls back short',()=>{
+ const values=[[undefined,'short'],[null,'short'],['10','short'],[NaN,'short'],[3,'short'],[4,'applause'],[9,'applause'],[10,'exceptional'],[21,'exceptional']];
+ for(const [han,tier] of values){assert.equal(roundOutTier(han),tier);const first=selectRoundVoice(0,x=>ready.has(x),categories,[],tier);const second=selectRoundVoice(0,x=>ready.has(x),categories,[first],tier);assert.ok(categories.roundOut[tier].includes(first)&&categories.roundOut[tier].includes(second));assert.notEqual(first,second);}
+ const fallback=selectRoundVoice(0,x=>categories.roundOut.short.includes(x),categories,[],'exceptional');
+ assert.ok(categories.roundOut.short.includes(fallback));
 });

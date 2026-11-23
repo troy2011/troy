@@ -1,6 +1,6 @@
 import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
-import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdVoices, selectRoundVoice } from './roleCrowdPreview.js?v=four-crowd-v1';
+import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdVoices, selectRoundVoice, roundOutTier } from './roleCrowdPreview.js?v=round-score-v1';
 // Web Audio synthesizes the base sounds; four role completions add short recorded foley.
 // The audio context is only created from a tap (browsers refuse to start it otherwise), and every failure is silent.
 
@@ -115,7 +115,7 @@ async function loadPreviewCrowd(ctx) {
     const sanitized = readCrowdCatalog(catalog);
     const categories = readCrowdCategories(catalog);
     if (context === ctx) previewCategories = categories;
-    const files = new Set([...Object.values(sanitized).flat(),...Object.values(categories.groups).flat()]);
+    const files = new Set([...Object.values(sanitized).flat(),...Object.values(categories.groups).flat(),...Object.values(categories.roundOut).flat()]);
     await Promise.allSettled([...files].map(file => loadCueAsset(ctx, previewBase, 'preview-' + file, file)));
 }
 function playPreviewCrowd(cue, earliest) {
@@ -189,16 +189,20 @@ function playCheer(key, earliest, gain = 1) {
     const at = Math.max(earliest, cheerUntil - context.currentTime);
     if (playRecorded(name, at, 1, cheers, gain)) cheerUntil = context.currentTime + at + recorded.get(name).duration + 0.06;
 }
-export function playRoundVictory(own, variant = 0) {
+export function playRoundVictory(own, variant = 0, winnerHan) {
     if (!ready() || document.hidden) return;
     // The round-only pool is distinct from the match-only J.
     // Do not wait behind a long preceding role crowd.
     const at = Math.max(.12, Math.min(.40, cheerUntil - context.currentTime));
-    const file = selectRoundVoice(variant, name=>recorded.has('preview-' + name),previewCategories,lastVoices);
+    const requestedTier = roundOutTier(winnerHan);
+    const file = selectRoundVoice(variant, name=>recorded.has('preview-' + name),previewCategories,lastVoices,requestedTier);
+    const tier = file ? ['short','applause','exceptional'].find(name=>previewCategories.roundOut[name].includes(file)) ?? 'short' : 'short';
     const key = file ? 'preview-' + file : 'cheer-d';
-    if (playRecorded(key, at, 1, cheers, own ? .86 : .65)) {
+    const levels = tier === 'exceptional' ? [1,.78] : tier === 'applause' ? [.86,.65] : [.68,.53];
+    const cap = tier === 'short' ? .95 : Infinity;
+    if (playRecorded(key, at, 1, cheers, levels[own?0:1],false,false,cap)) {
         lastVoices = file ? [file] : [];
-        cheerUntil = Math.max(cheerUntil, context.currentTime + at + recorded.get(key).duration + .06);
+        cheerUntil = Math.max(cheerUntil, context.currentTime + at + Math.min(cap,recorded.get(key).duration) + .06);
     }
 }
 export function playMatchVictory() {
@@ -226,22 +230,27 @@ export function completeRole(role, impactUntil = null, cheer) {
     } catch { /* Sound is optional; the table interaction must keep going. */ }
 }
 
-function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview = false, far = false) {
+function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview = false, far = false, cap = Infinity) {
     const buffer = recorded.get(key);
     if (!buffer) return false;
     const cue = context.createBufferSource();
     cue.buffer = buffer;
     cue.playbackRate.value = rate;
-    const target = master;
     const gain = volume === 1 && !asPreview ? null : context.createGain();
     const filter = far ? context.createBiquadFilter() : null;
-    if (filter) { filter.type = 'lowpass'; filter.frequency.value = 3100; filter.Q.value = .45; filter.connect(target); }
-    if (gain) { gain.gain.value = volume; cue.connect(gain); gain.connect(filter || target); }
-    else cue.connect(target);
+    if (filter) { filter.type = 'lowpass'; filter.frequency.value = 3100; filter.Q.value = .45; filter.connect(master); }
+    if (gain) { gain.gain.value = volume; cue.connect(gain); gain.connect(filter || master); }
+    else cue.connect(master);
     scheduled.add(cue);
     group?.add(cue);
     cue.onended = () => { scheduled.delete(cue); group?.delete(cue); cue.disconnect(); gain?.disconnect(); filter?.disconnect(); for (const tail of previewTails) if (tail.source === cue) previewTails.delete(tail); };
-    cue.start(context.currentTime + offset);
+    const begin = context.currentTime + offset;
+    if (gain && cap < buffer.duration / rate) {
+        gain.gain.setValueAtTime(volume,begin + Math.max(0,cap-.22));
+        gain.gain.linearRampToValueAtTime(0,begin + cap);
+        cue.start(begin);
+        cue.stop(begin + cap);
+    } else cue.start(begin);
     return asPreview ? {source: cue, gain} : true;
 }
 

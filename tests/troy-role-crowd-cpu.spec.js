@@ -1,14 +1,16 @@
 const {test,expect}=require('@playwright/test');
 const catalog=require('../public/tabletop-v65/assets/tarot-kingdom-table/role-crowd-preview/catalog.json');
-for(const ending of [false,true]) test('local AI '+(ending?'five-card out plays one round-out clip':'non-finishing five-card layers nearby and far voices'),async({page})=>{
+for(const [ending,tier,bonus] of [[false,'medium',0],[true,'short',0],[true,'applause',4],[true,'exceptional',11]]) test('local AI '+(ending?'five-card out plays one '+tier+' clip':'non-finishing five-card layers nearby and far voices'),async({page})=>{
   const R=await import('../public/tabletop-v65/js/kingdomTable/rules.js');
-  const deck=R.buildDeck(), cards=deck.filter(c=>!c.major&&((c.num===4&&['sword','coin'].includes(c.suit))||(c.num===6&&c.suit!=='wand')));
+  const deck=R.buildDeck();
+  const ids=tier==='short'?['coin-4','coin-5','sword-6','coin-7','cup-8']:null;
+  const cards=deck.filter(c=>ids?ids.includes(c.id):!c.major&&((c.num===4&&['sword','coin'].includes(c.suit))||(c.num===6&&c.suit!=='wand')));
   const played=['wand-2','sword-3','wand-4','sword-5','wand-6'].map(id=>deck.find(c=>c.id===id));
   const remaining=deck.filter(c=>!cards.concat(played).includes(c));
   const round=R.createRound({players:3});
   Object.assign(round,{players:[remaining.slice(0,2),ending?cards:[...cards,remaining[4]],remaining.slice(2,4)].map(hand=>({hand,grave:[],exiled:[]})),deck:remaining.slice(ending?4:5),aside:[],
     field:{kind:'role',count:5,role:R.evaluateRole(played),plays:[{by:2,cards:played,role:R.evaluateRole(played),kind:'role'}]},
-    back:false,lock:null,direction:1,cut:false,passed:[],trashBy:null,judgement:false,han:[0,0,0],lastCardHan:0,last:2,turn:1,drew:false,ceded:0,phase:'play',winner:null,openingWin:null,lastPlay:null,events:[]});
+    dealer:0,back:false,lock:null,direction:1,cut:false,passed:[],trashBy:null,judgement:false,han:[0,bonus,0],lastCardHan:0,last:2,turn:1,drew:false,ceded:0,phase:'play',winner:null,openingWin:null,lastPlay:null,events:[]});
   await page.route('**/api/**',r=>r.fulfill({json:{user:null}}));
   await page.route(/\/js\/kingdomTable\/rules\.js\?v=[^&]+$/,route=>route.fulfill({contentType:'text/javascript',
     body:`export * from '/tabletop-v65/js/kingdomTable/rules.js?fixture=crowd-practice'; export function createRound() { return ${JSON.stringify(round)}; }`,
@@ -27,6 +29,6 @@ for(const ending of [false,true]) test('local AI '+(ending?'five-card out plays 
   await page.locator('#ktStart').click();
   await expect.poll(()=>page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1))),{timeout:14000}).toHaveLength(ending?1:2);
   const [front,back]=await page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1)));
-  if(ending)expect(catalog.categories['round-out']).toContain(front);
+  if(ending)expect(catalog.roundOut[tier]).toContain(front);
   else {expect(catalog.categories.medium).toContain(front);expect(back).toMatch(/^opponent-open-/);}
 });

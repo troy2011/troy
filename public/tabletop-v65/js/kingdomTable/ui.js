@@ -13,11 +13,11 @@ import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=four-crowd-v1';
+import {animateRole} from './roleJuice.js?v=round-score-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
-import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=four-crowd-v1';
+import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=four-crowd-v1';
+import * as Sfx from './sfx.js?v=round-score-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1154,6 +1154,8 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'win': {
+            const winnerHan = match.lastResult?.winner === event.by ? match.lastResult.winnerHan : undefined;
+            const cheerVariant = match.played + event.by;
             const moving=Fx.moving();
             const dependencies=arrived&&sweepBefore?Promise.all([arrived,sweepBefore]):arrived||sweepBefore;
             const beat={at:null,promise:null};
@@ -1163,7 +1165,7 @@ function playEffects(events, fieldBefore, feedback) {
                 if(event.by===ME)Fx.flash('gold');
                 Fx.shake($('ktFelt'),6);
                 // The local sole match result already has its own distinct J cheer.
-                if (!ownVictory) Sfx.playRoundVictory(event.by === ME, match.played + event.by);
+                if (!ownVictory) Sfx.playRoundVictory(event.by === ME, cheerVariant, winnerHan);
                 if(event.by!==ME) Sfx.roleSound('lose');
                 if(moving)Fx.later(260,()=>{
                     throwAgariHands(event.by);

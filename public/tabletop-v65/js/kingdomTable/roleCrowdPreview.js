@@ -100,6 +100,12 @@ const fallbackCategories = Object.freeze({
     large: ['self-reply-big','self-reply-big-2','self-reply-climax','self-reply-big-4','self-reply-medium-5'],
     'round-out': ['self-open-big-2','self-reply-climax-2','self-reply-medium-4'],
 });
+const roundOutDefaults = Object.freeze({"short":["out-333386.mp3","out-333387.mp3"],"applause":["out-555456.mp3","self-reply-medium-4.mp3"],"exceptional":["out-581617.mp3","self-open-big-2.mp3","self-reply-climax-2.mp3"]});
+const roundOutOrder = ['short','applause','exceptional'];
+export function roundOutTier(winnerHan) {
+    if (!Number.isFinite(winnerHan)) return 'short';
+    return winnerHan >= 10 ? 'exceptional' : winnerHan >= 4 ? 'applause' : 'short';
+}
 const validFilename = file => typeof file === 'string' && /^[\w-]+\.mp3$/u.test(file);
 export function readCrowdCategories(source) {
     const groups = Object.fromEntries(CROWD_CATEGORIES.map(key=>[
@@ -108,7 +114,10 @@ export function readCrowdCategories(source) {
     ]));
     const origins = Object.fromEntries(Object.entries(source?.origins || {}).filter(([file,id])=>validFilename(file)
         && typeof id==='string' && /^[\w-]{1,80}$/u.test(id)));
-    return {groups,origins};
+    const roundOut = Object.fromEntries(roundOutOrder.map(key=>[
+        key,[...new Set((Array.isArray(source?.roundOut?.[key]) ? source.roundOut[key] : roundOutDefaults[key]).filter(validFilename))].slice(0,12),
+    ]));
+    return {groups,origins,roundOut};
 }
 
 function pickVoice(pool, playable, origin, tracked, extra, seed) {
@@ -133,8 +142,14 @@ export function selectCrowdVoices(cue, playable, categories, prior=[]) {
     return {primary, backing};
 }
 
-export function selectRoundVoice(variant, playable, categories, prior=[]) {
-    const {groups,origins} = categories;
+export function selectRoundVoice(variant, playable, categories, prior=[], tier='short') {
+    const {origins,roundOut} = categories;
     const origin = file => origins[file] ?? recording.get(file) ?? file;
-    return pickVoice(groups['round-out'] || [],playable,origin,new Set(prior.map(origin)),null,variant >>> 0);
+    const tracked = new Set(prior.map(origin));
+    // Missing media can only lower the intensity, never turn an ordinary finish into a fanfare.
+    for(let i=Math.max(0,roundOutOrder.indexOf(tier));i>=0;i--) {
+        const file=pickVoice(roundOut[roundOutOrder[i]],playable,origin,tracked,null,variant >>> 0);
+        if(file) return file;
+    }
+    return null;
 }

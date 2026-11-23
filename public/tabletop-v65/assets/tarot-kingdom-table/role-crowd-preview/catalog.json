@@ -111,5 +111,20 @@
     "out-333386.mp3": "fs-333386",
     "out-581617.mp3": "fs-581617",
     "out-555456.mp3": "fs-555456"
+  },
+  "roundOut": {
+    "short": [
+      "out-333386.mp3",
+      "out-333387.mp3"
+    ],
+    "applause": [
+      "out-555456.mp3",
+      "self-reply-medium-4.mp3"
+    ],
+    "exceptional": [
+      "out-581617.mp3",
+      "self-open-big-2.mp3",
+      "self-reply-climax-2.mp3"
+    ]
   }
 }
