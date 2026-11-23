@@ -3,8 +3,8 @@ const fs=require('node:fs'), root='public/tabletop-v65/js/kingdomTable/';
 for(const mode of ['self','opponent','poll','restored','match']) test('round applause '+mode,async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.addInitScript(()=>{window.cues=[]});
- const instrument=fs.readFileSync(root+'sfx.js','utf8').replace('export function playRoundVictory(own) {','export function playRoundVictory(own) { window.cues.push(own?"own":"rival");').replace('export function playMatchVictory() {','export function playMatchVictory() { window.cues.push("J");');
- await page.route('**/sfx.js?v=round-victory-cheer-v1',r=>r.fulfill({contentType:'text/javascript',body:instrument}));
+ const instrument=fs.readFileSync(root+'sfx.js','utf8').replace('export function playRoundVictory(own, variant = 0) {','export function playRoundVictory(own, variant = 0) { window.cues.push(own?"own":"rival");').replace('export function playMatchVictory() {','export function playMatchVictory() { window.cues.push("J");');
+ await page.route('**/sfx.js?v=four-crowd-v1',r=>r.fulfill({contentType:'text/javascript',body:instrument}));
  await page.route('**/localTable.js',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'localTable.js','utf8').replace('get view() { return null; }','view:null')}));
  const hook=String.raw`
 window.fxRound=(mode)=>{
@@ -27,7 +27,7 @@ window.fxRound=(mode)=>{
  if(mode==='match'){showResult(m.lastResult);showResult(m.lastResult);}
 };
 `;
- await page.route('**/ui.js?v=round-victory-cheer-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+hook}));
+ await page.route('**/ui.js?v=four-crowd-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+hook}));
  await page.goto('/tarot-kingdom-table.html?v=65');
  await expect.poll(()=>page.evaluate(()=>typeof window.fxRound)).toBe('function');
  await page.evaluate(mode=>window.fxRound(mode),mode);

@@ -55,5 +55,61 @@
     "opponent-reply-neutral.mp3",
     "opponent-reply-neutral-2.mp3",
     "opponent-reply-neutral-3.mp3"
-  ]
+  ],
+  "categories": {
+    "small": [
+      "small-106237.mp3",
+      "small-333412.mp3",
+      "small-333402.mp3",
+      "small-333396.mp3",
+      "self-open-small-3.mp3",
+      "self-reply-small-2.mp3",
+      "self-reply-small-3.mp3",
+      "self-open-medium-4.mp3"
+    ],
+    "medium": [
+      "medium-333421.mp3",
+      "medium-333404.mp3",
+      "medium-581410.mp3",
+      "self-open-medium.mp3",
+      "self-open-big.mp3",
+      "self-reply-big-3.mp3",
+      "self-reply-climax-4.mp3"
+    ],
+    "large": [
+      "large-139972.mp3",
+      "large-264377.mp3",
+      "large-333405.mp3",
+      "self-reply-big.mp3",
+      "self-reply-big-2.mp3",
+      "self-reply-climax.mp3",
+      "self-reply-big-4.mp3",
+      "self-reply-medium-5.mp3"
+    ],
+    "round-out": [
+      "out-555456.mp3",
+      "out-581617.mp3",
+      "out-333386.mp3",
+      "out-333387.mp3",
+      "self-open-big-2.mp3",
+      "self-reply-climax-2.mp3",
+      "self-reply-medium-4.mp3"
+    ]
+  },
+  "origins": {
+    "small-333396.mp3": "fs-333396",
+    "small-333402.mp3": "fs-333402",
+    "small-333412.mp3": "fs-333412",
+    "small-106237.mp3": "fs-106237",
+    "medium-581410.mp3": "fs-581410",
+    "medium-333404.mp3": "fs-333404",
+    "medium-333421.mp3": "fs-333421",
+    "large-333405.mp3": "fs-333405",
+    "large-264377.mp3": "fs-264377",
+    "large-139972.mp3": "fs-139972",
+    "out-333387.mp3": "fs-333387",
+    "out-333386.mp3": "fs-333386",
+    "out-581617.mp3": "fs-581617",
+    "out-555456.mp3": "fs-555456"
+  }
 }

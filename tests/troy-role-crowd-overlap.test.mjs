@@ -11,7 +11,7 @@ test('rapid next role retains at least 145 ms of the older pending primary and c
    const n={playbackRate:{},connect(){},disconnect(){},start(at){this.startAt=at;},stop(at){this.stopAt=at;}};
    sources.push(n);return n;
  }};
- const input={ctx,gain,URL,document:{hidden:false,addEventListener(){}},selectCrowdVoices:({variant})=>({primary:variant===1?'one':'next',backing:variant===1?'far':null})};
+ const input={ctx,gain,URL,document:{hidden:false,addEventListener(){}},readCrowdCategories:()=>({}),selectCrowdVoices:({variant})=>({primary:variant===1?'one':'next',backing:variant===1?'far':null})};
  const setup='context=ctx; master=gain(); for(const file of ["one","next","far"]) recorded.set("preview-"+file,{duration:1});';
  const run='playPreviewCrowd({variant:1,enemy:true,backing:{offset:.22,level:.32}},.27);playPreviewCrowd({variant:2,enemy:false},.07);';
  // This raw module uses import.meta.url only for asset bases; they do not fetch in this scheduling fixture.

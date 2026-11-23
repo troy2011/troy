@@ -1,5 +1,6 @@
 const {test,expect}=require('@playwright/test');
-for(const ending of [false,true]) test('local AI '+(ending?'five-card out plays round D only':'non-finishing five-card layers nearby and far voices'),async({page})=>{
+const catalog=require('../public/tabletop-v65/assets/tarot-kingdom-table/role-crowd-preview/catalog.json');
+for(const ending of [false,true]) test('local AI '+(ending?'five-card out plays one round-out clip':'non-finishing five-card layers nearby and far voices'),async({page})=>{
   const R=await import('../public/tabletop-v65/js/kingdomTable/rules.js');
   const deck=R.buildDeck(), cards=deck.filter(c=>!c.major&&((c.num===4&&['sword','coin'].includes(c.suit))||(c.num===6&&c.suit!=='wand')));
   const played=['wand-2','sword-3','wand-4','sword-5','wand-6'].map(id=>deck.find(c=>c.id===id));
@@ -24,5 +25,8 @@ for(const ending of [false,true]) test('local AI '+(ending?'five-card out plays 
   await page.locator('[data-tavern-mode=practice]').click();
   await page.locator('input[name=ktSeats][value="3"]').check();
   await page.locator('#ktStart').click();
-  await expect.poll(()=>page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1))),{timeout:14000}).toEqual(ending?['d.mp3']:[expect.stringMatching(/^self-(?:open-small-3|open-medium(?:-4)?|reply-small-[23]|reply-climax-4)\.mp3$/),expect.stringMatching(/^opponent-open-(?:small(?:-2)?|medium-2|big)\.mp3$/)]);
+  await expect.poll(()=>page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1))),{timeout:14000}).toHaveLength(ending?1:2);
+  const [front,back]=await page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1)));
+  if(ending)expect(catalog.categories['round-out']).toContain(front);
+  else {expect(catalog.categories.medium).toContain(front);expect(back).toMatch(/^opponent-open-/);}
 });

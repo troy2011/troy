@@ -13,11 +13,11 @@ import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=round-victory-cheer-v1';
+import {animateRole} from './roleJuice.js?v=four-crowd-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
-import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=natural-crowd-v3';
+import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=four-crowd-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=round-victory-cheer-v1';
+import * as Sfx from './sfx.js?v=four-crowd-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1163,7 +1163,7 @@ function playEffects(events, fieldBefore, feedback) {
                 if(event.by===ME)Fx.flash('gold');
                 Fx.shake($('ktFelt'),6);
                 // The local sole match result already has its own distinct J cheer.
-                if (!ownVictory) Sfx.playRoundVictory(event.by === ME);
+                if (!ownVictory) Sfx.playRoundVictory(event.by === ME, match.played + event.by);
                 if(event.by!==ME) Sfx.roleSound('lose');
                 if(moving)Fx.later(260,()=>{
                     throwAgariHands(event.by);

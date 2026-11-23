@@ -1,6 +1,6 @@
 import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
-import { crowdPreviewActive, readCrowdCatalog, selectCrowdVoices } from './roleCrowdPreview.js?v=natural-crowd-v2';
+import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdVoices, selectRoundVoice } from './roleCrowdPreview.js?v=four-crowd-v1';
 // Web Audio synthesizes the base sounds; four role completions add short recorded foley.
 // The audio context is only created from a tap (browsers refuse to start it otherwise), and every failure is silent.
 
@@ -18,7 +18,7 @@ const cheers = new Set();
 let cheerUntil = 0;
 let roomTone = null;
 let roleAccentUntil = 0;
-let previewCatalog = {};
+let previewCategories = readCrowdCategories(null);
 const previewTails = new Set();
 let lastVoices = [];
 let enabled = readPreference();
@@ -113,12 +113,14 @@ async function loadPreviewCrowd(ctx) {
         if (res.ok) catalog = await res.json();
     } catch { /* Default names still work if the preview has no manifest. */ }
     const sanitized = readCrowdCatalog(catalog);
-    if (context === ctx) previewCatalog = sanitized;
-    await Promise.allSettled(Object.values(sanitized).flat().map(file => loadCueAsset(ctx, previewBase, 'preview-' + file, file)));
+    const categories = readCrowdCategories(catalog);
+    if (context === ctx) previewCategories = categories;
+    const files = new Set([...Object.values(sanitized).flat(),...Object.values(categories.groups).flat()]);
+    await Promise.allSettled([...files].map(file => loadCueAsset(ctx, previewBase, 'preview-' + file, file)));
 }
 function playPreviewCrowd(cue, earliest) {
     if (document.hidden) return true;
-    const {primary, backing} = selectCrowdVoices(cue, file=>recorded.has('preview-' + file),previewCatalog,lastVoices);
+    const {primary, backing} = selectCrowdVoices(cue, file=>recorded.has('preview-' + file),previewCategories,lastVoices);
     const now = context.currentTime;
     const start = Math.max(now + earliest, cheerUntil - .16);
     // Never queue a new reaction behind older crowds. Cancel pending sympathy from an
@@ -146,7 +148,7 @@ function playPreviewCrowd(cue, earliest) {
         until = Math.max(until,end);
         return true;
     };
-    const first = playVoice(primary, at, cue.enemy ? cue.neutralReply ? .48 : .64 : cue.noteworthy ? cue.level : .70);
+    const first = playVoice(primary, at, cue.level);
     const second = first && backing && playVoice(backing, at + cue.backing.offset, cue.backing.level, true);
     lastVoices = [first && primary, second && backing].filter(Boolean);
     if (first || second) cheerUntil = until + .025;
@@ -187,13 +189,17 @@ function playCheer(key, earliest, gain = 1) {
     const at = Math.max(earliest, cheerUntil - context.currentTime);
     if (playRecorded(name, at, 1, cheers, gain)) cheerUntil = context.currentTime + at + recorded.get(name).duration + 0.06;
 }
-export function playRoundVictory(own) {
+export function playRoundVictory(own, variant = 0) {
     if (!ready() || document.hidden) return;
-    try {
-        // Replace crowd tail at the completed out, without changing physical landing or seat cues.
-        cancelCheers();
-        playCheer('d', .07, own ? .88 : .58);
-    } catch { /* Sound does not affect scoring or progress. */ }
+    // The round-only pool is distinct from the match-only J.
+    // Do not wait behind a long preceding role crowd.
+    const at = Math.max(.12, Math.min(.40, cheerUntil - context.currentTime));
+    const file = selectRoundVoice(variant, name=>recorded.has('preview-' + name),previewCategories,lastVoices);
+    const key = file ? 'preview-' + file : 'cheer-d';
+    if (playRecorded(key, at, 1, cheers, own ? .86 : .65)) {
+        lastVoices = file ? [file] : [];
+        cheerUntil = Math.max(cheerUntil, context.currentTime + at + recorded.get(key).duration + .06);
+    }
 }
 export function playMatchVictory() {
     if (!ready()) return;
