@@ -35,6 +35,10 @@
     [3, 2, 1].forEach((n, i) => ctx.later(() => { ctx.clear(); ctx.say(String(n)); both(s => ctx.text(s, String(n), 'xgame-big')); ctx.fx.turn(); }, i * COUNT_STEP_MS));
     ctx.later(then, 3 * COUNT_STEP_MS);
   }
+  // Both players are judged at the same moment on one phone, so only one sound plays: the best of the two.
+  function playBest(ctx, levels) {
+    ctx.fx.grade(levels.includes('perfect') ? 'perfect' : levels.includes('close') ? 'close' : 'miss');
+  }
   function add(id, name, category, icon, description, start) {
     registry.push({ id, name, category, icon, description, create: ctx => ({ start: () => start(ctx) }) });
   }
@@ -42,7 +46,8 @@
   // ---- 綱引き: tap to pull the rope to your side. ----
   const TUG_LIMIT = 15; // Taps of lead needed to pull the flag over.
   const TUG_TIME_MS = 12000;
-  add('tug-of-war', '綱引き', 'reflex', '⚓', '連打で綱を引く。旗を自分の側まで引き込んだら勝ち。', ctx => {
+  const TUG_STEP = 5; // Every 5 taps of lead is a step both players can hear and see.
+  add('tug-of-war', '綱引き', 'reflex', '🪢', '連打で綱を引く。旗を自分の側まで引き込んだら勝ち。', ctx => {
     let rope = 0; // Negative: toward 1P. Positive: toward 2P.
     let open = false;
     const markers = [], leads = [], clocks = [];
@@ -89,8 +94,16 @@
     function pull(seat) {
       if (!open) return;
       if (Date.now() >= endsAt) { settle('時間切れ'); return; }
+      const lead = Math.abs(rope);
       rope += seat === 0 ? -1 : 1;
+      ctx.fx.tap();
       draw();
+      if (Math.abs(rope) > lead && Math.abs(rope) % TUG_STEP === 0 && Math.abs(rope) < TUG_LIMIT) {
+        const leader = rope < 0 ? 0 : 1;
+        ctx.fx.hit();
+        ctx.fx.flash(ctx.zones[leader], 'good');
+        both(s => ctx.fx.pop(markers[s]));
+      }
       if (Math.abs(rope) >= TUG_LIMIT) settle('引き切った！');
     }
     function settle(why) {
@@ -105,6 +118,7 @@
   const BOMB_MIN_MS = 7000;
   const BOMB_SPREAD_MS = 8000;
   const BOMB_TICK_MS = 700;
+  const BOMB_RESULT_PAUSE_MS = 560;
   add('skull-bomb', 'ドクロ爆弾', 'luck', '💣', '光った的を2つ押すと相手へ渡せる。爆発したとき持っていたら負け。', ctx => {
     let holder = ctx.starter;
     let hits = 0;
@@ -114,7 +128,13 @@
     function expiry() {
       if (live && Date.now() - lit >= fuseMs) {
         live = false;
-        ctx.finish(1 - holder, '💥 ドカン！ ' + (holder + 1) + 'P の手の中で爆発');
+        const message = '💥 ドカン！ ' + (holder + 1) + 'P の手の中で爆発';
+        ctx.clear();
+        ctx.turn(null);
+        ctx.say(message);
+        ctx.fx.boom();
+        ctx.fx.flash(ctx.zones[holder], 'bad');
+        ctx.later(() => ctx.finish(1 - holder, message), BOMB_RESULT_PAUSE_MS);
       }
       return !live;
     }
@@ -146,9 +166,12 @@
     }
     function hit(seat) {
       if (expiry() || seat !== holder) return;
-      ctx.fx.tap();
+      ctx.fx.hit();
       if (++hits < 2) { draw(); return; }
       hits = 0;
+      // Getting rid of the bomb is the relief moment of this game.
+      ctx.fx.correct();
+      ctx.fx.flash(ctx.zones[holder], 'good');
       holder = 1 - holder;
       draw();
     }
@@ -210,6 +233,7 @@
       if (value !== question.answer) {
         locked[seat] = true;
         ctx.fx.wrong();
+        ctx.fx.flash(ctx.zones[seat], 'bad');
         if (locked.every(Boolean)) { question = null; ctx.later(next, 700); draw('ふたりともお手つき'); return; }
         // Leave the opponent's buttons in place: replacing both halves can swallow
         // a nearly-simultaneous tap during this click.
@@ -220,13 +244,15 @@
       }
       const answerLabel = question.choices.find(c => c.value === value)?.label;
       points[seat]++;
-      ctx.fx.correct();
+      ctx.fx.score();
+      ctx.fx.flash(ctx.zones[seat], 'good');
       question = null;
       if (points[seat] >= toWin) { ctx.finish(seat, points[0] + ' 対 ' + points[1]); return; }
       ctx.clear();
       ctx.say((seat + 1) + 'P 正解！');
       both(s => {
-        ctx.text(s, s === seat ? '正解！' : '相手が正解', 'xgame-big');
+        const verdict = ctx.text(s, s === seat ? '正解！' : '相手が正解', 'xgame-big');
+        if (s === seat) ctx.fx.pop(verdict);
         ctx.text(s, '答え：' + answerLabel + ' ／ あなた ' + points[s] + ' 点', 'xgame-text');
       });
       ctx.later(next, 700);
@@ -234,7 +260,7 @@
     next();
   }
 
-  add('quick-math', '早計算', 'reflex', '＋', '同じ計算が両側に出る。先に正しい答えを押した方が1点。3点先取。', ctx => {
+  add('quick-math', '早計算', 'reflex', '➕', '同じ計算が両側に出る。先に正しい答えを押した方が1点。3点先取。', ctx => {
     questionRace(ctx, {
       rounds: 9,
       toWin: 3,
@@ -260,7 +286,7 @@
     { name: '黄', css: '#8a5900' },
     { name: '緑', css: '#17622f' },
   ];
-  add('color-word', '色の早押し', 'reflex', '色', '文字ではなく「文字の色」を押す。先に当てた方が1点。3点先取。', ctx => {
+  add('color-word', '色の早押し', 'reflex', '🎨', '文字ではなく「文字の色」を押す。先に当てた方が1点。3点先取。', ctx => {
     questionRace(ctx, {
       rounds: 9,
       toWin: 3,
@@ -279,7 +305,7 @@
 
   // ---- 数字タッチ: tap 1 to 9 in order, fastest wins. ----
   const TOUCH_PENALTY_MS = 900;
-  add('number-touch', '数字タッチ', 'reflex', '①', 'ばらばらの1〜9を順番にタッチ。先に9まで押した方が勝ち。', ctx => {
+  add('number-touch', '数字タッチ', 'reflex', '🔢', 'ばらばらの1〜9を順番にタッチ。先に9まで押した方が勝ち。', ctx => {
     const layout = shuffled(ctx, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
     const next = [1, 1], frozen = [false, false], buttons = [[], []], readouts = [];
     let live = false;
@@ -318,11 +344,13 @@
       if (n !== next[seat]) {
         frozen[seat] = true;
         ctx.fx.wrong();
+        ctx.fx.flash(ctx.zones[seat], 'bad');
         update();
         ctx.later(() => { frozen[seat] = false; update(); }, TOUCH_PENALTY_MS);
         return;
       }
       ctx.fx.tap();
+      ctx.fx.pop(buttons[seat][n]);
       if (++next[seat] > 9) {
         live = false;
         ctx.finish(seat, (seat + 1) + 'P が先に9まで');
@@ -336,7 +364,9 @@
   const CANNON_SHOTS = 3;
   const CANNON_FRAME_MS = 30;
   const CANNON_SWEEP_MS = [1500, 1150, 850]; // Each shot the gauge swings faster.
-  add('cannon-power', '大砲の力加減', 'timing', '◎', '往復するゲージを、目標の位置で止める。3発の誤差の合計が小さい方が勝ち。', ctx => {
+  const CANNON_PERFECT = 2; // An error this small counts as a bullseye for sound and light.
+  const CANNON_CLOSE = 8;
+  add('cannon-power', '大砲の力加減', 'timing', '💥', '往復するゲージを、目標の位置で止める。3発の誤差の合計が小さい方が勝ち。', ctx => {
     const miss = [0, 0];
     let shot = 0;
     let target = 0;
@@ -383,12 +413,17 @@
       triggers[seat].textContent = '発射済み';
       notes[seat].textContent = '相手の発射を待っています';
       if (stops.some(v => v == null)) return;
-      stops.forEach((v, s) => {
+      const grades = stops.map((v, s) => {
         const error = Math.abs(target - v);
         miss[s] += error;
-        notes[s].textContent = (error === 0 ? 'ど真ん中！' : '今回の誤差 ' + error) + ' ／ 合計 ' + miss[s];
-        needles[s].classList.toggle('xgame-a-bullseye', error === 0);
+        notes[s].textContent = (error === 0 ? 'ど真ん中！' : error <= CANNON_PERFECT ? 'ほぼ真ん中！ 誤差 ' + error : '今回の誤差 ' + error) + ' ／ 合計 ' + miss[s];
+        needles[s].classList.toggle('xgame-a-bullseye', error <= CANNON_PERFECT);
+        const level = error <= CANNON_PERFECT ? 'perfect' : error <= CANNON_CLOSE ? 'close' : 'miss';
+        ctx.fx.flash(ctx.zones[s], level === 'miss' ? 'bad' : level === 'perfect' ? 'perfect' : 'good');
+        ctx.fx.pop(notes[s]);
+        return level;
       });
+      playBest(ctx, grades);
       shot++;
       ctx.say('目標 ' + target + '　1P ' + stops[0] + '　2P ' + stops[1]);
       if (shot === CANNON_SHOTS) { ctx.later(() => ctx.finish(higher(-miss[0], -miss[1]), '誤差の合計　1P ' + miss[0] + '　2P ' + miss[1]), 900); return; }
@@ -456,12 +491,14 @@
         return;
       }
       answers.forEach((v, s) => { points[s] += v === count ? 2 : Math.abs(v - count) === 1 ? 1 : 0; });
+      playBest(ctx, answers.map(v => (v === count ? 'perfect' : Math.abs(v - count) === 1 ? 'close' : 'miss')));
       round++;
       ctx.clear();
       ctx.say('正解 ' + count + ' 個　' + points[0] + ' 対 ' + points[1]);
       both(s => {
-        ctx.text(s, '正解 ' + count + ' 個（あなた ' + answers[s] + '）', 'xgame-big');
         const gap = Math.abs(answers[s] - count);
+        ctx.fx.pop(ctx.text(s, '正解 ' + count + ' 個（あなた ' + answers[s] + '）', 'xgame-big'));
+        ctx.fx.flash(ctx.zones[s], gap === 0 ? 'perfect' : gap === 1 ? 'good' : 'bad');
         ctx.text(s, (gap === 0 ? 'ぴったり ＋2点' : gap === 1 ? '1つ違い ＋1点' : '今回は0点') + ' ／ 合計 ' + points[s] + ' 点', 'xgame-text');
       });
       if (round === SHELL_ROUNDS) { ctx.later(() => ctx.finish(higher(...points), '正解 ' + count + ' 個　合計 ' + points[0] + ' 対 ' + points[1]), 1000); return; }
@@ -474,7 +511,7 @@
   const SHUFFLE_ROUNDS = 3;
   const SHUFFLE_SWAPS = [4, 6, 8];
   const SHUFFLE_STEP_MS = [620, 480, 360];
-  add('chest-shuffle', '宝箱シャッフル', 'memory', '▣', '金貨の入った樽を目で追う。当てたら1点。だんだん速くなる3回勝負。', ctx => {
+  add('chest-shuffle', '宝箱シャッフル', 'memory', '🛢️', '金貨の入った樽を目で追う。当てたら1点。だんだん速くなる3回勝負。', ctx => {
     const points = [0, 0];
     let round = 0;
     let slots = [0, 1, 2]; // slots[barrel] = position 0..2
@@ -537,7 +574,10 @@
       picks.forEach((p, s) => { if (p === coin) points[s]++; });
       round++;
       drawBarrels(true, false);
+      if (picks.includes(coin)) ctx.fx.score(); else ctx.fx.wrong();
       picks.forEach((p, s) => {
+        ctx.fx.flash(ctx.zones[s], p === coin ? 'good' : 'bad');
+        ctx.fx.pop(barrels[s][p]);
         barrels[s][p].classList.add(p === coin ? 'is-right' : 'is-wrong');
         ctx.zones[s].querySelector('.xgame-a-chest-stage').textContent = p === coin ? '正解！ ＋1点' : 'はずれ。金貨は表示の樽';
       });

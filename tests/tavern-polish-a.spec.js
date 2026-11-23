@@ -28,8 +28,23 @@ test('ドクロ爆弾: second hit passes, and the original hidden fuse remains a
   await expect(seat(page, 0).locator('.xgame-a-bomb-stages')).toHaveAttribute('aria-label', '1 / 2 成功');
   await tap(choice(page, 0, '的'));
   await expect(seat(page, 1).locator('.xgame-a-bomb-stages')).toHaveAttribute('aria-label', '0 / 2 成功');
+  await page.evaluate(() => {
+    window.bombVibrations = [];
+    Object.defineProperty(navigator, 'vibrate', { value: pattern => window.bombVibrations.push(pattern) });
+  });
   await page.clock.runFor(7300);
+  await expect(page.locator('#signal')).toContainText('2P の手の中で爆発');
+  await expect(seat(page, 0)).not.toHaveAttribute('data-result', 'win');
+  expect(await page.evaluate(() => window.bombVibrations)).toEqual([220]);
+  await page.clock.runFor(600);
   await expect(seat(page, 0)).toHaveAttribute('data-result', 'win');
+  expect(await page.evaluate(() => window.bombVibrations)).toEqual([220, [60, 50, 120]]);
+  await page.locator('#start').click();
+  await page.clock.runFor(7300);
+  await expect(page.locator('#signal')).toContainText('爆発');
+  await page.locator('#exit').click();
+  await page.clock.runFor(600);
+  expect(await page.evaluate(() => window.bombVibrations)).toEqual([220, [60, 50, 120], 220]);
 });
 for (const [id, bad, answer, prompt] of [
   ['quick-math', '3', '4', '2 × 2 ＝ ?'],

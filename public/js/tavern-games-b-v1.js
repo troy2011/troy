@@ -12,6 +12,8 @@
     return node;
   };
   const win = (ctx, s, why) => ctx.finish(s, seatName(s) + 'の勝ち！ ' + (why || ''));
+  // Bounces the cell that was just taken, in every half that draws the board.
+  const popCell = (ctx, i) => both(s => ctx.fx.pop(ctx.zones[s].querySelectorAll('[data-tavern-board] button')[i]));
   const meta = (id, name, category, icon, description, create) => games.push({ id, name, category, icon, description, create });
 
   function ledger(ctx, seat, entries) {
@@ -81,6 +83,7 @@
       if (picked[0].length + picked[1].length === 9) { ctx.finish(null, '9枚を取り切って引き分け。'); return; }
       turn = 1 - turn;
       render();
+      popCell(ctx, i);
     }
     return { start: render };
   });
@@ -126,6 +129,7 @@
         face = 1 + ctx.random(6);
         if (face === 1) {
           ctx.fx.wrong();
+          ctx.fx.flash(ctx.zones[turn], 'bad');
           const lost = pot;
           pot = 0;
           turn = 1 - turn;
@@ -136,12 +140,15 @@
         ctx.fx.correct();
         if (bank[turn] + pot >= DICE_GOAL) { bank[turn] += pot; win(ctx, turn, bank[turn] + ' 枚に到達。'); return; }
         render(seatName(turn) + '：' + face + 'の目。未確保 ＋' + face + '枚（計' + pot + '枚）');
+        both(s => ctx.fx.pop(ctx.zones[s].querySelector('.xb-dice-face')));
       }, DICE_ROLL_MS);
     }
     function keep() {
       if (rolling || pot === 0) return;
       bank[turn] += pot;
-      ctx.fx.coinRest();
+      // Banking is the safe win of this game, so it sounds like a point.
+      ctx.fx.score();
+      ctx.fx.flash(ctx.zones[turn], 'good');
       const kept = pot;
       pot = 0;
       face = null;
@@ -155,7 +162,7 @@
   const DIG_SIZE = 4;
   const DIG_TREASURES = 4;
   const DIG_SKULLS = 2;
-  meta('treasure-dig', '宝島の発掘', 'strategy', '⛏', '交互に掘る。数字はまわりのお宝の数。お宝なら続けて掘れる。ドクロは1つ没収。', ctx => {
+  meta('treasure-dig', '宝島の発掘', 'strategy', '⛏️', '交互に掘る。数字はまわりのお宝の数。お宝なら続けて掘れる。ドクロは1つ没収。', ctx => {
     let turn = ctx.starter;
     const cells = DIG_SIZE * DIG_SIZE;
     const order = Array.from({ length: cells }, (_, i) => i);
@@ -173,6 +180,8 @@
       }
       return n;
     };
+    // Both halves lie over the same shared board here, so the player's own scoreboard is what lights up.
+    const flashSeat = (seat, kind) => ctx.fx.flash(ctx.zones[seat].querySelector('.xb-ledger') || ctx.zones[seat], kind);
     const label = i => (dug[i] === null ? '' : treasure.has(i) ? '💰' : skull.has(i) ? '☠' : String(near(i)));
     const render = note => {
       ctx.clear();
@@ -197,25 +206,30 @@
       dug[i] = turn;
       if (treasure.has(i)) {
         found[turn]++;
-        ctx.fx.correct();
+        ctx.fx.score();
+        flashSeat(turn, 'good');
         if ([...treasure].every(t => dug[t] !== null)) {
           ctx.finish(found[0] === found[1] ? null : found[0] > found[1] ? 0 : 1, '発掘完了：お宝 1P ' + found[0] + ' 対 2P ' + found[1]);
           return;
         }
         render(seatName(turn) + ' がお宝を発見！ もう一度掘れる');
+        popCell(ctx, i);
         return;
       }
       if (skull.has(i)) {
         const lost = found[turn] > 0;
         found[turn] = Math.max(0, found[turn] - 1);
         ctx.fx.wrong();
+        flashSeat(turn, 'bad');
         turn = 1 - turn;
         render('☠ ドクロ！ ' + (lost ? 'お宝を1つ没収' : '没収なし（0個）') + '　' + seatName(turn) + 'の番');
+        popCell(ctx, i);
         return;
       }
       ctx.fx.tap();
       turn = 1 - turn;
       render('手がかり：周囲8マスのお宝 ' + near(i) + 'つ　' + seatName(turn) + 'の番');
+      popCell(ctx, i);
     }
     return { start: () => render() };
   });

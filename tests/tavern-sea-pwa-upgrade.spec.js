@@ -49,8 +49,8 @@ test('installed tavern cache refreshes the lineup without reverting the publishe
     await expect(page.locator('#games button')).toHaveCount(22);
     for(const id of added)await expect(page.locator('[data-game='+id+']')).toHaveCount(1);
     for(const id of retired)await expect(page.locator('[data-game='+id+']')).toHaveCount(0);
-    await expect(page.locator('script[src$="tavern-games-a-v1.js?v=20261123-props-05-13-v1"]')).toHaveCount(1);
-    await expect(page.locator('script[src$="tavern-games-b-v1.js?v=20261123-materials-v1"]')).toHaveCount(1);
+    await expect(page.locator('script[src$="tavern-games-a-v1.js?v=20261123-juice-fixes-v1"]')).toHaveCount(1);
+    await expect(page.locator('script[src$="tavern-games-b-v1.js?v=20261123-juice-v1"]')).toHaveCount(1);
     expect(loaded.some(r=>r.updated&&r.pathname==='/js/tavern-curl-physics-v1.js'&&r.query==='?v=1')).toBe(true);
     await page.locator('[data-game=curling]').click();
     await page.locator('#start').click();

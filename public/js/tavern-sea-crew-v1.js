@@ -12,7 +12,7 @@
   const take = (arr, random) => arr.splice(random(arr.length), 1)[0];
 
   registry.push({
-    id:'pirate-cipher', name:'海賊暗号', category:'memory', icon:'⚿',
+    id:'pirate-cipher', name:'海賊暗号', category:'memory', icon:'🔐',
     description:'同じ暗号表で4つの記号を読み解け。最初に解読した方の勝ち。',
     create(ctx) {
       return {start() {
@@ -67,18 +67,24 @@
           refresh();
           const add=(value) => {
             if(done || entered[seat]!==null) return;
+            ctx.fx.tap();
             if(value===0){inputs[seat].pop();refresh();return;}
             inputs[seat].push(value);refresh();
+            ctx.fx.pop(read.children[inputs[seat].length-1]);
             if(inputs[seat].length!==4) return;
             if(inputs[seat].join('')!==answer) {
               inputs[seat]=[];
               refresh();
               status.textContent='不正解・再入力';
               frame.dataset.error='true';
+              ctx.fx.wrong();
+              ctx.fx.flash(ctx.zones[seat],'bad');
               return;
             }
             entered[seat]=performance.now();
             status.textContent='解読成功';
+            ctx.fx.correct();
+            ctx.fx.flash(ctx.zones[seat],'good');
             if(!adjudicating) {
               adjudicating=true;
               ctx.later(finish,64);

@@ -60,6 +60,7 @@
     });
   }
   function drawIdle(reason = '') {
+    fx.clearFlashes();
     cancel();
     setPhase('idle');
     statusText = reason || '「開始」を押すと始まります';
@@ -131,6 +132,7 @@
     game.create(ctx).start();
   }
   function clearGame() {
+    fx.clearFlashes();
     cancel();
     game = null; round = 0;
     zones.forEach(zone => { zone.replaceChildren(); zone.hidden = true; });

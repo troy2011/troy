@@ -2,7 +2,8 @@
 [data-extra="curling"] {
   --curl-trim: #aa8148;
   --curl-paper: #ffeaca;
-  --curl-panel-size: clamp(77px, 14svh, 111px);
+  /* 81px floor: on a 568px-tall phone the hint line under the 1・2・3 marks needs it to stay inside the panel. */
+  --curl-panel-size: clamp(81px, 14svh, 111px);
 }
 [data-extra="curling"] > .extra:not([hidden]) {
   --curl-seat: #173a2c;

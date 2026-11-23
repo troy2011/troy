@@ -32,7 +32,7 @@
   });
   const categories = { reflex: '反射・スピード', timing: '時間の感覚', memory: '記憶・観察', strategy: '戦略・読み合い', luck: '運試し', party: 'パーティー' };
   const catalog = [
-    {id:'count', name:'テンカウント', category:'timing', icon:'10', description:'時計を見ずに、10秒に近いほうが勝ち'},
+    {id:'count', name:'テンカウント', category:'timing', icon:'⏱️', description:'時計を見ずに、10秒に近いほうが勝ち'},
     {id:'reflex', name:'反射神経バトル', category:'reflex', icon:'⚡', description:'合図が出たら、早押し勝負'}
   ];
   const fx = window.tavernFx;

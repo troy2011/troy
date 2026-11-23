@@ -27,7 +27,8 @@
   border-color:#d8b77b;background:linear-gradient(#342419,#170d06);
 }
 #arena[data-active-game="take-fifteen"] [data-tavern-board="fifteen"] {
-  --bside:clamp(155px,min(63vmin,31svh),265px);
+  /* 29svh keeps the board, both ledgers and the status line inside half of a 568px-tall phone. */
+  --bside:clamp(155px,min(63vmin,29svh),265px);
   flex:0 0 auto; width:var(--bside);height:var(--bside);
   padding:calc(var(--bside)*.087);gap:calc(var(--bside)*.045);
   background:url('../assets/tavern-physical-567/fifteen-board.webp') center/100% 100% no-repeat;
@@ -53,7 +54,9 @@
   #arena[data-active-game="take-fifteen"][data-layout="counter"] [data-tavern-board] {--bside:clamp(155px,53vmin,210px)}
 }
 #arena[data-active-game="cannon-power"] .xgame-gauge {
-  position:relative;flex:0 0 auto;width:min(90%,255px);height:auto;aspect-ratio:2 / 1;
+  /* On short portrait phones the screen height limits the gauge, so the three lines and the fire button still fit;
+     in landscape 60vw is always the larger term, so the cap never applies there. */
+  position:relative;flex:0 0 auto;width:min(90%,255px,max(38svh,60vw));height:auto;aspect-ratio:2 / 1;
   border:0;border-radius:0;background:url('../assets/tavern-physical-567/cannon-gauge.webp') center/100% 100% no-repeat;
   box-shadow:none;overflow:visible;isolation:isolate;
 }

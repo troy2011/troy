@@ -25,7 +25,11 @@ test('tavern score ledgers and cipher progress expose the right information',asy
  await buttons.nth(1).click();
  await expect(seat(0).locator('.xb-ledger-item[data-tone=risk] .xb-ledger-value')).toHaveText('3');
  await expect(buttons.nth(1)).toHaveAttribute('aria-label',/お宝/);
- await quit();await begin('pirate-cipher');
+ await expect(p.locator('.tavern-juice')).toHaveCount(1);
+ await quit();
+ await expect(p.locator('#chooser')).toBeVisible();
+ expect(await p.locator('.tavern-juice').count()).toBe(0);
+ await begin('pirate-cipher');
  await seat(0).locator('[data-cipher-digit="1"]').click();
  await expect(seat(0).locator('.sea-cipher-status')).toHaveText('1 / 4');
  await expect(seat(0).locator('.sea-cipher-read')).not.toContainText('1');

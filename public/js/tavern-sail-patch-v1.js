@@ -15,7 +15,7 @@
     return piece;
   }
   registry.push({
-    id:'sail-patch', name:'帆のつぎはぎ', category:'memory', icon:'▧',
+    id:'sail-patch', name:'帆のつぎはぎ', category:'memory', icon:'🧵',
     description:'帆の見本を見て、4枚の布を回して同じ形にしよう。',
     create(ctx) {
       return {start() {
@@ -79,8 +79,11 @@
             const b=ctx.button(seat,'布を回す',event=>{
               if(done||stamps[seat]!==null)return;
               progress[i]=(progress[i]+1)%4;redraw(b,i);tell();
+              // A cloth that clicks into place sounds and bounces; a turn that is not there yet is a plain knock.
+              if(progress[i]===target[i]){ctx.fx.correct();ctx.fx.pop(b);}else ctx.fx.tap();
               if(!progress.every((v,j)=>v===target[j]))return;
               stamps[seat]=timeOf(event);status.textContent='4 / 4 一致・完成！';
+              ctx.fx.flash(ctx.zones[seat],'perfect');
               if(!pending){pending=true;ctx.later(resolve,104);}
             });
             b.dataset.sailTile=String(i);edit.append(b);redraw(b,i);

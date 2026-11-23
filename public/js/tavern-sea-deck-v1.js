@@ -37,7 +37,7 @@ function getButtons(c,s,move){
   c.cleanup(()=>{cancel();window.removeEventListener('keydown',keyboard);window.removeEventListener('keyup',keyboard);window.removeEventListener('blur',cancel);b.disabled=true;});
  });
 }
-decorate(catalog,'deck-balance','甲板バランス','timing','◈','左右を押し続け、転がる金貨を甲板に残そう。',(c)=>{
+decorate(catalog,'deck-balance','甲板バランス','timing','⚖️','左右を押し続け、転がる金貨を甲板に残そう。',(c)=>{
  c.clear();c.say('左右を押して金貨を守れ！');
  const seats=[0,1].map(s=>{
   const status=c.text(s,'中央を保とう','xgame-text sea-progress');
@@ -47,8 +47,14 @@ decorate(catalog,'deck-balance','甲板バランス','timing','◈','左右を�
   const o={board,rail,coin,status,x:.5,v:0,input:0,lostAt:null};getButtons(c,s,d=>o.input=d);return o;
  });
  const wind=[0,1,2].map(()=>c.random(628)/100);let t=0;
+ // Every few seconds on deck is a small reward, so the 18 seconds feel like progress, not just waiting.
+ const BALANCE_MILESTONE_S=6;let milestone=1;
  function paint(){for(const o of seats){pos(o.coin,clamp(o.x,0,1),.52);o.rail.style.transform='translate(-50%,-50%) rotate('+(o.input*5)+'deg)';const state=o.lostAt!==null?'lost':Math.abs(o.x-.5)<=.16?'stable':Math.abs(o.x-.5)>=.35?'edge':'drift';
- if(o.board.dataset.balanceState!==state){o.board.dataset.balanceState=state;o.status.textContent={lost:'金貨が落ちた',stable:'中央で安定',edge:'危険：甲板の端',drift:'中央へ戻そう'}[state];}}}
+ if(o.board.dataset.balanceState!==state){
+  if(state==='edge')c.fx.warn();
+  if(state==='lost'){c.fx.wrong();c.fx.flash(c.zones[seats.indexOf(o)],'bad');}
+  o.board.dataset.balanceState=state;o.status.textContent={lost:'金貨が落ちた',stable:'中央で安定',edge:'危険：甲板の端',drift:'中央へ戻そう'}[state];}}
+ if(t>=milestone*BALANCE_MILESTONE_S&&t<18){milestone++;c.fx.correct();seats.forEach((o,s)=>{if(o.lostAt===null){c.fx.flash(c.zones[s],'good');c.fx.pop(o.status);}});}}
  paint();
  engine(c,dt=>{
   t+=dt;const push=.47*Math.sin(t*2.25+wind[0])+.26*Math.sin(t*4.01+wind[1])+.15*Math.cos(t*7+wind[2]);
@@ -58,7 +64,7 @@ decorate(catalog,'deck-balance','甲板バランス','timing','◈','左右を�
   return true;
  },paint);
 });
-decorate(catalog,'barrel-rally','樽ラリー','reflex','◉','左右で板を動かし、樽を打ち返す。5点先取。',(c)=>{
+decorate(catalog,'barrel-rally','樽ラリー','reflex','🏓','左右で板を動かし、樽を打ち返す。5点先取。',(c)=>{
  c.clear();c.say('左右を押して板を動かす。5点先取。');
  const points=[0,0], paired=[0,0];
  const seats=[0,1].map(s=>{
@@ -89,9 +95,10 @@ decorate(catalog,'barrel-rally','樽ラリー','reflex','◉','左右で板を�
   const oldY=y;x+=vx*dt;y+=vy*dt;
   if(x<.035||x>.965){x=clamp(x,.035,.965);vx=-vx;}
   for(const s of [0,1]){const line=s===0?.135:.865, toward=s===0?vy<0:vy>0;
-   if(toward&&((s===0&&oldY>=line&&y<=line)||(s===1&&oldY<=line&&y>=line))&&Math.abs(x-seats[s].x)<=.138){impactUntil=elapsed+.16;y=line;vy=-Math.sign(vy)*Math.min(.95,Math.abs(vy)*1.065);vx=clamp(vx+(x-seats[s].x)*1.32,-.54,.54);}
+   if(toward&&((s===0&&oldY>=line&&y<=line)||(s===1&&oldY<=line&&y>=line))&&Math.abs(x-seats[s].x)<=.138){impactUntil=elapsed+.16;y=line;c.fx.hit();c.fx.pop(seats[s].paddle[0]);c.fx.pop(seats[other(s)].paddle[1]);vy=-Math.sign(vy)*Math.min(.95,Math.abs(vy)*1.065);vx=clamp(vx+(x-seats[s].x)*1.32,-.54,.54);}
   }
-  if(y<-.04||y>1.04){const loser=y<0?0:1;pointBy=other(loser);points[pointBy]++;if(serve%2===0){paired[0]=points[0];paired[1]=points[1];}
+  if(y<-.04||y>1.04){const loser=y<0?0:1;pointBy=other(loser);points[pointBy]++;
+   c.fx.score();c.fx.flash(c.zones[pointBy],'good');c.fx.flash(c.zones[loser],'bad');c.fx.pop(seats[pointBy].standing);if(serve%2===0){paired[0]=points[0];paired[1]=points[1];}
    // Two matched serves before declaring a result; both seats receive the same number of incoming serves.
    if(serve%2===0&&Math.max(...points)>=5&&points[0]!==points[1]){paint();c.finish(Number(points[1]>points[0]),'1P '+points[0]+' ／ 2P '+points[1]);return false;}
    if(serve%2===0&&points[0]===points[1]&&points[0]>=5){paint();c.finish(null,'1P '+points[0]+' ／ 2P '+points[1]);return false;}

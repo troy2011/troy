@@ -16,11 +16,14 @@
   const WAVE_COURSES = [[1,0,2,1,0,2,1,2,0,3,4,5],[1,2,0,1,2,0,1,0,2,5,4,3],[1,0,1,2,0,1,2,1,0,4,3,5]];
   const HAZARDS = [[0],[1],[2],[0,1],[0,2],[1,2]];
   const LANE_NAMES = ['左','中央','右'];
+  // 3・2・1 before the first wave: whoever pressed 開始 needs time to get a hand back over their own lanes.
+  const WAVE_COUNTDOWN = [3, 2, 1];
+  const WAVE_COUNT_STEP_MS = 700;
   let lastCourse = -1;
   add('wave-dodge','荒波よけ','reflex','🌊','波がくる列を見て、安全な列へ移動。先にぶつかると負け。12波を同時に越えたら引き分け。',ctx=>{
     lastCourse = (lastCourse + 1 + ctx.random(WAVE_COURSES.length-1)) % WAVE_COURSES.length;
     const course = WAVE_COURSES[lastCourse], position = [1,1], cells = [[],[]], counts = [];
-    let wave = 0, blocked, closingAt = 0, settled = false;
+    let wave = 0, blocked = [], closingAt = 0, settled = false;
     function paint(seat) {
       for (let i=0;i<3;i++) {
         const ship = position[seat] === i, danger = blocked.includes(i);
@@ -46,11 +49,15 @@
       if (lost.some(Boolean) || wave+1===course.length) {
         settled = true;
         const winner = lost[0]===lost[1] ? null : (lost[0]?1:0);
+        both(seat=>{ if (lost[seat]) ctx.fx.flash(ctx.zones[seat],'bad'); });
+        if (lost.some(Boolean)) ctx.fx.wrong();
         both(seat=>{counts[seat].textContent=lost[seat]?'第 '+(wave+1)+' 波で座礁':'通過 '+(wave+1)+' / '+course.length+' 波';});
         ctx.finish(winner, winner!==null ? (winner+1)+'P が勝利！ 第 '+(wave+1)+' 波' :
           lost[0] ? 'ふたりとも第 '+(wave+1)+' 波で座礁。引き分け！' : 'ふたりとも12波を突破！ 引き分け');
         return;
       }
+      ctx.fx.hit();
+      both(seat=>ctx.fx.pop(counts[seat]));
       wave++;
       next();
     }
@@ -67,8 +74,14 @@
       });
       counts[seat]=ctx.text(seat,'','xgame-text sea-progress');
       ctx.zones[seat].append(lane);
+      paint(seat);
     });
-    next();
+    // Lanes cannot be changed until the first wave shows (closingAt is still 0), so nobody moves early by mistake.
+    WAVE_COUNTDOWN.forEach((n, i) => ctx.later(() => {
+      ctx.say('まもなく第 1 波　' + n);
+      ctx.fx.turn();
+    }, i * WAVE_COUNT_STEP_MS));
+    ctx.later(() => { ctx.fx.go(); next(); }, WAVE_COUNTDOWN.length * WAVE_COUNT_STEP_MS);
   });
 
   // A1 → B1 → C1 → C2 → B2 → A2 → A3 → B3 → C3. Endpoints lie just outside.
@@ -108,7 +121,7 @@
   }
   const TIE_MS = 100;
   let lastChart = -1;
-  add('sea-chart','海図パズル','strategy','🗺','マスを押して90°ずつ回し、青い港から金色の島まで9マス全部をひとつの道でつなごう。',ctx=>{
+  add('sea-chart','海図パズル','strategy','🗺️','マスを押して90°ずつ回し、青い港から金色の島まで9マス全部をひとつの道でつなごう。',ctx=>{
     const available = variants.map((_,i)=>i).filter(i=>lastChart<0 || i!==lastChart && i!==(lastChart^2));
     const choice = available[ctx.random(available.length)];
     const route = variants[choice];

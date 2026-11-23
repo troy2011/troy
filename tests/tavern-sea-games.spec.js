@@ -12,12 +12,18 @@ for(const [layout,w,h] of [['table',320,640],['counter',390,844],['counter',844,
  test('wave warning, simultaneous collision, victory & replay '+layout+' '+w,async({page:p})=>{
   await open(p,w,h,layout); await game(p,'wave-dodge');
   const lane=(n,i)=>seat(p,n).locator('.sea-lanes button').nth(i);
+  // A 3・2・1 countdown comes first: no wave is shown and no lane can be taken until it ends.
+  await expect(p.locator('#signal')).toContainText('まもなく第 1 波　3');
+  await expect(lane(0,1)).toHaveAttribute('data-danger','false');
+  await lane(1,0).tap(); await expect(lane(1,1)).toHaveAttribute('data-ship','true');
+  const countdown=()=>p.clock.runFor(2100);
+  await countdown();
   await expect(lane(0,1)).toHaveAttribute('data-danger','true');
   await expect(lane(1,1)).toHaveAttribute('data-danger','true');
   await p.clock.runFor(1510); await expect(p.locator('#signal')).toContainText('引き分け');
-  await p.locator('#start').click(); await lane(1,0).tap(); await p.clock.runFor(1510);
+  await p.locator('#start').click(); await countdown(); await lane(1,0).tap(); await p.clock.runFor(1510);
   await expect(p.locator('#signal')).toContainText('2P');
-  await p.locator('#start').click(); await lane(0,0).tap(); await lane(1,0).tap();
+  await p.locator('#start').click(); await countdown(); await lane(0,0).tap(); await lane(1,0).tap();
   await p.clock.runFor(1510); await expect(p.locator('#signal')).toContainText('第 2');
   await p.locator('#exit').click(); await p.clock.runFor(20000); await expect(p.locator('#arena')).toBeHidden();
  });

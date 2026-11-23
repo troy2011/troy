@@ -130,15 +130,22 @@
 .arena[data-newgame="treasure-dig"][data-layout="table"] [data-tavern-board="dig"] button[data-digit]::before {
  inset:9% 0 auto; transform:rotate(180deg); opacity:.86;
 }
+.arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] {
+ --dig-board:min(calc(100% - 10px),330px,max(203px,100svh - 120px));
+}
 .arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] > .xgame-seat { grid-area:2 / 1 / 3 / -1; }
-.arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] .xb-ledger { left:0; top:0; width:calc(50% - 4px); transform:none; }
-.arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] .b .xb-ledger { left:auto; right:0; }
+/* Counter: each scoreboard stands in its own player's side margin, beside the shared board, never over its top row. */
+.arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] .xb-ledger {
+ left:4px; top:50%; width:calc((100% - var(--dig-board)) / 2 - 14px); transform:translateY(-50%);
+ grid-template-columns:minmax(0,1fr);
+}
+.arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] .b .xb-ledger { left:auto; right:4px; }
 .arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] .xgame-status { display:none; }
 .arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] [data-tavern-board="dig"] {
- top:calc(50% + 21px); width:min(calc(100% - 10px),330px,max(203px,100svh - 120px));
+ width:var(--dig-board);
 }
 @media (orientation:portrait) {
- .arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] [data-tavern-board="dig"] { width:min(320px,max(203px,100vw - 120px)); }
+ .arena[data-newgame="treasure-dig"][data-layout="counter"][data-phase="play"] { --dig-board:min(320px,max(203px,100vw - 120px)); }
 }
 /* Ink pips represent the actual rolled value, not the old offset unicode glyph. */
 .arena[data-newgame="pirate-dice"] .xb-dice-face:is([data-face="2"],[data-face="3"],[data-face="4"],[data-face="5"],[data-face="6"]) {

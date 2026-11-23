@@ -5,8 +5,8 @@
 (() => {
   'use strict';
   const GAMES = {
-    memory: ['光る順番', 'memory', '✦', '同じ順番を覚えて、それぞれ再現。'],
-    curling: ['コインカーリング', 'strategy', '◎', '交互に3投。コインを弾いて、中心に近いほうが勝ち。'],
+    memory: ['光る順番', 'memory', '💎', '同じ順番を覚えて、それぞれ再現。'],
+    curling: ['コインカーリング', 'strategy', '🪙', '交互に3投。コインを弾いて、中心に近いほうが勝ち。'],
   };
   const NAMES = ['1P', '2P'];
   const START_PROMPT = '「開始」を押すと始まります';

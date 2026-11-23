@@ -3,6 +3,7 @@
   'use strict';
   const registry = window.tavernNewGames ??= [];
   const windowMs = 220, lead = 960;
+  const BELL_PERFECT = 90; // Beat score (out of 100) that counts as ぴったり.
   const patterns = [
     [0,720,1440,2160,2960,3680,4400,5200,5920,6640],
     [0,750,1500,2300,2980,3660,4460,5210,5960,6760],
@@ -36,9 +37,13 @@
         landed[seat]++;
         pads[seat].dataset.hit=String(index);
         const offset=t-beats[index];
-        previews[seat].dataset.timing=value>=90?'exact':offset<0?'early':'late';
-        previews[seat].textContent=value>=90?'◎ ぴったり':offset<0?'← 少し早い':'少し遅い →';
+        previews[seat].dataset.timing=value>=BELL_PERFECT?'exact':offset<0?'early':'late';
+        previews[seat].textContent=value>=BELL_PERFECT?'◎ ぴったり':offset<0?'← 少し早い':'少し遅い →';
         reads[seat].textContent=total(seat)+' 点';
+        // A ring for every landed beat, brighter the closer it was; only the ringer's half lights.
+        ctx.fx.grade(value>=BELL_PERFECT?'perfect':'close');
+        ctx.fx.flash(ctx.zones[seat],value>=BELL_PERFECT?'perfect':'good');
+        ctx.fx.pop(reads[seat]);
       }
       function paint(now){
         if(done)return;
