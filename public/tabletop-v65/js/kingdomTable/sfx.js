@@ -1,6 +1,6 @@
 import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
-import { crowdPreviewActive, readCrowdCatalog } from './roleCrowdPreview.js?v=1';
+import { crowdPreviewActive, readCrowdCatalog, selectCrowdVoices } from './roleCrowdPreview.js?v=natural-crowd-v2';
 // Web Audio synthesizes the base sounds; four role completions add short recorded foley.
 // The audio context is only created from a tap (browsers refuse to start it otherwise), and every failure is silent.
 
@@ -19,7 +19,8 @@ let cheerUntil = 0;
 let roomTone = null;
 let roleAccentUntil = 0;
 let previewCatalog = {};
-let previewTail = null;
+const previewTails = new Set();
+let lastVoices = [];
 let enabled = readPreference();
 
 function readPreference() {
@@ -117,25 +118,38 @@ async function loadPreviewCrowd(ctx) {
 }
 function playPreviewCrowd(cue, earliest) {
     if (document.hidden) return true;
-    const options = (previewCatalog[cue.family] || []).filter(file => recorded.has('preview-' + file));
-    if (!options.length) return false;
-    let start = Math.max(earliest, cheerUntil - context.currentTime);
-    // Keep fast plays audible without a long delayed queue. Breathe out the preceding preview
-    // at the new cue when necessary; don't touch the independent call or match victory assets.
-    if (previewTail && start > earliest + .26) {
-        const now = context.currentTime;
-        const fade = now + earliest;
-        previewTail.gain?.gain.setTargetAtTime(0, fade, .022);
-        try { previewTail.source.stop(fade + .08); } catch { /* The cue already ended. */ }
-        start = earliest + .06;
+    const {primary, backing} = selectCrowdVoices(cue, file=>recorded.has('preview-' + file),previewCatalog,lastVoices);
+    const now = context.currentTime;
+    const start = Math.max(now + earliest, cheerUntil - .16);
+    // Never queue a new reaction behind older crowds. Cancel pending sympathy from an
+    // interrupted play and let an audible old voice release into the next hit.
+    for (const tail of previewTails) {
+        if (tail.until <= now + earliest || tail.retired) continue;
+        tail.retired = true;
+        if (tail.start >= now + earliest) {
+            try { tail.source.stop(now + earliest); } catch {}
+        } else {
+            tail.gain.gain.setTargetAtTime(0, now + earliest, .018);
+            try { tail.source.stop(now + earliest + .065); } catch {}
+        }
     }
-    const id = 'preview-' + options[cue.variant % options.length];
-    const played = playRecorded(id, start, 1, cheers, cue.level, true);
-    if (played) {
-        previewTail = played;
-        cheerUntil = context.currentTime + start + recorded.get(id).duration + .03;
-    }
-    return !!played;
+    const at = Math.min(start - now, earliest + .055);
+    let until = now + at;
+    const playVoice = (file, offset, level, far = false) => {
+        if (!file) return false;
+        const id = 'preview-' + file;
+        const voice = playRecorded(id, offset, 1, cheers, level, true, far);
+        if (!voice) return false;
+        const end = now + offset + recorded.get(id).duration;
+        previewTails.add({...voice, start:now + offset, until:end});
+        until = Math.max(until,end);
+        return true;
+    };
+    const first = playVoice(primary, at, cue.enemy ? cue.neutralReply ? .48 : .64 : cue.noteworthy ? cue.level : .70);
+    const second = first && backing && playVoice(backing, at + cue.backing.offset, cue.backing.level, true);
+    lastVoices = [first && primary, second && backing].filter(Boolean);
+    if (first || second) cheerUntil = until + .025;
+    return first;
 }
 const impactBase = new URL('../../assets/tarot-kingdom-table/impacts-v1/', import.meta.url);
 async function loadImpactAssets(ctx) {
@@ -163,7 +177,8 @@ export function cancelCheers() {
     for (const cue of cheers) { try { cue.stop(); } catch {} }
     cheers.clear();
     cheerUntil = 0;
-    previewTail = null;
+    previewTails.clear();
+    lastVoices = [];
 }
 function playCheer(key, earliest, gain = 1) {
     if (!key || document.hidden) return;
@@ -196,18 +211,21 @@ export function completeRole(role, impactUntil = null, cheer) {
     } catch { /* Sound is optional; the table interaction must keep going. */ }
 }
 
-function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview = false) {
+function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview = false, far = false) {
     const buffer = recorded.get(key);
     if (!buffer) return false;
     const cue = context.createBufferSource();
     cue.buffer = buffer;
     cue.playbackRate.value = rate;
+    const target = master;
     const gain = volume === 1 && !asPreview ? null : context.createGain();
-    if (gain) { gain.gain.value = volume; cue.connect(gain); gain.connect(master); }
-    else cue.connect(master);
+    const filter = far ? context.createBiquadFilter() : null;
+    if (filter) { filter.type = 'lowpass'; filter.frequency.value = 3100; filter.Q.value = .45; filter.connect(target); }
+    if (gain) { gain.gain.value = volume; cue.connect(gain); gain.connect(filter || target); }
+    else cue.connect(target);
     scheduled.add(cue);
     group?.add(cue);
-    cue.onended = () => { scheduled.delete(cue); group?.delete(cue); cue.disconnect(); gain?.disconnect(); if (previewTail?.source === cue) previewTail = null; };
+    cue.onended = () => { scheduled.delete(cue); group?.delete(cue); cue.disconnect(); gain?.disconnect(); filter?.disconnect(); for (const tail of previewTails) if (tail.source === cue) previewTails.delete(tail); };
     cue.start(context.currentTime + offset);
     return asPreview ? {source: cue, gain} : true;
 }

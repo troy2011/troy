@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewCrowdPlan, readCrowdCatalog, CROWD_FAMILIES, crowdPreviewOn } from '../public/tabletop-v65/js/kingdomTable/roleCrowdPreview.js';
+import { previewCrowdPlan, readCrowdCatalog, CROWD_FAMILIES, crowdPreviewActive } from '../public/tabletop-v65/js/kingdomTable/roleCrowdPreview.js';
 const roles = [
     {rank:1},{rank:1,high:'straight'},{rank:2},{rank:2,high:'flush'},
     {rank:3},{rank:3,high:'fullHouse'},{rank:4},{rank:4,high:'elemental'},
@@ -36,8 +36,8 @@ test('visitor perspective, watch enemy-to-enemy quietly, increase own replies, a
     assert.equal(previewCrowdPlan(events,{viewer:2}).get(b).cue.family,'self-reply-medium');
     assert.equal(previewCrowdPlan(events,{silent:g}).get(g).cue,null);
 });
-test('preview explicitly scoped; catalogue only accepts named local variants',()=>{
-    assert.equal(crowdPreviewOn('?room=abc'),false);assert.equal(crowdPreviewOn('?crowdPreview=1'),true);
+test('production default enabled; catalogue only accepts named local variants',()=>{
+    assert.equal(crowdPreviewActive,true);
     const family=CROWD_FAMILIES[0];
     assert.deepEqual(readCrowdCatalog({[family]:[family+'.mp3',family+'.mp3','/x.mp3','https://x.mp3','../'+family+'-2.mp3',family+'-3.mp3']})[family],[family+'.mp3',family+'-3.mp3']);
     assert.equal(Object.keys(readCrowdCatalog()).length,11);

@@ -1,5 +1,5 @@
 const {test,expect}=require('@playwright/test');
-test('local practice AI plays a real five-card role and triggers one restrained opponent reaction',async({page})=>{
+test('local practice AI plays a real five-card role and layers nearby and farther reactions',async({page})=>{
   const R=await import('../public/tabletop-v65/js/kingdomTable/rules.js');
   const deck=R.buildDeck(), cards=deck.filter(c=>!c.major&&((c.num===4&&['sword','coin'].includes(c.suit))||(c.num===6&&c.suit!=='wand')));
   const played=['wand-2','sword-3','wand-4','sword-5','wand-6'].map(id=>deck.find(c=>c.id===id));
@@ -24,5 +24,5 @@ test('local practice AI plays a real five-card role and triggers one restrained 
   await page.locator('[data-tavern-mode=practice]').click();
   await page.locator('input[name=ktSeats][value="3"]').check();
   await page.locator('#ktStart').click();
-  await expect.poll(()=>page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1))),{timeout:14000}).toEqual([expect.stringMatching(/^opponent-open-medium(?:-[0-9]+)?\.mp3$/)]);
+  await expect.poll(()=>page.evaluate(()=>window.crowds.map(path=>path.split('/').at(-1))),{timeout:14000}).toEqual([expect.stringMatching(/^self-(?:open-small-3|open-medium(?:-4)?|reply-small-[23]|reply-climax-4)\.mp3$/),expect.stringMatching(/^opponent-open-(?:small(?:-2)?|medium-2|big)\.mp3$/)]);
 });

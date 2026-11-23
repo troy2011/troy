@@ -1,7 +1,7 @@
 import { roleAccentKey } from './roleAccents.js?v=role-foley-v1';
 
-export const crowdPreviewOn = search => new URLSearchParams(search).get('crowdPreview') === '1';
 export const crowdPreviewActive = true;
+
 
 const ranks = Object.freeze({
     straight:[0, 88, 0],
@@ -54,7 +54,15 @@ export function previewCrowdPlan(events,{from=0,silent=null,viewer=0}={}) {
         const [strength, delay, signature] = ranks[roleKey] || ranks.straight;
         const reply = before != null && before !== event.by;
         const tone = neutralReply ? { family: 'opponent-reply-neutral', level: .46, fallback: 'e' } : chooseTone(!enemy,reply,strength,stage);
-        const cue = { ...tone, roleKey, stage, offset: delay / 1000, variant: seedFor(index,stage,signature,strength) };
+        const variant = seedFor(index,stage,signature,strength);
+        const noteworthy = !enemy && (strength === 3 || (reply && (strength >= 2 || stage >= 3)));
+        // Before a rival's response, the viewer's own prior role makes the nearby supporters more audible.
+        const backing = enemy ? {
+            family: 'opponent-open-' + TIERS[Math.min(2, strength)],
+            level: before === viewer ? .45 : neutralReply ? .24 : .32,
+            offset: (.12 + (variant % 5) * .04), variant: variant + 7,
+        } : null;
+        const cue = { ...tone, roleKey, stage, offset: delay / 1000, variant, backing, noteworthy, enemy, neutralReply };
         results.set(event,{ crowdPreview: true, cue });
     }
     return results;
@@ -67,4 +75,43 @@ export function readCrowdCatalog(source) {
             && name.startsWith(family) && /^[\w-]+\.mp3$/u.test(name)))].slice(0,6);
         return [family, filenames];
     }));
+}
+
+
+// Separate recordings or performances, not just edited filenames. Adjacent uses from a
+// common recording are deliberately avoided even if one edit was quieter or shorter.
+const sources = [
+    ['self-open-medium','self-reply-small'],
+    ['self-open-big-2','self-reply-big','self-reply-climax-3'],
+    ['self-open-small-3','opponent-open-big-2','opponent-reply-neutral-2'],
+    ['opponent-open-small-2','opponent-open-big'],
+    ['opponent-open-small','opponent-open-medium-2'],
+    ['self-open-big-3','self-reply-big-2','self-reply-climax-2'],
+    ['self-open-big','self-reply-small-2'],
+    ['self-open-small','self-open-small-2','self-open-medium-2','self-reply-small-3','self-reply-big-3','self-reply-climax','opponent-open-medium','opponent-open-big-3','opponent-reply-neutral','opponent-reply-neutral-3'],
+];
+const recording = new Map(sources.flatMap((files,n)=>files.map(file=>[file+'.mp3',n])));
+const origin = file => recording.get(file) ?? file;
+const nearby = [
+    'self-open-small-3','self-open-medium-4','self-reply-small-2','self-reply-climax-4','self-open-medium','self-reply-small-3',
+].map(file=>file+'.mp3');
+const neutral = ['opponent-reply-neutral-2','opponent-reply-neutral','opponent-reply-neutral-3','self-open-small-3'].map(file=>file+'.mp3');
+const sympathizers = ['opponent-open-small-2','opponent-open-small','opponent-open-medium-2','opponent-open-big'].map(file=>file+'.mp3');
+
+export function selectCrowdVoices(cue, playable, catalog, prior=[]) {
+    const tracked = new Set(prior.map(origin));
+    const choose = (pool, extra, seed) => {
+        const filtered = [...new Set(pool)].filter(file=>playable(file));
+        if (!filtered.length) return null;
+        const start = seed % filtered.length;
+        const shifted = [...filtered.slice(start), ...filtered.slice(0,start)];
+        return shifted.find(file=>!tracked.has(origin(file)) && origin(file)!==extra)
+            || shifted.find(file=>origin(file)!==extra) || null;
+    };
+    // The stronger own replies may use actual applause; opener and opponent plays
+    // instead read as people beside the table, with a separate quiet supporter behind.
+    const primary = choose(cue.noteworthy ? [...(catalog[cue.family] || []), ...nearby]
+        : cue.neutralReply ? neutral : nearby, null, cue.variant);
+    const backing = cue.backing && choose(sympathizers, primary ? origin(primary) : null, cue.backing.variant);
+    return {primary, backing};
 }
