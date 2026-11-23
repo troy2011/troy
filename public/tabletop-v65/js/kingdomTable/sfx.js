@@ -187,6 +187,14 @@ function playCheer(key, earliest, gain = 1) {
     const at = Math.max(earliest, cheerUntil - context.currentTime);
     if (playRecorded(name, at, 1, cheers, gain)) cheerUntil = context.currentTime + at + recorded.get(name).duration + 0.06;
 }
+export function playRoundVictory(own) {
+    if (!ready() || document.hidden) return;
+    try {
+        // Replace crowd tail at the completed out, without changing physical landing or seat cues.
+        cancelCheers();
+        playCheer('d', .07, own ? .88 : .58);
+    } catch { /* Sound does not affect scoring or progress. */ }
+}
 export function playMatchVictory() {
     if (!ready()) return;
     cancelCheers();

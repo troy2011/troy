@@ -13,11 +13,11 @@ import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=natural-crowd-v3';
+import {animateRole} from './roleJuice.js?v=round-victory-cheer-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=natural-crowd-v3';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=natural-crowd-v3';
+import * as Sfx from './sfx.js?v=round-victory-cheer-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1040,7 +1040,7 @@ function playEffects(events, fieldBefore, feedback) {
     const order = match.over ? ranking(match) : [];
     const ownVictory = order[0]?.seat === ME && order[0].chips > (order[1]?.chips ?? -Infinity);
     if (ownVictory && resultIdentity() !== restoredFinishedRound && (win || events.some(event=>event.type==='drawn'))) liveVictoryRound = resultIdentity();
-    const cheerArgs = {from:round.events.length - events.length, silent:ownVictory ? finisher : null, viewer:ME};
+    const cheerArgs = {from:round.events.length - events.length, silent:finisher, viewer:ME};
     const cheers = roleCheers(round.events, cheerArgs);
     const preview = crowdPreviewActive ? previewCrowdPlan(round.events, cheerArgs) : null;
     const cheerFor = event => preview?.get(event) ?? cheers.get(event);
@@ -1162,7 +1162,8 @@ function playEffects(events, fieldBefore, feedback) {
                 if(plate)Fx.stamp('上がり！',{x:plate.left+plate.width/2,y:plate.top-6},event.by===ME?'legend':'gold',{big:true});
                 if(event.by===ME)Fx.flash('gold');
                 Fx.shake($('ktFelt'),6);
-                // A round finish keeps its physical landing. The ship bell belongs to the match result.
+                // The local sole match result already has its own distinct J cheer.
+                if (!ownVictory) Sfx.playRoundVictory(event.by === ME);
                 if(event.by!==ME) Sfx.roleSound('lose');
                 if(moving)Fx.later(260,()=>{
                     throwAgariHands(event.by);
@@ -2011,8 +2012,8 @@ online.onView = view => {
     const roundKey = `${view.code}:${match.played - (match.round.phase === 'over' ? 1 : 0)}`;
     if (onlineRoundKey !== roundKey) {
         // A reload renders the current board; never replay old field sweeps or hold up the CPU.
-        const resumed = !onlineRoundKey.startsWith(view.code + ':') && match.round.events.some(event =>
-            ['play', 'pass', 'draw', 'cede', 'exchange', 'trash', 'give', 'deathSwapComplete', 'retrieve'].includes(event.type));
+        const resumed = !onlineRoundKey.startsWith(view.code + ':') && (match.round.phase === 'over' || match.round.events.some(event =>
+            ['play', 'pass', 'draw', 'cede', 'exchange', 'trash', 'give', 'deathSwapComplete', 'retrieve'].includes(event.type)));
         Fx.cancelAll();
         resetDrawFeedback();
         onlineRoundKey = roundKey;
