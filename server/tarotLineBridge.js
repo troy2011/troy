@@ -4,23 +4,32 @@ const TROY = 'https://troy-xetw.onrender.com';
 const SITES = 'https://tarot-kingdom-online.bar-troy2011.chatgpt.site';
 const CALLBACK = SITES + '/auth/troy/callback';
 const OPAQUE = /^[A-Za-z0-9_-]{43}$/;
-const TTL_MS = 90_000;
-const CAP = 24;
-const PILOT_WINDOW_MS = 60 * 60_000;
+const MAX_TRACKED = 1024;
+const WINDOW_MS = 60_000;
 const digest = value => createHash('sha256').update(value).digest();
 const good = value => typeof value === 'string' && OPAQUE.test(value);
 function equal(a, b) { return typeof a === 'string' && typeof b === 'string' && timingSafeEqual(digest(a), digest(b)); }
 function secret(value) { return typeof value === 'string' && /^[A-Za-z0-9_-]{43,128}$/.test(value); }
 
-function registerTarotLineBridge(app, { verifyIdentity, resolveLinkedLineId, bridgeKey, subjectKey, ownerSubject, enrollmentHash, pilotUntil, now = Date.now }) {
-  const deadline = typeof pilotUntil === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(pilotUntil) ? Date.parse(pilotUntil) : NaN;
-  const boot = now();
-  const windowOk = Number.isFinite(deadline) && deadline > boot && deadline - boot <= PILOT_WINDOW_MS;
-  const enrolling = () => Number.isFinite(deadline) && deadline > boot && deadline - boot <= 24 * PILOT_WINDOW_MS && now() < deadline && secret(subjectKey) && !ownerSubject && !bridgeKey && typeof enrollmentHash === 'string' && /^[a-f0-9]{64}$/.test(enrollmentHash);
-  const configured = windowOk && secret(bridgeKey) && secret(subjectKey) && !equal(bridgeKey, subjectKey) && good(ownerSubject) && !enrollmentHash;
-  const enabled = () => configured && now() < deadline;
-  const grants = new Map();
-  const prune = time => { for (const [id, val] of grants) if (val.expiresAt <= time) grants.delete(id); };
+function registerTarotLineBridge(app, { enable, verifyIdentity, resolveLinkedLineId, bridgeKey, subjectKey, fetchImpl=fetch, now=Date.now }) {
+  const enabled = enable === '1' && secret(bridgeKey) && secret(subjectKey) && !equal(bridgeKey, subjectKey);
+  const accounts = new Map();
+  let globalUntil = 0, globalCount = 0;
+  const limited = id => {
+    const at = now();
+    if (!id) {
+      if (globalUntil <= at) { globalCount = 0; globalUntil = at+WINDOW_MS; }
+      return ++globalCount > 180;
+    }
+    let v = accounts.get(id);
+    if (v && v.until > at) return ++v.count > 8;
+    if (accounts.size >= MAX_TRACKED) {
+      for (const [k, x] of accounts) if (x.until <= at) accounts.delete(k);
+      if (accounts.size >= MAX_TRACKED) return true;
+    }
+    accounts.set(id,{count:1,until:at+WINDOW_MS});
+    return false;
+  };
   const base = '/api/tarot';
   const harden = (res) => res.set({
     'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer', 'X-Content-Type-Options':'nosniff',
@@ -28,34 +37,12 @@ function registerTarotLineBridge(app, { verifyIdentity, resolveLinkedLineId, bri
   });
   const handle = (fn) => async (req, res) => {
     harden(res);
-    if (!enabled()) { grants.clear(); return res.status(404).json({ error: 'not_found' }); }
+    if (!enabled) return res.status(404).json({ error: 'not_found' });
     try { return await fn(req, res); }
     catch { return res.status(503).json({ error:'bridge_unavailable' }); }
   };
-  const boundSubject = async req => {
-    const account = await verifyIdentity(req);
-    const lineId = account && await resolveLinkedLineId(account.playFabId);
-    return lineId ? createHmac('sha256', subjectKey).update('troy-line-v1\0'+lineId).digest('base64url') : null;
-  };
-  let enrolledSubject = null;
-  app.get(base+'/enroll', (req,res) => {
-    harden(res);
-    if (!enrolling()) return res.status(404).end();
-    res.set('Content-Security-Policy', "default-src 'none'; script-src 'self' https://www.gstatic.com; connect-src 'self' https://securetoken.googleapis.com https://identitytoolkit.googleapis.com; form-action 'none'; base-uri 'none'; frame-ancestors 'none'");
-    return res.type('html').send('<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TROY LINE &#30331;&#37682;</title><h1>TROY LINE &#30331;&#37682;</h1><form id="enrollForm" method="post"><label>招待コード <input name="invitation" type="password" required autocomplete="off" maxlength="43"></label><button>確認する</button></form><p id="bridgeStatus" role="status"></p><output id="enrollSubject"></output><p><a href="/">TROY</a></p><script type="module" src="/js/tarot-line-bridge-v1.js"></script></html>');
-  });
-  app.post(base+'/enroll', async (req,res) => {
-    harden(res);
-    if (!enrolling()) return res.status(404).end();
-    const invitation = req.body?.invitation;
-    if (req.get('origin') !== TROY || !req.is('application/json') || !good(invitation) || !equal(digest(invitation).toString('hex'),enrollmentHash)) return res.status(403).json({error:'forbidden'});
-    let subject;
-    try { subject = await boundSubject(req); } catch { return res.status(401).json({error:'login_required'}); }
-    if (!subject || !enrolling()) return res.status(403).json({error:'forbidden'});
-    if (enrolledSubject && !equal(enrolledSubject,subject)) return res.status(403).json({error:'forbidden'});
-    enrolledSubject = subject; // enrollment never issues a grant; restart does not enable play
-    return res.json({ subject });
-  });
+  app.get(base+'/availability', (req,res) => harden(res).json({enabled}));
+  app.get(base+'/start',handle((req,res) => res.redirect(303,SITES+'/auth/troy/start')));
   app.get(base+'/authorize', handle(async (req,res) => {
     if (!good(req.query.state)) return res.status(400).send('Invalid authorization state');
     // This page only resumes the existing same-origin Firebase session. It cannot create LINE accounts.
@@ -67,35 +54,26 @@ function registerTarotLineBridge(app, { verifyIdentity, resolveLinkedLineId, bri
     if (req.get('origin') !== TROY || !req.is('application/json')) return res.status(403).json({ error:'forbidden' });
     const { state } = req.body || {};
     if (!good(state)) return res.status(400).json({ error:'invalid_state' });
-    let subject;
-    try { subject = await boundSubject(req); } catch { return res.status(401).json({ error:'login_required' }); }
+    if (limited()) return res.status(429).json({error:'try_again'});
+    let account;
+    try { account = await verifyIdentity(req); } catch { return res.status(401).json({error:'login_required'}); }
+    if (!account?.playFabId) return res.status(401).json({error:'login_required'});
+    if (limited(account.playFabId)) return res.status(429).json({error:'try_again'});
+    const lineId = await resolveLinkedLineId(account.playFabId);
+    if (!lineId) return res.status(403).json({error:'line_required'});
+    const subject = createHmac('sha256',subjectKey).update('troy-line-v1\0'+lineId).digest('base64url');
     const code = randomBytes(32).toString('base64url');
-    if (!equal(subject, ownerSubject)) return res.status(403).json({ error:'line_required' });
-    if (!enabled()) return res.status(404).json({ error:'not_found' });
-    const id = digest(state).toString('hex');
-    const time = now();
-    prune(time);
-    if (grants.has(id)) return res.status(409).json({ error:'state_used' });
-    if (grants.size >= CAP) return res.status(429).json({ error:'try_again' });
-    grants.set(id, {codeHash:digest(code).toString('hex'), expiresAt:Math.min(time+TTL_MS,deadline)});
-    return res.json({ code });
-  }));
-  app.post(base+'/redeem', handle(async (req,res) => {
-    // Only Sites' backend can call it; browsers do not receive bridge credentials.
-    if (!equal(req.get('authorization'), 'Bearer '+bridgeKey) || !req.is('application/json')) {
-      return res.status(401).json({ error:'unauthorized' });
-    }
-    const { state, code } = req.body || {};
-    if (!good(state) || !good(code)) return res.status(400).json({ error:'invalid_grant' });
-    const id = digest(state).toString('hex');
-    prune(now());
-    const grant = grants.get(id);
-    if (!grant?.codeHash || !equal(grant.codeHash,digest(code).toString('hex'))) {
-      return res.status(400).json({ error:'invalid_grant' });
-    }
-    // Synchronous single-instance consume; retain only a tombstone until expiry.
-    grants.set(id,{expiresAt:grant.expiresAt});
-    return res.json({ subject:ownerSubject });
+    const grant = await fetchImpl(SITES+'/auth/troy/grants', {
+      method:'POST', headers:{Authorization:'Bearer '+bridgeKey,'Content-Type':'application/json'},
+      body:JSON.stringify({state,codeHash:digest(code).toString('base64url'),subject}),
+      signal:AbortSignal.timeout(4500), redirect:'error'
+    });
+    // The response body is not used; release the stream on every path.
+    await grant.body?.cancel();
+    if (grant.status === 409) return res.status(409).json({error:'state_used'});
+    if (grant.status === 429) return res.status(429).json({error:'try_again'});
+    if (grant.status !== 201) return res.status(503).json({error:'bridge_unavailable'});
+    return res.json({code});
   }));
 }
 module.exports = { registerTarotLineBridge };

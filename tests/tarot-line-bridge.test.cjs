@@ -1,112 +1,48 @@
-const { test }=require('node:test');
-const assert=require('node:assert/strict');
-const express=require('express');
-const {createHmac,createHash}=require('node:crypto');
-const { registerTarotLineBridge }=require('../server/tarotLineBridge');
-
-const TROY='https://troy-xetw.onrender.com';
-const SITES='https://tarot-kingdom-online.bar-troy2011.chatgpt.site';
-const a='A'.repeat(43), b='B'.repeat(43), line='U'+'a'.repeat(32);
-const bridgeKey='K'.repeat(43), subjectKey='S'.repeat(43);
-function fixture({configured=true,enrolling=false,overlap=false}={}) {
-  let time=Date.parse('2030-01-01T00:00:00Z');
-  const calls={};
-  const app=express(); app.use(express.json());
-  registerTarotLineBridge(app,{
-    bridgeKey:enrolling&&!overlap?null:bridgeKey,subjectKey, now:()=>time,
-    ownerSubject: configured ? createHmac('sha256',subjectKey).update('troy-line-v1\0'+line).digest('base64url') : null,
-    enrollmentHash:enrolling?createHash('sha256').update('E'.repeat(43)).digest('hex'):null,
-    pilotUntil:enrolling?'2030-01-01T23:00:00Z':'2030-01-01T00:05:00Z',
-    verifyIdentity:req=>{
-      const auth=req.get('authorization');
-      if(auth==='Bearer linked')return {playFabId:'P'};
-      if(auth==='Bearer otherLinked')return {playFabId:'R'};
-      if(auth==='Bearer unlinked')return {playFabId:'Q'};
-      throw Error('fixture bad Firebase token');
-    },
-    resolveLinkedLineId:async id=>{calls.resolve=(calls.resolve||0)+1;return id==='P'?line:id==='R'?'U'+'b'.repeat(32):null;}
-  });
-  const server=app.listen(0,'127.0.0.1');
-  return {server,calls,tick:ms=>time+=ms, ready:new Promise(r=>server.once('listening',r))};
+const {test}=require('node:test'),assert=require('node:assert/strict'),express=require('express');
+const {createHash,createHmac}=require('node:crypto');
+const {registerTarotLineBridge}=require('../server/tarotLineBridge');
+const troy='https://troy-xetw.onrender.com',sites='https://tarot-kingdom-online.bar-troy2011.chatgpt.site', key='K'.repeat(43), subjectKey='S'.repeat(43), line='U'+'a'.repeat(32), state='A'.repeat(43);
+async function f(t,{enable='1',secret=key}={}){
+ const app=express();app.use(express.json()); const seen=[];let response=201,now=1;
+ registerTarotLineBridge(app,{enable,bridgeKey:secret,subjectKey,now:()=>now,
+ verifyIdentity:req=>{if(req.get('Authorization')==='Bearer T')return {playFabId:'p'};if(req.get('Authorization')==='Bearer Q')return {playFabId:'q'};throw Error('invalid');},
+ resolveLinkedLineId:async id=>id==='p'?line:null,
+ fetchImpl:async(u,opts)=>{seen.push([u,opts]);return new Response(null,{status:response});}});
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>server.close());
+ const get=(path,init)=>fetch('http://127.0.0.1:'+server.address().port+'/api/tarot/'+path,init);
+ const auth=(token='T',origin=troy,value=state)=>get('authorize',{method:'POST',headers:{origin,'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({state:value})});
+ return {get,auth,seen,respond:x=>response=x,tick:()=>now+=60_000};
 }
-test('valid origin and Firebase/LINE gate, fixed callback, no sensitive data in grant, atomic consume, stable alias',async t=>{
-  const f=fixture();await f.ready;t.after(()=>f.server.close());
-  const origin='http://127.0.0.1:'+f.server.address().port;
-  const post=(path, body, headers)=>fetch(origin+'/api/tarot/'+path,{
-    method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)
-  });
-  const auth=(state, token='linked', via=TROY)=>post('authorize',{state,subject:'untrusted'},{origin:via,authorization:'Bearer '+token});
-  const redeem=(state,code,key=bridgeKey)=>post('redeem',{state,code},{authorization:'Bearer '+key});
-  for(const endpoint of ['availability','start']) assert.equal((await fetch(origin+'/api/tarot/'+endpoint,{redirect:'manual'})).status,404);
-  const page=await fetch(origin+'/api/tarot/authorize?state='+a);
-  assert.equal(page.status,200);
-  assert.equal(page.headers.get('cache-control'),'no-store');
-  assert.equal(page.headers.get('referrer-policy'),'strict-origin');
-  assert.match(page.headers.get('content-security-policy'),/form-action https:\/\/tarot-kingdom-online\.bar-troy2011\.chatgpt\.site\/auth\/troy\/callback/);
-  assert.ok(!(await page.text()).includes(a));
-  assert.equal((await auth(a,'linked','https://example.com')).status,403);
-  assert.equal((await auth(a,'unsigned')).status,401);
-  assert.equal((await auth(a,'unlinked')).status,403);
-  assert.equal((await auth('invalid')).status,400);
-  assert.equal((await auth(a,'otherLinked')).status,403);
-  const handoff=await auth(a);
-  assert.equal(handoff.status,200);
-  assert.equal(handoff.headers.get('cache-control'),'no-store');
-  const {code}=await handoff.json();
-  assert.match(code,/^[A-Za-z0-9_-]{43}$/);
-  assert.equal((await auth(a)).status,409);
-  assert.equal((await redeem(b,code)).status,400);
-  assert.equal((await redeem(a,code,'bad')).status,401);
-  assert.equal((await redeem(a,'C'.repeat(43))).status,400);
-  const attempts=await Promise.all([redeem(a,code),redeem(a,code)]);
-  assert.deepEqual(attempts.map(r=>r.status).sort(),[200,400]);
-  const data=await attempts.find(r=>r.ok).json();
-  assert.deepEqual(Object.keys(data),['subject']);assert.match(data.subject,/^[A-Za-z0-9_-]{43}$/);
-  assert.equal((await auth(a)).status,409);
-  const issued2=await (await auth(b)).json();
-  assert.notEqual(issued2.code,code);
-  assert.deepEqual(await (await redeem(b,issued2.code)).json(),data);
-  const state3='C'.repeat(43), issued3=await (await auth(state3)).json();
-  f.tick(90_000);
-  assert.equal((await redeem(state3,issued3.code)).status,400);
+test('disabled unless explicitly enabled with two distinct secrets',async t=>{
+ const a=await f(t,{enable:'0'}),b=await f(t,{secret:subjectKey});
+ for(const p of [a,b]){assert.deepEqual(await (await p.get('availability')).json(),{enabled:false});assert.equal((await p.get('start',{redirect:'manual'})).status,404);assert.equal((await p.auth()).status,404);assert.equal(p.seen.length,0);}
 });
-test('fails closed when disabled; no DB calls',async t=>{
-  const f=fixture({configured:false});await f.ready;t.after(()=>f.server.close());
-  const r=await fetch('http://127.0.0.1:'+f.server.address().port+'/api/tarot/authorize?state='+a);
-  assert.equal(r.status,404);assert.deepEqual(f.calls,{});
-  const origin='http://127.0.0.1:'+f.server.address().port;
-  assert.equal((await fetch(origin+'/api/tarot/availability')).status,404);
-  const start=await fetch(origin+'/api/tarot/start',{redirect:'manual'});
-  assert.equal(start.status,404);
-  assert.equal(start.headers.get('location'),null);
+test('public menu opens fixed Sites entry, no owner enrollment or TROY redeem route',async t=>{
+ const p=await f(t);assert.deepEqual(await (await p.get('availability')).json(),{enabled:true});
+ const start=await p.get('start?redirect=https://example.com',{redirect:'manual'});assert.equal(start.status,303);assert.equal(start.headers.get('location'),sites+'/auth/troy/start');
+ const page=await p.get('authorize?state='+state);assert.equal(page.headers.get('cache-control'),'no-store');assert.match(page.headers.get('content-security-policy'),/form-action https:\/\/tarot-kingdom-online/);
+ assert.equal((await p.get('enroll')).status,404);assert.equal((await p.get('redeem',{method:'POST'})).status,404);
+});
+test('only authenticated linked LINE users get an opaque handoff and only after receipt',async t=>{
+ const p=await f(t);assert.equal((await p.auth('T',sites)).status,403);assert.equal((await p.auth('X')).status,401);assert.equal((await p.auth('Q')).status,403);assert.equal((await p.auth('T',troy,'short')).status,400);assert.equal(p.seen.length,0);
+ const r=await p.auth(),{code}=await r.json();assert.equal(r.status,200);
+ const [u,opts]=p.seen[0];assert.equal(u,sites+'/auth/troy/grants');assert.equal(opts.redirect,'error');assert.equal(opts.headers.Authorization,'Bearer '+key);
+ assert.deepEqual(JSON.parse(opts.body),{state,codeHash:createHash('sha256').update(code).digest('base64url'),subject:createHmac('sha256',subjectKey).update('troy-line-v1\0'+line).digest('base64url')});
+ for(const [up,down] of [[409,409],[429,429],[500,503]]){p.respond(up);const fail=await p.auth();assert.equal(fail.status,down);assert.equal((await fail.json()).code,undefined);}
+});
+test('bounds per-account work but resets',async t=>{
+ const p=await f(t);for(let i=0;i<8;i++)assert.equal((await p.auth()).status,200);assert.equal((await p.auth()).status,429);assert.equal(p.seen.length,8);p.tick();assert.equal((await p.auth()).status,200);
 });
 
-test('bounds pending grants and automatically closes expired pilot',async t=>{
-  const f=fixture();await f.ready;t.after(()=>f.server.close());
-  const origin='http://127.0.0.1:'+f.server.address().port+'/api/tarot/authorize';
-  let i=0; const issue=()=>fetch(origin,{method:'POST',headers:{origin:TROY,authorization:'Bearer linked','content-type':'application/json'},body:JSON.stringify({state:String(i++).padStart(43,'A')})});
-  for(let j=0;j<24;j++) assert.equal((await issue()).status,200);
-  assert.equal((await issue()).status,429);
-  f.tick(90_000);assert.equal((await issue()).status,200);
-  f.tick(210_000);const before=f.calls.resolve;assert.equal((await issue()).status,404);assert.equal(f.calls.resolve,before);
-});
-
-test('enrollment is identification only, owner account bound, and expires',async t=>{
-  const f=fixture({configured:false,enrolling:true});await f.ready;t.after(()=>f.server.close());
-  const path='http://127.0.0.1:'+f.server.address().port+'/api/tarot/';
-  const enroll=(invitation,principal='linked',origin=TROY)=>fetch(path+'enroll',{method:'POST',headers:{origin,authorization:'Bearer '+principal,'content-type':'application/json'},body:JSON.stringify({invitation})});
-  const page=await fetch(path+'enroll');assert.equal(page.status,200);assert.match(await page.text(),/type="password"/);
-  assert.equal((await enroll('F'.repeat(43))).status,403);assert.equal((await enroll('E'.repeat(43),'linked',SITES)).status,403);
-  assert.equal((await enroll('E'.repeat(43),'unlinked')).status,403);assert.equal((await enroll('E'.repeat(43),'unsigned')).status,401);
-  const r=await enroll('E'.repeat(43));assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');
-  assert.deepEqual(await r.json(),{subject:createHmac('sha256',subjectKey).update('troy-line-v1\0'+line).digest('base64url')});
-  assert.equal((await enroll('E'.repeat(43),'otherLinked')).status,403);
-  assert.equal((await fetch(path+'authorize?state='+a)).status,404);
-  assert.equal((await fetch(path+'redeem',{method:'POST'})).status,404);
-  f.tick(23*60*60_000);assert.equal((await enroll('E'.repeat(43))).status,404);
-});
-test('overlapping activation and enrollment variables fail closed',async t=>{
-  const f=fixture({enrolling:true,overlap:true});await f.ready;t.after(()=>f.server.close());
-  const path='http://127.0.0.1:'+f.server.address().port+'/api/tarot/';
-  assert.equal((await fetch(path+'enroll')).status,404);assert.equal((await fetch(path+'authorize?state='+a)).status,404);assert.deepEqual(f.calls,{});
+test('Games entry starts hidden and only availability reveals it; local tabletop link remains',async()=>{
+ const fs=require('node:fs'),vm=require('node:vm');
+ const html=fs.readFileSync('public/index.html','utf8');
+ assert.match(html,/<a id="troyLineTabletop"[^>]+hidden[^>]+href="\/api\/tarot\/start"[^>]+target="_self"/);
+ assert.match(html,/<a id="tarotTabletopV65"[^>]+href="\/tarot-kingdom-table.html\?v=65"/);
+ const source=fs.readFileSync('public/js/tarot-line-entry-v1.js','utf8');
+ for(const enabled of [false,true]){
+  const node={hidden:true,style:{removeProperty(key){assert.equal(key,'display');this.revealed=true;}}};
+  await vm.runInNewContext(source,{document:{querySelectorAll:()=>[node]},fetch:async url=>{assert.equal(url,'/api/tarot/availability');return {ok:true,json:async()=>({enabled})};}});
+  assert.equal(node.hidden,!enabled);assert.equal(Boolean(node.style.revealed),enabled);
+ }
 });

@@ -32,25 +32,6 @@ async function authorize() {
     form.hidden = false;
     form.submit();
 }
-const enroll = document.getElementById('enrollForm');
-if (enroll) enroll.addEventListener('submit', async event => {
-    event.preventDefault();
-    const field = enroll.elements.namedItem('invitation');
-    const invitation = field.value.trim(); field.value = '';
-    const button = enroll.querySelector('button'); button.disabled = true;
-    try {
-        const auth = getAuth(initializeApp(firebaseConfig));
-        await auth.authStateReady();
-        if (!auth.currentUser || !opaque.test(invitation)) throw Error('enroll');
-        const end = await fetch('/api/tarot/enroll', {method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+await auth.currentUser.getIdToken()}, body:JSON.stringify({invitation}), cache:'no-store', redirect:'error'});
-        if (!end.ok) throw Error('enroll');
-        const {subject} = await end.json();
-        if (!opaque.test(subject)) throw Error('enroll');
-        document.getElementById('enrollSubject').textContent = subject;
-        status.textContent = '登録ID';
-    } catch { status.textContent = '確認できませんでした。TROYを開き、このブラウザでLINEログインしてからもう一度お試しください。'; }
-    finally { button.disabled = false; }
-});
-else authorize().catch(() => {
+authorize().catch(() => {
     status.textContent = '接続できませんでした。TROYへ戻ってもう一度お試しください。';
 });

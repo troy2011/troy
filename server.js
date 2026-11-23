@@ -503,9 +503,7 @@ require('./server/tarotLineBridge').registerTarotLineBridge(app, {
     },
     bridgeKey: process.env.TROY_TAROT_BRIDGE_KEY,
     subjectKey: process.env.TROY_TAROT_SUBJECT_KEY,
-    ownerSubject: process.env.TROY_TAROT_PILOT_OWNER_SUBJECT,
-    enrollmentHash: process.env.TROY_TAROT_PILOT_ENROLL_SHA256,
-    pilotUntil: process.env.TROY_TAROT_PILOT_UNTIL
+    enable: process.env.TROY_TAROT_LINE_ENABLED
 });
 
 // Display page + stream
