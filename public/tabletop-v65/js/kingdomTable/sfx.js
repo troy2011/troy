@@ -1,4 +1,4 @@
-import * as Real from './sfxReal.js?v=turn-pass-v1';
+import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
 // Web Audio synthesizes the base sounds; four role completions add short recorded foley.
 // The audio context is only created from a tap (browsers refuse to start it otherwise), and every failure is silent.

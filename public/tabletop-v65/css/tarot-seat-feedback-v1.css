@@ -1,0 +1,16 @@
+/* Quiet, non-blocking seat feedback; the existing NEW chip remains on the card itself. */
+.kt-your-turn-flag, .kt-last-card-flag {
+    display: inline-flex; align-items: center; justify-content: center; gap: 2px;
+    padding: 1px 5px; border: 1px solid; border-radius: 5px; white-space: nowrap;
+    font-size: 11px; font-weight: 800; line-height: 1.25;
+}
+.kt-your-turn-flag { background: #14392f; border-color: #78d9ad; color: #d7ffe9; }
+.kt-last-card-flag { background: #48271a; border-color: #e9ab58; color: #fff0be; }
+.kt-seat.is-last-card .kt-seat-hand.kt-last-card-flag { color: #fff0be; }
+.kt-me[data-kt-feedback="own-turn"] { box-shadow: 0 0 0 2px #78d9ad, 0 0 15px #78d9ad60; }
+.kt-me[data-kt-feedback="last-card"], .kt-seat[data-kt-feedback="last-card"] .kt-seat-panel {
+    box-shadow: 0 0 0 2px #e9ab58, 0 0 15px #e9ab5860;
+}
+@media (max-width: 390px) {
+    .kt-your-turn-flag, .kt-last-card-flag { padding-inline: 4px; }
+}

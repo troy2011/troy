@@ -408,6 +408,15 @@ export const SCENES = [
         }
     },
     {
+        name: 'last-card', label: '残り1枚', note: '乾いた札の弾け音。合図の木音とは別。',
+        takes: {
+            a: ['札のパシッ', (at) => {
+                hiss(at, 0.064, { gain: 0.38, type: 'bandpass', freq: 1900, q: 0.75 });
+                thump(at + 0.007, 115, 0.085, { gain: 0.24, drop: 0.55, wet: 0.04 });
+            }]
+        }
+    },
+    {
         name: 'stamp', label: 'スタンプ', note: '11バック・スキップ・ロックなどの文字が押されるとき',
         takes: {
             a: ['封蝋をドンと押す', (at) => {
@@ -663,7 +672,7 @@ const TAKES = Object.fromEntries(SCENES.map((scene) => [scene.name, scene.takes]
 
 // The take the game uses for each sound, as chosen by ear in the sound lab (2026-11-19, third round).
 const PICKED = {
-    card: 'b', deal: 'b', throw: 'a', pass: 'a', clear: 'a', chip: 'a', han: 'b', turn: 'a', stamp: 'a', slash: 'a', take: 'c', snap: 'a',
+    card: 'b', deal: 'b', throw: 'a', pass: 'a', clear: 'a', chip: 'a', han: 'b', turn: 'a', 'last-card': 'a', stamp: 'a', slash: 'a', take: 'c', snap: 'a',
     step: 'b', role: 'b', legend: 'e', straight: 'b', flush: 'c', fullhouse: 'c', four: 'b', straightflush: 'b', finishWindup: 'c',
     finish: 'b', toss: 'c', win: 'b', lose: 'a'
 };
@@ -747,7 +756,7 @@ export const LEVEL = {
 
 // The loudness each scene should have, as the loudest 50 ms in dB below full scale.
 export const TARGET = {
-    card: -24, deal: -30, throw: -32, pass: -26, clear: -24, chip: -28, han: -22, turn: -24, stamp: -20, slash: -22,
+    card: -24, deal: -30, throw: -32, pass: -26, clear: -24, chip: -28, han: -22, turn: -24, 'last-card': -23, stamp: -20, slash: -22,
     take: -30, snap: -26, step: -24, role: -18, legend: -14, straight: -18, flush: -18, fullhouse: -18, four: -16,
     straightflush: -16, finishWindup: -26, finish: -15, toss: -22, win: -18, lose: -22
 };

@@ -16,7 +16,8 @@ import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=viewer-cheers-r-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=viewer-cheers-r-v1';
+import * as Sfx from './sfx.js?v=seat-feedback-v1';
+import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
 import { online, send, sendAction, returnToLobby, waitForCpuPresentation } from './localTable.js';
@@ -103,15 +104,15 @@ let cpuExitPrompt = false;
 let fast = false;
 let seenEvents = 0;
 let hint = '';
-let previousHandIds = null;
-let drawnCardId = null;
+let acquisition = null;
+let turnFeedback = null;
+let feedbackGeneration = 0;
 let fieldKey = '';
 let zoomTrigger = null;
 let inspectTrigger = null;
 let graveTrigger = null;
 // Where your played cards were in the hand, so they can fly from there to the field.
 let playOrigins = new Map();
-let lastTurn = -1;
 
 // `?seed=` fixes the shuffle so a hand can be replayed.
 function makeRng(salt = 0) {
@@ -225,24 +226,15 @@ $('ktHandInspector').addEventListener('close', () => {
 });
 
 function resetDrawFeedback() {
-    previousHandIds = null;
-    drawnCardId = null;
+    acquisition = null;
+    turnFeedback = null;
+    feedbackGeneration++;
+    for (const node of document.querySelectorAll('[data-kt-feedback]')) delete node.dataset.ktFeedback;
 }
 
-function observeDraw(events) {
-    const hand = match.round.players[ME].hand;
-    const owned = new Set(hand.map(card => card.id));
-    if (events.some(event => event.by === ME && ['play', 'pass', 'trash', 'give', 'deathSwapComplete'].includes(event.type))) drawnCardId = null;
-    // Only compare private hand snapshots. Shared draw events never reveal the drawn card.
-    if (previousHandIds && events.some(event => event.by === ME && ['draw', 'exchange'].includes(event.type))) {
-        const added = hand.filter(card => !previousHandIds.has(card.id));
-        if (added.length === 1) drawnCardId = added[0].id;
-    }
-    if (!owned.has(drawnCardId) || match.round.phase === 'over') drawnCardId = null;
-    previousHandIds = owned;
-}
-
-const drawnCard = () => match.round.players[ME].hand.find(card => card.id === drawnCardId);
+const drawnCard = () => match.round.players[ME].hand.find(card => card.id === acquisition?.id);
+const acquiredCardLabel = () => ({ give: '受け取った札', devilCardTransfer: '交換で受け取った札',
+    exchange: '交換で引いた札' })[acquisition?.source] ?? '引いた札';
 
 function describe(event) {
     const who = event.by === undefined ? '' : NAMES[event.by];
@@ -403,6 +395,7 @@ function renderSeat(seat, host) {
         seatObserver.observe(host);
     }
     const hand = el('span', 'kt-seat-hand');
+    if (count === 1) hand.classList.add('kt-last-card-flag');
     hand.append(el('span', 'kt-seat-hand-label', count === 1 ? 'あと' : '手札'), el('strong', 'kt-seat-count', String(count)), el('span', '', '枚'));
     const identity = el('div', 'kt-seat-identity');
     identity.append(el('strong', 'kt-seat-name', NAMES[seat]), el('span', 'kt-seat-chips kt-chip', `${match.chips[seat]}`));
@@ -615,8 +608,8 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
         node.style.setProperty('--kt-card-angle', `${offset * HAND_FAN_ANGLE_STEP}deg`);
         node.style.setProperty('--kt-card-offset', `${Math.abs(offset) * HAND_FAN_CURVE_STEP}px`);
         node.style.setProperty('--kt-card-order', String(index));
-        node.classList.toggle('is-drawn', card.id === drawnCardId);
-        node.setAttribute('aria-label', `${cardName(card)}${card.id === drawnCardId ? '（引いた札）' : ''}`);
+        node.classList.toggle('is-drawn', card.id === acquisition?.id);
+        node.setAttribute('aria-label', `${cardName(card)}${card.id === acquisition?.id ? '（' + acquiredCardLabel() + '）' : ''}`);
         node.classList.toggle('is-selected', selected.has(card.id));
         node.classList.toggle('is-arrange-picked', arranging && movingCard === card.id);
         node.classList.toggle('is-ready', choosing && !arranging && !selected.size && playable.has(card.id));
@@ -629,9 +622,10 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
         else node.setAttribute('aria-keyshortcuts', 'Shift+Enter');
     });
     $('ktHandCount').textContent = `${hand.length}枚`;
+    host.classList.toggle('is-last-card', hand.length === 1 && round.phase !== 'over');
     const drawn = drawnCard();
     const drawNotice = !arranging && !selected.size && drawn;
-    $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : drawNotice ? `引いた札：${cardName(drawn)}` : myTurn ? (choosing ? 'タップで選択・長押しで詳細' : 'タップして選択') : '相手の手番';
+    $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : drawNotice ? `${acquiredCardLabel()}：${cardName(drawn)}` : myTurn ? (choosing ? 'タップで選択・長押しで詳細' : 'タップして選択') : '相手の手番';
     $('ktSelection').classList.toggle('kt-draw-notice', !!drawNotice);
     $('ktArrange').textContent = arranging ? '並べ替え完了' : '並べ替え';
     $('ktArrange').setAttribute('aria-pressed', String(arranging));
@@ -677,7 +671,11 @@ function renderMe() {
     $('ktMe').replaceChildren(el('strong', '', NAMES[ME]), el('span', 'kt-me-chips kt-chip', `${match.chips[ME]}`), hanPill(ME), badges(ME));
     if (online.view) $('ktMe').append(el('span', 'kt-player-rating', `レート${match.ratingResult?.rating ?? match.startRating}`));
     else if (ratingPreview) $('ktMe').append(el('span', 'kt-player-rating', `レート${playerRating}`));
+    const ownTurn = round.phase === 'play' && round.turn === ME;
     $('ktMe').classList.toggle('is-turn', round.phase !== 'deathSwap' && round.phase !== 'over' && round.turn === ME);
+    if (ownTurn) $('ktMe').append(el('span', 'kt-your-turn-flag', 'あなたの番'));
+    if (round.players[ME].hand.length === 1 && round.phase !== 'over')
+        $('ktMe').append(el('span', 'kt-last-card-flag', '残り1枚'));
     const avatar = seatAvatar(ME);
     if (avatar) $('ktMe').prepend(avatarImage(avatar.icon, 'kt-avatar-seat-icon'));
 }
@@ -784,7 +782,9 @@ function render() {
     const round = match.round;
     syncTableAudio();
     const events = round.events.slice(seenEvents);
-    observeDraw(events);
+    acquisition = updateAcquisition(acquisition, round.players[ME].hand, ME, events, round.phase === 'over');
+    const feedback = updateTurns(turnFeedback, round, ME, events);
+    turnFeedback = feedback.state;
     seenEvents = round.events.length;
     const fieldBefore = events.length ? captureField() : [];
     // Once the last round is settled the label stays on it.
@@ -800,7 +800,7 @@ function render() {
     renderTurnHints(events);
     renderActions();
     renderSessionControls();
-    return playEffects(events, fieldBefore);
+    return playEffects(events, fieldBefore, feedback);
 }
 
 function devilResult(events, complete) {
@@ -1026,7 +1026,7 @@ function namedConsequence(events, event) {
     return null;
 }
 
-function playEffects(events, fieldBefore) {
+function playEffects(events, fieldBefore, feedback) {
     if (!events.length || !Fx.active()) return 0;
     const round = match.round;
     const floating = [];
@@ -1202,16 +1202,27 @@ function playEffects(events, fieldBefore) {
         }
         }
     }
-    // Your turn: a light passes over your hand.
-    const ownAction = events.findLastIndex(event => event.by === ME && ['play','pass','cede'].includes(event.type));
-    const opponentPassed = events.findLastIndex(event => event.type === 'pass' && event.by !== ME);
-    const returnedInBatch = ownAction >= 0 && opponentPassed > ownAction;
-    if (round.phase === 'play' && round.turn === ME && (lastTurn !== ME || returnedInBatch)) {
-        Fx.later(at, () => Fx.sweepLight(rectOf($('ktHand'))));
-        if (opponentPassed >= 0) Fx.after(at + 115, sweepBefore, () => Sfx.play('turn'));
-        else Fx.later(at, () => Sfx.play('turn'));
-    }
-    lastTurn = round.phase === 'over' ? -1 : round.turn;
+    // Present once per genuine transition; do not block ordinary actions or the CPU.
+    const generation = feedbackGeneration;
+    const current = () => feedbackGeneration === generation && match && !document.hidden && Fx.active();
+    const pulse = (node, cue) => {
+        if (!node) return;
+        node.dataset.ktFeedback = cue;
+        Fx.later(750, () => { if (node.dataset.ktFeedback === cue) delete node.dataset.ktFeedback; });
+    };
+    if (feedback.lastSeats.length) Fx.after(at, sweepBefore, () => {
+        if (!current() || match.round.phase === 'over') return;
+        const seats = feedback.lastSeats.filter(seat => match.round.players[seat]?.hand.length === 1);
+        if (!seats.length) return;
+        Sfx.play('last-card');
+        for (const seat of seats) pulse(seat === ME ? $('ktMe') : seatHost(seat), 'last-card');
+    });
+    if (feedback.ownEntered) Fx.after(at + (feedback.lastSeats.length ? 240 : 0) + (events.some(event => event.type === 'pass' && event.by !== ME) ? 115 : 0), sweepBefore, () => {
+        if (!current() || match.round.phase !== 'play' || match.round.turn !== ME) return;
+        pulse($('ktMe'), 'own-turn');
+        if (Fx.moving()) Fx.sweepLight(rectOf($('ktHand')));
+        Sfx.play('turn');
+    });
     playOrigins = new Map();
     return at;
 }
@@ -1806,7 +1817,6 @@ function begin(seats) {
     NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
     clearTimeout(timer);
     Fx.cancelAll();
-    lastTurn = -1;
     match = createMatch({ players: seats, rng: makeRng() });
     if (ratingPreview) {
         match.startRating = playerRating;
@@ -2003,7 +2013,7 @@ online.onView = view => {
         resetDrawFeedback();
         onlineRoundKey = roundKey;
         cancelResultPresentation();
-        selected.clear(); manualHandOrder = null; seenEvents = resumed ? match.round.events.length : 0; if (resumed) lastTurn = match.round.phase === 'over' ? -1 : match.round.turn; fieldKey = ''; if (!cpuExitPrompt) closeDialog();
+        selected.clear(); manualHandOrder = null; seenEvents = resumed ? match.round.events.length : 0; fieldKey = ''; if (!cpuExitPrompt) closeDialog();
     }
     for (const id of ['ktSeatTop', 'ktSeatLeft', 'ktSeatRight']) $(id).hidden = true;
     $('ktSetup').hidden = true; $('ktTable').hidden = false;
