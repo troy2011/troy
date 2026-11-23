@@ -491,6 +491,23 @@ app.use((req, res, next) => {
     next();
 });
 
+require('./server/tarotLineBridge').registerTarotLineBridge(app, {
+    verifyIdentity: req => authHelpers.verifyFirebaseIdToken(req),
+    resolveLinkedLineId: async (playFabId) => {
+        const account = await promisifyPlayFab(PlayFabServer.GetUserReadOnlyData, { PlayFabId: playFabId, Keys: ['lineUserId'] });
+        const lineId = String(account?.Data?.lineUserId?.Value || '').trim();
+        if (!/^U[0-9a-f]{32}$/i.test(lineId)) return null;
+        const forward = await firestore.collection('line_user_links').doc(lineId).get();
+        const mapped = authHelpers.normalizePlayFabId(forward.data()?.playFabId);
+        return forward.exists && mapped && mapped === playFabId ? lineId : null;
+    },
+    bridgeKey: process.env.TROY_TAROT_BRIDGE_KEY,
+    subjectKey: process.env.TROY_TAROT_SUBJECT_KEY,
+    ownerSubject: process.env.TROY_TAROT_PILOT_OWNER_SUBJECT,
+    enrollmentHash: process.env.TROY_TAROT_PILOT_ENROLL_SHA256,
+    pilotUntil: process.env.TROY_TAROT_PILOT_UNTIL
+});
+
 // Display page + stream
 const displayClients = new Set();
 const displayEventBuffer = [];
