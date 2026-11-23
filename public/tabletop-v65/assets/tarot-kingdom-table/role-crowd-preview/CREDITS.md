@@ -14,4 +14,3 @@ Each gameplay edit uses Freesound’s published audio rendition, cropped, filter
 - neilraouf: https://freesound.org/people/neilraouf/sounds/484513/ — CC0 (https://creativecommons.org/publicdomain/zero/1.0/). Edits: self-reply-medium-4.mp3.
 - Shane Vincent / ShangusBurger: https://freesound.org/people/ShangusBurger/sounds/763830/ — CC0 (https://creativecommons.org/publicdomain/zero/1.0/). Edits: self-open-big.mp3, self-reply-small-2.mp3.
 - IENBA: https://freesound.org/people/IENBA/sounds/488472/ — CC0 (https://creativecommons.org/publicdomain/zero/1.0/). Edits: self-open-small.mp3, self-open-small-2.mp3, self-open-medium-2.mp3, self-reply-small-3.mp3, self-reply-big-3.mp3, self-reply-climax.mp3, opponent-open-medium.mp3, opponent-open-big-3.mp3, opponent-reply-neutral.mp3, opponent-reply-neutral-3.mp3.
-- craigsmith: https://freesound.org/people/craigsmith/sounds/675103/ — CC0 (https://creativecommons.org/publicdomain/zero/1.0/). Edits: self-open-medium-3.mp3.
