@@ -126,11 +126,12 @@ function playPreviewCrowd(cue, earliest) {
     for (const tail of previewTails) {
         if (tail.until <= now + earliest || tail.retired) continue;
         tail.retired = true;
-        if (tail.start >= now + earliest) {
+        if (tail.far && tail.start >= now + earliest) {
             try { tail.source.stop(now + earliest); } catch {}
         } else {
-            tail.gain.gain.setTargetAtTime(0, now + earliest, .018);
-            try { tail.source.stop(now + earliest + .065); } catch {}
+            const fade = Math.max(now + earliest, tail.start + (tail.far ? 0 : .145));
+            tail.gain.gain.setTargetAtTime(0, fade, .018);
+            try { tail.source.stop(fade + .065); } catch {}
         }
     }
     const at = Math.min(start - now, earliest + .055);
@@ -141,7 +142,7 @@ function playPreviewCrowd(cue, earliest) {
         const voice = playRecorded(id, offset, 1, cheers, level, true, far);
         if (!voice) return false;
         const end = now + offset + recorded.get(id).duration;
-        previewTails.add({...voice, start:now + offset, until:end});
+        previewTails.add({...voice, start:now + offset, until:end, far});
         until = Math.max(until,end);
         return true;
     };

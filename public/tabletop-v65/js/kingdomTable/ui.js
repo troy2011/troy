@@ -13,11 +13,11 @@ import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=natural-crowd-v2';
+import {animateRole} from './roleJuice.js?v=natural-crowd-v3';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
-import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=natural-crowd-v2';
+import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=natural-crowd-v3';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=natural-crowd-v2';
+import * as Sfx from './sfx.js?v=natural-crowd-v3';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
