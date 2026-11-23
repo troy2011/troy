@@ -13,10 +13,11 @@ import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=viewer-cheers-r-v1';
+import {animateRole} from './roleJuice.js?v=role-crowd-preview-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
+import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=seat-feedback-v1';
+import * as Sfx from './sfx.js?v=role-crowd-preview-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1039,7 +1040,10 @@ function playEffects(events, fieldBefore, feedback) {
     const order = match.over ? ranking(match) : [];
     const ownVictory = order[0]?.seat === ME && order[0].chips > (order[1]?.chips ?? -Infinity);
     if (ownVictory && resultIdentity() !== restoredFinishedRound && (win || events.some(event=>event.type==='drawn'))) liveVictoryRound = resultIdentity();
-    const cheers = roleCheers(round.events, {from:round.events.length - events.length, silent:ownVictory ? finisher : null, viewer:ME});
+    const cheerArgs = {from:round.events.length - events.length, silent:ownVictory ? finisher : null, viewer:ME};
+    const cheers = roleCheers(round.events, cheerArgs);
+    const preview = crowdPreviewActive ? previewCrowdPlan(round.events, cheerArgs) : null;
+    const cheerFor = event => preview?.get(event) ?? cheers.get(event);
     for (const event of events) {
         switch (event.type) {
         case 'deal':
@@ -1063,12 +1067,12 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'play': {
-            const revised=event.kind!=='normal'?revisedRolePlay(event,at,sweepBefore,fieldBefore,event===finisher,cheers.get(event)):null;
+            const revised=event.kind!=='normal'?revisedRolePlay(event,at,sweepBefore,fieldBefore,event===finisher,cheerFor(event)):null;
             if(revised!==null){at=Math.max(at,revised.span);sweepBefore=fieldSweep;arrived=revised.ready;break;}
             const accent=event.kind!=='normal' && roleAccentKey(event.role);
             if (event.kind !== 'normal') roleBanner(event, at, !accent);
             const flight=flyPlay(event,at,floating,sweepBefore,event===finisher,accent);
-            if(accent)void flight.arrived.then(()=>Sfx.completeRole(event.role,flight.impactUntil(),cheers.get(event)));
+            if(accent)void flight.arrived.then(()=>Sfx.completeRole(event.role,flight.impactUntil(),cheerFor(event)));
             at=Math.max(at,flight.landing);
             arrived=flight.arrived;
             break;

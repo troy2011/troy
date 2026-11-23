@@ -1,0 +1,56 @@
+{
+  "self-open-small": [
+    "self-open-small.mp3",
+    "self-open-small-2.mp3",
+    "self-open-small-3.mp3"
+  ],
+  "self-open-medium": [
+    "self-open-medium.mp3",
+    "self-open-medium-2.mp3",
+    "self-open-medium-3.mp3"
+  ],
+  "self-open-big": [
+    "self-open-big.mp3",
+    "self-open-big-2.mp3",
+    "self-open-big-3.mp3"
+  ],
+  "self-reply-small": [
+    "self-reply-small.mp3",
+    "self-reply-small-2.mp3",
+    "self-reply-small-3.mp3"
+  ],
+  "self-reply-medium": [
+    "self-reply-medium.mp3",
+    "self-reply-medium-2.mp3",
+    "self-reply-medium-3.mp3",
+    "self-reply-medium-4.mp3"
+  ],
+  "self-reply-big": [
+    "self-reply-big.mp3",
+    "self-reply-big-2.mp3",
+    "self-reply-big-3.mp3"
+  ],
+  "self-reply-climax": [
+    "self-reply-climax.mp3",
+    "self-reply-climax-2.mp3",
+    "self-reply-climax-3.mp3"
+  ],
+  "opponent-open-small": [
+    "opponent-open-small.mp3",
+    "opponent-open-small-2.mp3"
+  ],
+  "opponent-open-medium": [
+    "opponent-open-medium.mp3",
+    "opponent-open-medium-2.mp3"
+  ],
+  "opponent-open-big": [
+    "opponent-open-big.mp3",
+    "opponent-open-big-2.mp3",
+    "opponent-open-big-3.mp3"
+  ],
+  "opponent-reply-neutral": [
+    "opponent-reply-neutral.mp3",
+    "opponent-reply-neutral-2.mp3",
+    "opponent-reply-neutral-3.mp3"
+  ]
+}
