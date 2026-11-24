@@ -193,7 +193,6 @@ body {
 .kt-seat-grip { z-index: 3; clip-path: inset(100%); }
 .kt-seat-left { grid-area: left; }
 .kt-seat-right { grid-area: right; }
-.kt-seat.is-turn .kt-seat-panel, .kt-me.is-turn { border-color: #ffe8a2; box-shadow: 0 0 10px rgb(255 194 76 / 60%), inset 0 0 12px rgb(255 194 76 / 12%); }
 .kt-seat-identity, .kt-seat-details { display: flex; align-items: center; min-width: 0; gap: 3px; }
 .kt-seat-identity { position: relative; grid-area: 1 / 1; height: 14px; overflow: hidden; }
 .kt-seat-details { grid-area: 2 / 1; }
@@ -256,8 +255,35 @@ body {
 .kt-navigation { position: relative; z-index: 2; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
 .kt-navigation:not(:has(> :not([hidden]))) { display: none; }
 .kt-turn-order { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.kt-turn-marker { position: absolute; z-index: 5; inset-inline-start: 4px; bottom: calc(100% + 2px); padding: 1px 4px; border: 1px solid #ffde8f; border-radius: 4px; background: #f4cc76; color: #352014; font-size: 10px; font-weight: 700; line-height: 14px; white-space: nowrap; pointer-events: none; }
-.is-next-turn .kt-turn-marker { border-color: #abe6d7; background: #225e55; color: #ecfff7; }
+/* Lighting only: keep the original carved nameplate frame and its dimensions. */
+.kt-seat.is-turn .kt-seat-panel:not([data-turn]), .kt-me.is-turn:not([data-turn]) {
+  border-color: #ffe8a2; box-shadow: 0 0 10px rgb(255 194 76 / 60%), inset 0 0 12px rgb(255 194 76 / 12%);
+}
+.kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before,
+.kt-seat-panel[data-turn]::after, .kt-me[data-turn]::after {
+  content: ""; position: absolute; display: block; pointer-events: none;
+}
+[data-turn="current"]::before {
+  inset: -26px -8px -12px;
+  background:
+    radial-gradient(ellipse 28% 17% at 17% 36%, #c3fffad0, #1af4dd80 36%, transparent 100%),
+    radial-gradient(ellipse 30% 15% at 74% 36%, #51fff6bf, #04c9bb75 43%, transparent 100%),
+    radial-gradient(ellipse 32% 13% at 59% 82%, #33fff0aa, #04bdad60 44%, transparent 98%);
+}
+[data-turn="current"]::after {
+  inset-inline: 4%; top: -1px; height: 2px; border-radius: 50%;
+  background: linear-gradient(90deg, transparent 0%, #a9fff7 10%, #13bda45e 25%, transparent 40%, #0bd8c685 62%, #bcffff 76%, #16e4cf46 91%, transparent 100%);
+  filter: drop-shadow(0 0 4px #22e5d0);
+}
+[data-turn="next"]::before {
+  bottom: 100%; inset-inline: -2px; height: 47px;
+  background: radial-gradient(ellipse 66% 90% at 53% 100%, #ffb84085, #e6853a36 54%, transparent 89%);
+}
+[data-turn="next"]::after {
+  inset-inline: 7%; top: -1px; height: 2px; border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #ffa83a77 22%, #ffdf9c 52%, #ffb95390 80%, transparent);
+  filter: drop-shadow(0 0 4px #e89744);
+}
 /* One inlaid plaque, not a row of floating notification pills. */
 .kt-field-state {
   display: flex;

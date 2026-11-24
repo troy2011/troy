@@ -464,12 +464,11 @@ function renderTurnOrder(round) {
     const order = turnOrder(round);
     const { current, next } = order ?? {};
     for (const [seat, root] of [[ME, $('ktMe')], ...seatSlots()]) {
-        root.classList.toggle('is-next-turn', seat === next);
         const panel = seat === ME ? root : root.querySelector('.kt-seat-panel');
-        if (!panel || (seat !== current && seat !== next)) continue;
-        const marker = el('span', 'kt-turn-marker', seat === current ? '▶ 手番' : '▾ 次');
-        marker.setAttribute('aria-hidden', 'true');
-        panel.append(marker);
+        if (!panel) continue;
+        const kind = seat === current ? 'current' : seat === next ? 'next' : '';
+        if (!kind) { delete panel.dataset.turn; continue; }
+        panel.dataset.turn = kind;
     }
     const name = seat => NAMES[seat] || String(seat + 1) + '番席';
     const status = order ? '手番：' + name(current) + (next === null ? '' : '、次：' + name(next)) : '';

@@ -36,7 +36,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=seat-names-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=teal-turn-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -51,19 +51,34 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await expect(page.locator('.kt-your-turn-flag')).toHaveCount(0);
   await expect(page.locator('#ktTurnOrder')).toContainText('手番：あなた');
   expect(await page.locator('#ktTurnOrder').evaluate(el=>getComputedStyle(el).clipPath)).toBe('inset(50%)');
-  const mark=seat=>page.locator((seat===0?'#ktMe':'[data-seat="'+seat+'"]')+' .kt-turn-marker');
-  await expect(mark(0)).toHaveText('▶ 手番');
+  const mark=seat=>page.locator(seat===0?'#ktMe':'[data-seat="'+seat+'"] .kt-seat-panel');
+  await expect(mark(0)).toHaveAttribute('data-turn','current');
+  const lighting = await mark(0).evaluate(panel=>{
+    const read=()=>{const style=getComputedStyle(panel);const {width,height}=panel.getBoundingClientRect();return {width,height,border:style.borderColor,radius:style.borderRadius,background:style.backgroundImage};};
+    const on=read();
+    const glow=getComputedStyle(panel,'::before').backgroundImage;
+    const next=panel.closest('#ktTable').querySelector('.kt-seat-panel[data-turn="next"]');
+    const amber=getComputedStyle(next,'::before').backgroundImage;
+    panel.dataset.turn='test-no-overlay';
+    const unchanged=read();
+    panel.dataset.turn='current';
+    return {on,unchanged,glow,amber};
+  });
+  expect(lighting.on).toEqual(lighting.unchanged);
+  expect(lighting.glow).toContain('radial-gradient');
+  expect(lighting.amber).toContain('radial-gradient');
+  await expect(page.locator('.kt-turn-marker, .kt-turn-ornament')).toHaveCount(0);
   await page.evaluate(()=>window.turnLayoutFixture('reverse'));
-  await expect(mark(2)).toHaveText('▾ 次');
+  await expect(mark(2)).toHaveAttribute('data-turn','next');
   await page.evaluate(()=>window.turnLayoutFixture('skip'));
-  await expect(mark(1)).toHaveText('▾ 次');
-  await expect(mark(2)).toHaveCount(0);
+  await expect(mark(1)).toHaveAttribute('data-turn','next');
+  await expect(mark(2)).not.toHaveAttribute('data-turn', /./);
   await page.evaluate(()=>window.turnLayoutFixture('pass'));
-  await expect(mark(0)).toHaveCount(0);
-  await expect(mark(1)).toHaveText('▶ 手番');
-  await expect(mark(2)).toHaveText('▾ 次');
+  await expect(mark(0)).not.toHaveAttribute('data-turn', /./);
+  await expect(mark(1)).toHaveAttribute('data-turn','current');
+  await expect(mark(2)).toHaveAttribute('data-turn','next');
   await page.evaluate(()=>window.turnLayoutFixture('over'));
-  await expect(page.locator('.kt-turn-marker')).toHaveCount(0);
+  await expect(page.locator('.kt-seat-panel[data-turn], #ktMe[data-turn]')).toHaveCount(0);
   await page.evaluate(()=>window.turnLayoutFixture('reason'));
   const selfName=page.locator('#ktMe strong').first();
   await expect(selfName).toHaveText('あなた');
