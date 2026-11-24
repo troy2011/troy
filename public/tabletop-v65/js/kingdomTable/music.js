@@ -9,6 +9,7 @@ export const TRACKS = {
 export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError = () => {} }) {
     let context, bus, voice, gap = 0, revision = 0, loading = null;
     let scene = null, resultKey = null, enabled = true, visible = true, ducked = false;
+    let titleBookmark = null;
     const buffers = new Map();
     const played = new Set();
 
@@ -64,12 +65,15 @@ export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError 
                 source.disconnect(); gain.disconnect();
                 if (voice?.source !== source) return;
                 voice = null;
+                if (scene === 'title') titleBookmark = 0;
                 if (!config.oneShot) {
                     gap = setTimeout(() => { gap = 0; sync(); }, (config.repeatAfter ?? 0.7) * 1000);
                 }
             };
-            source.start();
-            voice = { source, gain };
+            const offset = scene === 'title' && titleBookmark != null && titleBookmark + 0.15 < buffer.duration ? titleBookmark : 0;
+            source.start(0, offset);
+            voice = { source, gain, offset, startedAt: context.currentTime };
+            if (scene === 'title') titleBookmark = offset;
             if (config.oneShot) played.add(key);
         }).catch(onError).finally(() => { if (loading === token) loading = null; });
     }
@@ -90,8 +94,19 @@ export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError 
                 else void context.resume().then(sync, onError);
             } catch (error) { onError(error); }
         },
+        titlePosition() {
+            if (scene === 'title' && voice) return Math.max(0, voice.offset + context.currentTime - voice.startedAt);
+            return titleBookmark;
+        },
+        restoreTitle(offset) {
+            if (!Number.isFinite(offset) || offset < 0) return;
+            if (scene === 'title' && voice && Math.abs(this.titlePosition() - offset) > .15) clear();
+            titleBookmark = offset;
+            sync();
+        },
         scene(next, key = null) {
             if (scene !== next || resultKey !== key) {
+                if (scene === 'title') titleBookmark = this.titlePosition();
                 scene = next;
                 resultKey = key;
                 clear();
@@ -101,7 +116,10 @@ export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError 
         enabled(next) {
             if (enabled !== next) {
                 enabled = next;
-                if (!enabled) clear();
+                if (!enabled) {
+                    if (scene === 'title') titleBookmark = this.titlePosition();
+                    clear();
+                }
                 volume();
             }
             sync();

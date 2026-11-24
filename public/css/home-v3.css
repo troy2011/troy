@@ -2948,3 +2948,6 @@ body.home-v3 #tabContentHome #homePetCompanion .pixel-monster-companion-sprite {
         scaleY(var(--pixel-monster-companion-scale-y, 1))
         scale(calc(.9 * var(--pixel-monster-companion-scale) * var(--home-avatar-deck-scale)));
 }
+
+.troy-home-bgm { display: flex; justify-content: end; align-items: center; gap: 5px; font-size: 12px; color: #efd7a1; }
+.troy-home-bgm input { accent-color: #d1a85d; }

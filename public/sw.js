@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'troy-app-v20261122-home-games-tavern-v1';
+const CACHE_VERSION = 'troy-app-v20261124-home-title-v1';
 const CORE_CACHE = `troy-core-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `troy-runtime-${CACHE_VERSION}`;
 

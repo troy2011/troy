@@ -18,7 +18,8 @@ import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
 import * as Sfx from './sfx.js?v=cheer-tail-v1';
-import { Music } from './music.js?v=table-music-v1';
+import { Music } from './music.js?v=home-title-v1';
+import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1883,23 +1884,7 @@ function renderSoundButton() {
     $('ktSound').setAttribute('aria-label', on ? '効果音：オン' : '効果音：オフ');
 }
 renderSoundButton();
-const musicSetting = $('ktMusicSetting');
-const MUSIC_KEY = 'troy:kingdom-table:music';
-try { musicSetting.checked = localStorage.getItem(MUSIC_KEY) !== 'off'; } catch { musicSetting.checked = true; }
-Music.enabled(musicSetting.checked);
-const unlockMusic = () => Music.unlock();
-document.addEventListener('click', unlockMusic, { capture: true });
-document.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') unlockMusic(); }, { capture: true });
-musicSetting.addEventListener('change', () => {
-    Music.enabled(musicSetting.checked);
-    if (musicSetting.checked) unlockMusic();
-    try { localStorage.setItem(MUSIC_KEY, musicSetting.checked ? 'on' : 'off'); } catch { /* This visit only. */ }
-});
-document.addEventListener('visibilitychange', () => Music.visible(!document.hidden));
-window.addEventListener('pagehide', () => Music.visible(false));
-window.addEventListener('pageshow', () => Music.visible(!document.hidden));
-Music.visible(!document.hidden);
-syncTableAudio();
+bindMusicSession({ player: Music, checkbox: $('ktMusicSetting'), syncScene: syncTableAudio });
 // Online audio, like practice audio, requires a trusted user gesture.
 $('ktTable').addEventListener('click',()=>{if(Fx.active())Sfx.unlock();},{capture:true});
 $('ktSound').addEventListener('click', () => setSoundOn(!Sfx.isOn()));
