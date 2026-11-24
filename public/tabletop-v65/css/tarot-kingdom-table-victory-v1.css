@@ -264,16 +264,27 @@ body {
   content: ""; position: absolute; display: block; pointer-events: none;
 }
 [data-turn="current"]::before {
-  inset: -26px -8px -12px;
-  background:
-    radial-gradient(ellipse 28% 17% at 17% 36%, #c3fffad0, #1af4dd80 36%, transparent 100%),
-    radial-gradient(ellipse 30% 15% at 74% 36%, #51fff6bf, #04c9bb75 43%, transparent 100%),
-    radial-gradient(ellipse 32% 13% at 59% 82%, #33fff0aa, #04bdad60 44%, transparent 98%);
+  inset: -3px;
+  border: 1px solid #48e7d682;
+  border-radius: inherit;
+  box-shadow: 0 0 5px #27cbbb4f, inset 0 0 4px #52e4db37;
 }
-[data-turn="current"]::after {
-  inset-inline: 4%; top: -1px; height: 2px; border-radius: 50%;
-  background: linear-gradient(90deg, transparent 0%, #a9fff7 10%, #13bda45e 25%, transparent 40%, #0bd8c685 62%, #bcffff 76%, #16e4cf46 91%, transparent 100%);
-  filter: drop-shadow(0 0 4px #22e5d0);
+@supports (offset-path: inset(0 round 5px)) {
+  #ktTable:not(.is-quiet-effects) [data-turn="current"]::after {
+    top: 0; left: 0; width: 44px; height: 16px; border-radius: 50%;
+    background: radial-gradient(ellipse at center, #ebfffc 4%, #74fff1e6 24%, #20e4d798 48%, transparent 76%);
+    offset-path: inset(0 round 5px);
+    offset-anchor: center;
+    offset-rotate: auto;
+    animation: kt-current-light-lap 3.1s linear infinite;
+  }
+}
+@keyframes kt-current-light-lap {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ktTable:not(.is-quiet-effects) [data-turn="current"]::after { display: none; animation: none; }
 }
 [data-turn="next"]::before {
   bottom: 100%; inset-inline: -2px; height: 47px;

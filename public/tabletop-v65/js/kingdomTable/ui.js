@@ -1984,6 +1984,7 @@ $('ktStart').addEventListener('click', () => {
     fast = $('ktFast').checked || params.has('fast');
     // Fast play skips every effect, sound included.
     Fx.setQuiet(fast);
+    $('ktTable').classList.toggle('is-quiet-effects', fast);
     if (!fast) Sfx.unlock();
     begin(Number(document.querySelector('input[name="ktSeats"]:checked').value));
 });

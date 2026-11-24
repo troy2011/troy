@@ -36,7 +36,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=teal-turn-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=moving-light-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -56,7 +56,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   const lighting = await mark(0).evaluate(panel=>{
     const read=()=>{const style=getComputedStyle(panel);const {width,height}=panel.getBoundingClientRect();return {width,height,border:style.borderColor,radius:style.borderRadius,background:style.backgroundImage};};
     const on=read();
-    const glow=getComputedStyle(panel,'::before').backgroundImage;
+    const glow=getComputedStyle(panel,'::before').borderColor;
     const next=panel.closest('#ktTable').querySelector('.kt-seat-panel[data-turn="next"]');
     const amber=getComputedStyle(next,'::before').backgroundImage;
     panel.dataset.turn='test-no-overlay';
@@ -65,7 +65,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
     return {on,unchanged,glow,amber};
   });
   expect(lighting.on).toEqual(lighting.unchanged);
-  expect(lighting.glow).toContain('radial-gradient');
+  expect(lighting.glow).toBe('rgba(72, 231, 214, 0.51)');
   expect(lighting.amber).toContain('radial-gradient');
   await expect(page.locator('.kt-turn-marker, .kt-turn-ornament')).toHaveCount(0);
   await page.evaluate(()=>window.turnLayoutFixture('reverse'));
@@ -122,4 +122,34 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await expect(dialog).toContainText('説明の全文です。'.repeat(48));
   await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();
   expect(errors).toEqual([]);
+});
+
+
+test('one current light travels smoothly and keeps the next lamp static',async({page})=>{
+  await page.setViewportSize({width:320,height:568});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.route('**/ui.js?v=moving-light-v1',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+  for (const quiet of [false,true]) {
+    await page.goto('/tarot-kingdom-table.html'+(quiet?'?fast':''));
+    await page.getByRole('button',{name:'CPU練習'}).click();
+    await page.locator('input[name=ktSeats][value="3"]').check();
+    await page.locator('#ktStart').click();
+    await page.evaluate(()=>window.turnLayoutFixture('reason'));
+    const panel=page.locator('#ktMe');
+    const measure=()=>panel.evaluate(n=>{
+      const travel=n.getAnimations({subtree:true}).filter(a=>a.animationName==='kt-current-light-lap');
+      const speed=travel[0]?.effect.getTiming().duration;
+      const samples=travel.map(a=>{
+        a.pause();
+        return [0,0.25,0.5,0.75].map(r=>{a.currentTime=r*speed;return getComputedStyle(n,'::after').offsetDistance});
+      });
+      return {speed,samples, fallback:getComputedStyle(n,'::before').borderStyle, next:getComputedStyle(document.querySelector('.kt-seat-panel[data-turn="next"]'),'::after').animationName};
+    });
+    if (!quiet) {
+      expect(await measure()).toEqual({speed:3100,samples:[['0%','25%','50%','75%']],fallback:'solid',next:'none'});
+      await page.emulateMedia({reducedMotion:'reduce'});
+      expect(await measure()).toEqual({samples:[],fallback:'solid',next:'none'});
+      await page.emulateMedia({reducedMotion:'no-preference'});
+    } else expect(await measure()).toEqual({samples:[],fallback:'solid',next:'none'});
+  }
 });
