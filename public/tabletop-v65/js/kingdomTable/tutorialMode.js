@@ -1,5 +1,5 @@
 import { quickOutcome, quickAction } from './tutorialQuickCopy.js?v=quick-tutorial-v1';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=pirate-ability-v1';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=pirate-ability-v1-no-stock-v1';
 export { CHAPTERS, NAMES };
 const DONE_KEY = 'tarot-kingdom-tutorial:done';
 const $ = id => document.getElementById(id);
@@ -182,9 +182,6 @@ function resultBody(session) {
         text.append(el('strong', 'kt-chip', String(pay.paid)));
         out.push(text);
     }
-    const pot = el('p', 'kt-result-pot', `場のチップ（各自20枚）も ${NAMES[w]} へ：`);
-    pot.append(el('strong', 'kt-chip', String(result.pot)));
-    out.push(pot);
     return out;
 }
 

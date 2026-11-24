@@ -173,7 +173,6 @@ body {
 .kt-result-note { color: var(--kt-dim); text-align: center; }
 .kt-rating-result { padding: 10px 0; border-top: 1px solid #745133; color: var(--kt-gold); text-align: center; }
 .kt-result-row { padding-top: 8px; border-top: 1px solid #745133; }
-.kt-result-pot { padding-top: 8px; border-top: 1px solid #745133; }
 .kt-score { margin: 8px 0; padding: 4px 12px; list-style: none; border-radius: 10px; background: rgb(0 0 0 / 30%); font-size: 15px; }
 .kt-score li { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
 .kt-score li + li { border-top: 1px solid rgb(255 255 255 / 8%); }

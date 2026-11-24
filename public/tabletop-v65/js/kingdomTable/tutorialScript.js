@@ -1,7 +1,7 @@
 // Tarot Kingdom tutorial: fixed deals and a fixed script, played on the real rule engine.
 // Pure logic: no DOM. The page (tutorial.js) and the tests drive the same session.
 import * as Rules from './rules.js?v=sites-death-devil-v1';
-import { createMatch, startRound, settleRound } from './match.js?v=sites-death-devil-v1';
+import { createMatch, startRound, settleRound } from './match.js?v=sites-death-devil-v1-no-stock-v1';
 
 export const ME = 0;
 export const SEATS = 3;

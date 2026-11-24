@@ -54,7 +54,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=canonical-props-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -113,6 +113,7 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     await page.evaluate(() => window.rulePropFixture('stack'));
     await expect(layer.locator('.kt-rule-prop:not(.kt-rule-impact)')).toHaveCount(3);
     await expect(layer.locator('[data-kind="cut"]:not(.kt-rule-impact) img')).toHaveAttribute('src', /knife-reference/);
+    expect(await layer.evaluate(n=>['lock','cut'].map(kind=>getComputedStyle(n.querySelector('[data-kind='+kind+']:not(.kt-rule-impact)')).zIndex))).toEqual(['1','2']);
     const exactMug=layer.locator('[data-kind="lock"]');
     await expect(exactMug.locator('img')).toHaveAttribute('src', /tankard-coin/);
     await expect(exactMug.locator('.kt-rule-suits')).toBeHidden();
@@ -144,7 +145,10 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(row=>row[0]==='lock').map(row=>row[1]) ?? [])).toEqual(['coin','coin','cup','sword','wand']);
     const beforePair = await page.evaluate(() => window.propCueLog?.filter(([k])=>k==='cut').length ?? 0);
     await page.evaluate(() => window.rulePropFixture('pair'));
-    if (motion==='no-preference') await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
+    if (motion==='no-preference') {
+        await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
+        expect(await layer.locator('.kt-rule-impact').evaluate(n=>getComputedStyle(n).zIndex)).toBe('3');
+    }
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
     await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
     await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(([k])=>k==='cut').length ?? 0)).toBe(beforePair+1);

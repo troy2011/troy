@@ -1,9 +1,9 @@
 // Tarot Kingdom tutorial page. The script and the rules live in tutorialScript.js and rules.js.
 import * as Rules from './rules.js?v=sites-death-devil-v1';
 import { roleName } from './rules.js?v=sites-death-devil-v1';
-import { seatHan } from './match.js?v=sites-death-devil-v1';
+import { seatHan } from './match.js?v=sites-death-devil-v1-no-stock-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=pirate-ability-v1';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=pirate-ability-v1-no-stock-v1';
 
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命の輪', '正義',
@@ -314,9 +314,6 @@ function resultBody(result) {
         text.append(el('strong', 'kt-chip', String(pay.paid)));
         out.push(text);
     }
-    const pot = el('p', 'kt-result-pot', `場のチップ（各自20枚）も ${NAMES[w]} へ：`);
-    pot.append(el('strong', 'kt-chip', String(result.pot)));
-    out.push(pot);
     return out;
 }
 

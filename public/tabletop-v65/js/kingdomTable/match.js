@@ -4,7 +4,6 @@ import { createRound, lastCardHan } from './rules.js?v=sites-death-devil-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,
-    ante: 20,          // paid by every seat into the pot at the start of a round
     cardRate: 10,      // chips per card left in hand, per han
     baseHan: 1,        // going out is worth one han before any role
     openingWinHan: 5,  // total for an opening win, before the dealer bonus
@@ -18,18 +17,13 @@ export function createMatch({ players = 4, rng = Math.random, rules = CHIP_RULES
     return {
         seats: players, rng, rules,
         chips: Array.from({ length: players }, () => rules.startChips),
-        pot: 0, dealer: 0, roundIndex: 0, rounds: players, repeats: 0, played: 0,
+        dealer: 0, roundIndex: 0, rounds: players, repeats: 0, played: 0,
         round: null, lastResult: null, over: false
     };
 }
 
 export function startRound(match, deck = null) {
     if (match.over) return null;
-    for (let p = 0; p < match.seats; p += 1) {
-        const paid = Math.min(match.chips[p], match.rules.ante);
-        match.chips[p] -= paid;
-        match.pot += paid;
-    }
     match.lastResult = null;
     match.round = createRound({ players: match.seats, dealer: match.dealer, rng: match.rng, deck });
     return match.round;
@@ -64,7 +58,7 @@ export function roundLabel(match) {
 export function settleRound(match) {
     const round = match.round;
     if (!round || round.phase !== 'over' || match.lastResult) return match.lastResult;
-    const result = { winner: round.winner, winnerHan: 0, lastCardHan: 0, payments: [], pot: 0, delta: match.chips.map(() => 0), label: roundLabel(match), repeat: false };
+    const result = { winner: round.winner, winnerHan: 0, lastCardHan: 0, payments: [], delta: match.chips.map(() => 0), label: roundLabel(match), repeat: false };
     if (round.winner !== null) {
         const w = round.winner;
         result.lastCardHan = lastCardHan(round, w);
@@ -82,12 +76,7 @@ export function settleRound(match) {
             result.delta[w] += paid;
             result.payments.push({ from: p, cards: hand.length, aces, han, owed, paid });
         }
-        result.pot = match.pot;
-        match.chips[w] += match.pot;
-        result.delta[w] += match.pot;
-        match.pot = 0;
     }
-    // A drawn round leaves the pot for the next one.
     match.lastResult = result;
     match.played += 1;
     result.repeat = round.winner !== null && round.winner === round.dealer;
@@ -98,8 +87,24 @@ export function settleRound(match) {
         match.roundIndex += 1;
         match.dealer = (match.dealer + 1) % match.seats;
     }
+    // Compatibility only: settle already committed balances from older saved matches.
+    const legacyBalance = Number.isSafeInteger(match.pot) && match.pot > 0 ? match.pot : 0;
+    if (legacyBalance && round.winner !== null) {
+        match.chips[round.winner] += legacyBalance;
+        result.delta[round.winner] += legacyBalance;
+    }
     match.over = match.roundIndex >= match.rounds || match.chips.some((c) => c <= 0)
         || match.played >= match.rounds * match.rules.maxRoundsFactor;
+    if (legacyBalance && round.winner === null && match.over) {
+        // Historical snapshots stored only the total, not an itemized ledger.
+        for (let p = 0; p < match.seats; p += 1) {
+            const share = Math.floor(legacyBalance / match.seats) + Number(p < legacyBalance % match.seats);
+            match.chips[p] += share;
+            result.delta[p] += share;
+        }
+    }
+    // An active draw retains only the existing balance for later one-time settlement.
+    if (!legacyBalance || round.winner !== null || match.over) delete match.pot;
     return result;
 }
 

@@ -1,4 +1,4 @@
-import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=quick-tutorial-v1';
+import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=quick-tutorial-v1-no-stock-v1';
 import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1';
 import { turnOrder } from './turnOrder.js?v=sites-turn-order-v1';
 import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-v1';
@@ -9,7 +9,7 @@ import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
 import * as Rules from './rules.js?v=table-shared-core-v1';
 import { roleName, roleHan } from './rules.js?v=table-shared-core-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=sites-death-devil-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=sites-death-devil-v1-no-stock-v1';
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
@@ -508,9 +508,9 @@ function renderField() {
             // Stable offsets keep a pile still while selecting a card or opening a dialog.
             const seed = cards.reduce((sum, card) => sum + card.num + (card.major ? 7 : Rules.SUITS.indexOf(card.suit)), 0);
             const depth = layers.length - layer - 1;
-            const angle = current ? (seed % 5 - 2) * 0.6 : (seed % 7 - 3) * (cards.length > 3 ? 0.7 : 2.4);
+            const angle = current ? 0 : (seed % 7 - 3) * 0.45;
             group.style.setProperty('--kt-pile-angle', `${angle}deg`);
-            group.style.setProperty('--kt-pile-x', `${current ? 0 : (seed * 7 % 11 - 5) * 2.6}px`);
+            group.style.setProperty('--kt-pile-x', `${current ? 0 : (seed * 7 % 11 - 5) * 1.4}px`);
             group.style.setProperty('--kt-pile-y', `${current ? 0 : depth * 1.5}px`);
             if (!current) group.setAttribute('aria-hidden', 'true');
             const role = cards.length===5 ? (current ? round.field.role : Rules.evaluateRole(cards)) : null;
@@ -842,7 +842,6 @@ function render() {
     const fieldBefore = events.length ? captureField() : [];
     // Once the last round is settled the label stays on it.
     $('ktRound').textContent = match.over ? `全${match.rounds}局` : `${roundLabel(match)} / ${match.rounds}`;
-    $('ktPot').textContent = `場 ${match.pot}`;
     $('ktDeck').textContent = String(round.deck.length);
     $('ktDeck').setAttribute('aria-label', `山札 残り${round.deck.length}枚`);
     for (const [seat, host] of seatSlots()) renderSeat(seat, host);
@@ -1266,7 +1265,7 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'drawn':
-            Fx.later(at, () => Fx.banner('引き分け', rectOf($('ktFelt')), 'normal', '場のチップは次の局へ'));
+            Fx.later(at, () => Fx.banner('引き分け', rectOf($('ktFelt')), 'normal'));
             at += 950;
             break;
         default: {
@@ -1318,7 +1317,7 @@ function playEffects(events, fieldBefore, feedback) {
     return at;
 }
 
-// Chips fly from every loser, and the pot, to the winner; the counters run with them.
+// Chips fly from every loser to the winner; the counters run with them.
 function playSettlement(result, start) {
     if (result.winner === null || !Fx.moving()) return start;
     const winnerPlate = rectOf(seatPlate(result.winner));
@@ -1341,7 +1340,6 @@ function playSettlement(result, start) {
         for (let i = 0; i < 4; i += 1) Sfx.play('chip', (delay + 300 + i * 90) / 1000);
         end = Math.max(end, coinsEnd);
     });
-    if (result.pot) end = Math.max(end, Fx.coins(rectOf($('ktPot')), winnerPlate, 8, start + 200));
     const winnerChips = counters.get(result.winner);
     Fx.later(start + 300, () => Fx.countUp(winnerChips, match.chips[result.winner] - result.delta[result.winner], match.chips[result.winner], Math.max(400, end - start - 300)));
     Fx.later(end, () => Fx.pop(winnerChips));
@@ -1604,7 +1602,7 @@ function showResult(result) {
     // Where the summary ends: the chip totals go right after it, above the card-by-card details, so they are seen without scrolling.
     let summaryEnd = 0;
     if (result.winner === null) {
-        body.push(el('p', '', '全員が初手を出せず、引き分けです。場のチップは次の局に持ち越します。'));
+        body.push(el('p', '', '全員が初手を出せず、引き分けです。'));
         summaryEnd = body.length;
     } else {
         const w = result.winner;
@@ -1651,9 +1649,6 @@ function showResult(result) {
             row.append(text, left);
             body.push(row);
         }
-        const pot = el('p', 'kt-result-pot', `場のチップも ${NAMES[w]} へ：`);
-        pot.append(el('strong', 'kt-chip', `${result.pot}`));
-        body.push(pot);
     }
     const table = el('ul', 'kt-score');
     match.chips.forEach((chips, seat) => {

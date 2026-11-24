@@ -147,7 +147,6 @@
   font-weight: 700;
 }
 #ktDialog.is-round-result .kt-round-details .kt-result-row,
-#ktDialog.is-round-result .kt-round-details .kt-result-pot { border-color: var(--round-rule); }
 #ktDialog.is-round-result #ktDialogActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

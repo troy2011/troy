@@ -27,7 +27,7 @@ for (const seats of [3,4]) test('minimal TROY match controls at 320 / '+seats+' 
  await expect(table.locator('#ktOnlinePlayStatus')).toBeHidden();
  await expect(table.locator('#ktGrave')).toHaveCount(1);
  await expect(table.locator('.kt-hand-header #ktGrave')).toBeVisible();
- await expect(table.locator('#ktPot')).toBeVisible();
+ await expect(table.locator('#ktPot')).toHaveCount(0);
  expect(await page.evaluate(()=>[document.scrollingElement.scrollWidth,document.scrollingElement.scrollHeight])).toEqual([320,568]);
  const actionsBefore=await table.locator('#ktActions').boundingBox();
  expect(actionsBefore.y+actionsBefore.height).toBeLessThanOrEqual(556);
