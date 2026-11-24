@@ -22,7 +22,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=table-rule-props-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=hourglass-upright-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -54,10 +54,18 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
             await expect(impact).toHaveCount(0);
         }
         if (kind==='back' && motion==='no-preference') {
-            const glass = layer.locator('[data-kind="back"] img');
-            await expect.poll(() => glass.evaluate(node=>node.getAnimations()[0]?.effect.getKeyframes().at(-1).transform)).toBe('rotate(180deg)');
+            const flip = layer.locator('.kt-hourglass-flip');
+            await expect(flip).toHaveCount(1);
+            await expect.poll(() => flip.evaluate(node=>node.getAnimations()[0]?.effect.getKeyframes().at(-1).transform)).toContain('180deg');
+            await expect(flip).toHaveCount(0);
+        }
+        if (kind === 'back' || kind === 'lock') {
+            const glass = layer.locator('[data-kind="back"] img:not(.kt-hourglass-flip)');
+            await expect(glass).toHaveAttribute('src', /hourglass-settled\.webp$/);
+            expect(await glass.evaluate(node=>getComputedStyle(node).transform)).toBe('none');
         }
         if (motion==='reduce') {
+            await expect(layer.locator('.kt-hourglass-flip')).toHaveCount(0);
             await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
             expect(await layer.locator('img').evaluateAll(nodes=>nodes.every(node=>!node.getAnimations().length))).toBe(true);
         }

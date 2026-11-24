@@ -4,7 +4,7 @@
 .kt-rule-prop img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 3px 2px #1a0d08bb); }
 .kt-rule-prop[data-kind="lock"] { inset-inline-end: max(8px, 17%); container-type: inline-size; }
 .kt-rule-prop[data-kind="back"] { inset-inline-start: max(8px, 17%); }
-.kt-rule-prop[data-kind="back"] img { transform: rotate(180deg); }
+.kt-rule-prop img.kt-hourglass-flip { position: absolute; inset: 0; opacity: 0; }
 .kt-rule-prop[data-kind="cut"] { width: clamp(20px, 6.5vw, 30px); height: clamp(25px, 9vw, 38px); inset-inline-start: calc(50% + 19px); transform: rotate(20deg); }
 .kt-rule-suits { position: absolute; display: flex; justify-content: center; align-items: center; gap: 1px; inset-inline-start: 40%; top: 55%; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 1px #17101a); }
 .kt-rule-suits svg { width: clamp(12px, 3.8vw, 18px); max-width: 35cqi; aspect-ratio: 1; fill: none; stroke: #ffe3a3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

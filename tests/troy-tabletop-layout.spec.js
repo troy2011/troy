@@ -36,7 +36,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=table-rule-props-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=hourglass-upright-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');

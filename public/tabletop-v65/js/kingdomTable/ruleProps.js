@@ -1,5 +1,5 @@
 // Ornamental witnesses to rule state, never a source of gameplay truth.
-const files = { cut:'knife', lock:'tankard', back:'hourglass' };
+const files = { cut:'knife', lock:'tankard', back:'hourglass-settled' };
 const base = new URL('../../assets/pirate-tarot/rule-props/', import.meta.url);
 const icons = {
   sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
@@ -74,19 +74,34 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
   const art = host.querySelector('.kt-rule-prop[data-kind="'+kind+'"] > img');
   if (!art) return null;
   for (const running of art.getAnimations()) running.cancel();
-  const frames = kind === 'back' ? [
-    {opacity:.25, transform:'rotate(0deg) scale(.92)'},
-    {opacity:1, transform:'rotate(180deg) scale(1.03)'},
-    {opacity:1, transform:'rotate(180deg)'}
-  ] : [
+  if (kind === 'back') {
+    const wrap = art.parentElement;
+    wrap.querySelector('.kt-hourglass-flip')?.remove();
+    const flip = art.cloneNode(false);
+    flip.className = 'kt-hourglass-flip';
+    flip.src = new URL('hourglass.webp', assets).href;
+    wrap.append(flip);
+    // Only the frame turns. A separate image shows the settled sand under gravity.
+    return flip.decode().then(() => {
+      if (!flip.isConnected) return;
+      const options = { duration:475, easing:'ease-in-out' };
+      const turning = flip.animate([
+        { opacity:1, transform:'rotate(0deg)' },
+        { opacity:1, transform:'rotate(180deg)' }
+      ], options);
+      const reveal = art.animate([{opacity:0},{opacity:0}], options);
+      return Promise.allSettled([turning.finished, reveal.finished]);
+    }).catch(() => {}).finally(() => flip.remove());
+  }
+  const frames = [
     {opacity:.2,transform:'translateY(-32%)'},
     {opacity:1,transform:'translateY(5%)',offset:.72},
     {opacity:1,transform:'translateY(0)'}
   ];
-  return art.animate(frames,{ duration:kind === 'back' ? 525 : 350, easing:'ease-out' }).finished.catch(() => {});
+  return art.animate(frames,{ duration:350, easing:'ease-out' }).finished.catch(() => {});
 }
 
 export function cancelRulePropAnimations(host) {
   for (const animation of host.getAnimations({subtree:true})) animation.cancel();
-  host.querySelector('.kt-rule-impact')?.remove();
+  for (const node of host.querySelectorAll('.kt-rule-impact, .kt-hourglass-flip')) node.remove();
 }
