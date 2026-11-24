@@ -414,10 +414,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .kt-fx-rays { animation: none; }
-  .kt-fan-card { transition: none; animation: none; }
-  .kt-hand .kt-card { transition: none; }
-  .kt-field-top .kt-card { animation: none; }
-  .kt-field-cards .kt-card.is-landed { animation: none; }
   .kt-button:active:not(:disabled) { transform: none; }
 }
 .kt-home-account { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin: 9px 0; min-height: 21px; font-size: 12px; color: var(--kt-dim); }

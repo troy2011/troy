@@ -17,6 +17,8 @@ for (const seats of [3,4]) test('minimal TROY match controls at 320 / '+seats+' 
      return Object.fromEntries(blocks.map(block=>[block,ordinary.filter(([selector])=>selector===block).map(([,href])=>new URL(href).pathname.split('/').at(-1))]));
    });
    expect(Object.values(owners).every(list=>list.length===1&&list[0]==='tarot-common-board.css')).toBe(true);
+   const quiet=await page.locator('.kt-field-top .kt-card,.kt-fan-card').evaluateAll(nodes=>nodes.length>0&&nodes.every(node=>getComputedStyle(node).animationName==='none'));
+   expect(quiet).toBe(true);
  }
  await expect(bar.locator('button')).toHaveCount(1);
  await expect(bar.locator('#ktDeck')).toHaveText(/^\d+$/);
