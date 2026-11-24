@@ -86,7 +86,10 @@ const ratingPreview = false; // TROY local practice has no ranking or account.
 let playerRating = RATING_RULES.initial;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const seatObserver = new ResizeObserver((entries) => {
-    for (const { target } of entries) positionOpponentHand(target);
+    for (const { target } of entries) {
+        positionOpponentHand(target);
+        fitOpponentName(target);
+    }
 });
 
 const HINTS_KEY = 'tarot-kingdom-table:turn-hints';
@@ -373,6 +376,18 @@ function renderOpponentHand(host, count) {
     if (changed && host.classList.contains('kt-seat-right')) positionOpponentHand(host);
 }
 
+function fitOpponentName(host) {
+    const slot = host.querySelector('.kt-seat-identity');
+    const name = slot?.querySelector('.kt-seat-name');
+    if (!name || !slot.clientWidth) return;
+    name.style.fontSize = '';
+    const width = name.getBoundingClientRect().width;
+    if (width > slot.clientWidth) name.style.fontSize = Math.max(10, Math.floor(12 * slot.clientWidth / width * 10) / 10) + 'px';
+    const overflow = name.getBoundingClientRect().width > slot.clientWidth;
+    name.classList.toggle('is-overflowing', overflow);
+    slot.querySelector('.kt-seat-name-full').hidden = !overflow;
+}
+
 function renderSeat(seat, host) {
     const round = match.round;
     const count = round.players[seat].hand.length;
@@ -401,11 +416,23 @@ function renderSeat(seat, host) {
     if (count === 1) hand.classList.add('kt-last-card-flag');
     hand.append(el('span', 'kt-seat-hand-label', count === 1 ? 'あと' : '手札'), el('strong', 'kt-seat-count', String(count)), el('span', '', '枚'));
     const identity = el('div', 'kt-seat-identity');
-    identity.append(el('strong', 'kt-seat-name', NAMES[seat]), el('span', 'kt-seat-chips kt-chip', `${match.chips[seat]}`));
+    const name = el('strong', 'kt-seat-name', NAMES[seat]);
+    const fullName = el('button', 'kt-seat-name-full', '名前を表示');
+    fullName.type = 'button';
+    fullName.hidden = true;
+    fullName.setAttribute('aria-haspopup', 'dialog');
+    fullName.setAttribute('aria-controls', 'ktSeatNameDialog');
+    fullName.setAttribute('aria-label', (seat + 1) + '番席の名前を表示');
+    fullName.addEventListener('click', () => {
+        $('ktSeatNameText').textContent = name.textContent;
+        $('ktSeatNameDialog').showModal();
+    });
+    identity.append(name, fullName);
     const details = el('div', 'kt-seat-details');
-    details.append(hanPill(seat));
+    details.append(el('span', 'kt-seat-chips kt-chip', String(match.chips[seat])), hanPill(seat));
     if (match.opponentRatings) details.append(el('span', 'kt-seat-rating', `レート${match.opponentRatings[seat - 1]}`));
     host.querySelector('.kt-seat-panel').replaceChildren(identity, details, hand, badges(seat));
+    fitOpponentName(host);
     renderOpponentHand(host, count);
 }
 

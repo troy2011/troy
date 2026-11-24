@@ -14,6 +14,9 @@ window.turnLayoutFixture=(kind)=>{
     Object.assign(round,{phase:'play',turn:ME,passed:[],direction:1,back:false,lock:null,cut:false,field:{kind:'normal',count:1,plays:[{by:1,cards:[ace]}]}});
     round.players[ME].hand=[card('major-13'),card('coin-4')];
     render();
+  } else if(kind.startsWith('opponent:')) {
+    NAMES[1]=kind.slice(9);
+    render();
   } else if(kind==='pass' || kind==='reverse' || kind==='skip' || kind==='over') {
     const ace=card('coin-15');
     Object.assign(round,{phase:kind==='over'?'give':'play',turn:ME,last:2,direction:kind==='reverse'||kind==='skip'?-1:1,
@@ -33,7 +36,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=seat-order-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=seat-names-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -66,6 +69,26 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await expect(selfName).toHaveText('あなた');
   expect(await selfName.evaluate(n=>n.scrollWidth===n.clientWidth && getComputedStyle(n).textOverflow!=='ellipsis')).toBe(true);
   const before=await dimensions(page);
+  const opponent=page.locator('[data-seat="1"]');
+  const playerName=opponent.locator('.kt-seat-name');
+  const reveal=opponent.getByRole('button',{name:'2番席の名前を表示'});
+  for(const alias of ['星月海賊船長黄金','WWWWWWWW','😀😀😀😀😀😀😀😀','🏴‍☠️🏴‍☠️🏴‍☠️🏴‍☠️🏴‍☠️🏴‍☠️🏴‍☠️🏴‍☠️']){
+    await page.evaluate(name=>window.turnLayoutFixture('opponent:'+name),alias);
+    await expect(playerName).toBeVisible();
+    await expect(playerName).toHaveText(alias);
+    await expect(reveal).not.toBeVisible();
+    expect(await playerName.evaluate(n=>n.getBoundingClientRect().width<=n.parentElement.clientWidth)).toBe(true);
+  }
+  const wide='W'.repeat(10);
+  await page.evaluate(name=>window.turnLayoutFixture('opponent:'+name),wide);
+  if (width===320) expect(await playerName.evaluate(n=>parseFloat(getComputedStyle(n).fontSize))).toBeLessThan(12);
+  const legacy='長い海賊プレイヤー名'.repeat(5);
+  await page.evaluate(name=>window.turnLayoutFixture('opponent:'+name),legacy);
+  await expect(reveal).toBeVisible();
+  await reveal.focus(); await page.keyboard.press('Enter');
+  const fullName=page.getByRole('dialog',{name:'プレイヤー名'});
+  await expect(fullName).toContainText(legacy);
+  await page.keyboard.press('Escape'); await expect(fullName).not.toBeVisible();
   await page.evaluate(()=>window.turnLayoutFixture('long'));
   await expect(page.locator('#ktMe .kt-player-rating')).toHaveText('レート98765');
   const ratingFits=await page.locator('#ktMe .kt-player-rating').evaluate(n=>{const r=n.getBoundingClientRect(),p=n.parentElement.getBoundingClientRect();return r.right<=p.right && getComputedStyle(n).whiteSpace==='nowrap';});expect(ratingFits).toBe(true);

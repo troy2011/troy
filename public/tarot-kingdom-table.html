@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
-<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=seat-order-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=seat-names-v1">
 <link rel="stylesheet" href="css/tarot-choice-focus.css?v=pirate-ability-v1">
 <link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
 <link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
@@ -165,12 +165,19 @@
 
 
 
+<dialog id="ktSeatNameDialog" class="kt-settings" aria-labelledby="ktSeatNameTitle">
+  <form method="dialog">
+    <header><h2 id="ktSeatNameTitle">プレイヤー名</h2><button type="submit" class="kt-button">閉じる</button></header>
+    <p id="ktSeatNameText"></p>
+  </form>
+</dialog>
+
 <dialog id="ktMessageDialog" class="kt-settings" aria-labelledby="ktMessageDialogTitle">
   <form method="dialog">
     <header><h2 id="ktMessageDialogTitle">説明</h2><button type="submit" class="kt-button">閉じる</button></header>
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=seat-order-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=seat-names-v1"></script>
 </body>
 </html>

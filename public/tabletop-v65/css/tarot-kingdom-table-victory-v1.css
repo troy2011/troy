@@ -195,9 +195,12 @@ body {
 .kt-seat-right { grid-area: right; }
 .kt-seat.is-turn .kt-seat-panel, .kt-me.is-turn { border-color: #ffe8a2; box-shadow: 0 0 10px rgb(255 194 76 / 60%), inset 0 0 12px rgb(255 194 76 / 12%); }
 .kt-seat-identity, .kt-seat-details { display: flex; align-items: center; min-width: 0; gap: 3px; }
-.kt-seat-identity { grid-area: 1 / 1; }
+.kt-seat-identity { position: relative; grid-area: 1 / 1; height: 14px; overflow: hidden; }
 .kt-seat-details { grid-area: 2 / 1; }
-.kt-seat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--kt-serif); font-size: 12px; }
+.kt-seat-name { flex: none; width: max-content; white-space: nowrap; font: 700 12px/14px var(--kt-serif); }
+.kt-seat-name.is-overflowing { visibility: hidden; }
+.kt-seat-name-full { position: absolute; inset-block: 0; inset-inline-start: 0; padding: 0 3px; border: 0; border-radius: 3px; background: #53351f; color: var(--kt-ink); font: inherit; font-size: 10px; cursor: pointer; }
+#ktSeatNameText { overflow-wrap: anywhere; }
 .kt-seat-hand { grid-area: 1 / 2 / 3 / 3; display: inline-flex; align-items: baseline; gap: 1px; color: var(--kt-ink); font-size: 10px; white-space: nowrap; }
 .kt-seat-hand-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .kt-seat-count { font-family: var(--kt-serif); font-size: 22px; line-height: 1; }
