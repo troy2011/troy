@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/tarot-match-ending-v1.css">
 <link rel="stylesheet" href="css/troy-local.css">
 <link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=turn-layout-v1">
+<link rel="stylesheet" href="css/kt-rule-props.css?v=table-rule-props-v1">
 </head>
 <body class="kt-tavern-theme kt-tavern-main kt-troy-local">
 <main id="ktApp" class="kt-app">
@@ -85,7 +86,10 @@
           </div>
           <p id="ktFieldOwner" class="kt-field-owner"></p>
         </div>
-        <div id="ktFieldCards" class="kt-field-cards"></div>
+        <div class="kt-rule-stage">
+          <div id="ktFieldCards" class="kt-field-cards"></div>
+          <div id="ktRuleProps" class="kt-rule-props" aria-hidden="true"></div>
+        </div>
       </div>
       <div id="ktChoiceFocus" class="kt-choice-focus" hidden></div>
     </div>
@@ -178,6 +182,6 @@
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=seat-names-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=table-rule-props-v1"></script>
 </body>
 </html>
