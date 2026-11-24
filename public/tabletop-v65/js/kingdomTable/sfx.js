@@ -15,6 +15,29 @@ const recorded = new Map();
 const scheduled = new Set();
 let activeTable = false;
 const cheers = new Set();
+const cheerEnvelopes = new Map();
+// These recordings still carry audible signal close to their decoded file end.
+const clippedCheerTails = new Set([
+    'preview-large-264377.mp3',
+    'preview-opponent-open-medium-2.mp3',
+    'preview-opponent-open-small-2.mp3',
+    'preview-opponent-open-small.mp3',
+    'preview-opponent-reply-neutral-2.mp3',
+    'preview-opponent-reply-neutral-3.mp3',
+    'preview-opponent-reply-neutral.mp3',
+    'preview-self-open-big-2.mp3',
+    'preview-self-open-big-3.mp3',
+    'preview-self-open-big.mp3',
+    'preview-self-open-medium.mp3',
+    'preview-self-open-small.mp3',
+    'preview-self-reply-big-2.mp3',
+    'preview-self-reply-big.mp3',
+    'preview-self-reply-climax.mp3',
+    'preview-self-reply-medium-2.mp3',
+    'preview-self-reply-medium-4.mp3',
+    'preview-self-reply-small-2.mp3',
+    'preview-self-reply-small.mp3',
+]);
 let cheerUntil = 0;
 let roomTone = null;
 let roleAccentUntil = 0;
@@ -176,8 +199,25 @@ export function playTableImpact(kind) {
     } catch { /* The card presentation must continue. */ }
     return context.currentTime;
 }
-export function cancelCheers() {
-    for (const cue of cheers) { try { cue.stop(); } catch {} }
+export function cancelCheers(release = false) {
+    for (const cue of cheers) {
+        try {
+            const envelope = release && cheerEnvelopes.get(cue);
+            const now = context?.currentTime ?? 0;
+            if (envelope && envelope.begin < now && envelope.end > now + .012) {
+                const param = envelope.gain.gain;
+                const end = Math.min(now + .10, envelope.end);
+                if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(now);
+                else {
+                    const current = param.value;
+                    param.cancelScheduledValues(now);
+                    param.setValueAtTime(current, now);
+                }
+                param.linearRampToValueAtTime(0, end);
+                cue.stop(end);
+            } else cue.stop();
+        } catch {}
+    }
     cheers.clear();
     cheerUntil = 0;
     previewTails.clear();
@@ -207,7 +247,7 @@ export function playRoundVictory(own, variant = 0, winnerHan) {
 }
 export function playMatchVictory() {
     if (!ready()) return;
-    cancelCheers();
+    cancelCheers(true);
     playCheer('j', Math.max(0.12, roleAccentUntil - context.currentTime));
 }
 export function completeRole(role, impactUntil = null, cheer) {
@@ -236,21 +276,27 @@ function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview
     const cue = context.createBufferSource();
     cue.buffer = buffer;
     cue.playbackRate.value = rate;
-    const gain = volume === 1 && !asPreview ? null : context.createGain();
+    const isCheer = group === cheers;
+    const gain = volume === 1 && !asPreview && !isCheer ? null : context.createGain();
     const filter = far ? context.createBiquadFilter() : null;
     if (filter) { filter.type = 'lowpass'; filter.frequency.value = 3100; filter.Q.value = .45; filter.connect(master); }
     if (gain) { gain.gain.value = volume; cue.connect(gain); gain.connect(filter || master); }
     else cue.connect(master);
     scheduled.add(cue);
     group?.add(cue);
-    cue.onended = () => { scheduled.delete(cue); group?.delete(cue); cue.disconnect(); gain?.disconnect(); filter?.disconnect(); for (const tail of previewTails) if (tail.source === cue) previewTails.delete(tail); };
+    cue.onended = () => { scheduled.delete(cue); group?.delete(cue); cheerEnvelopes.delete(cue); cue.disconnect(); gain?.disconnect(); filter?.disconnect(); for (const tail of previewTails) if (tail.source === cue) previewTails.delete(tail); };
     const begin = context.currentTime + offset;
-    if (gain && cap < buffer.duration / rate) {
-        gain.gain.setValueAtTime(volume,begin + Math.max(0,cap-.22));
-        gain.gain.linearRampToValueAtTime(0,begin + cap);
-        cue.start(begin);
-        cue.stop(begin + cap);
-    } else cue.start(begin);
+    const duration = buffer.duration / rate;
+    const capped = cap < duration;
+    const end = begin + Math.min(cap, duration);
+    if (isCheer) cheerEnvelopes.set(cue, {gain, begin, end});
+    const release = capped ? .22 : isCheer && clippedCheerTails.has(key) ? .16 : 0;
+    if (gain && release) {
+        gain.gain.setValueAtTime(volume, Math.max(begin, end - release));
+        gain.gain.linearRampToValueAtTime(0, end);
+    }
+    cue.start(begin);
+    if (gain && capped) cue.stop(end);
     return asPreview ? {source: cue, gain} : true;
 }
 
