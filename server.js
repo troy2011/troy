@@ -36,6 +36,7 @@ const {
 
 // 分割モジュール
 const economy = require('./server/economy');
+const { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget } = require('./server/playfabCatalogDiagnostics');
 const building = require('./server/building');
 const nation = require('./server/nation');
 const island = require('./server/island');
@@ -690,23 +691,31 @@ function normalizePriceAmounts(item) {
 
 // カタログ読み込み
 async function loadCatalogCache() {
+    let diagnosticStage = 'ensureTitleEntityToken';
+    let searchPage = 0;
+    let searchHttp;
     console.log('[カタログ] PlayFab Economy V2 カタログの読み込みを開始します...');
     try {
         await ensureTitleEntityToken();
+        diagnosticStage = 'GetEntityToken';
         const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
         const titleEntity = tokenResult?.Entity;
         if (!titleEntity?.Id || !titleEntity?.Type) {
             throw new Error('Title entity token is missing Entity.');
         }
 
+        diagnosticStage = 'SearchItems';
+        const searchTarget = catalogSearchTarget(PlayFab.GetServerUrl());
         const itemIds = [];
         let token = null;
         do {
-            const result = await promisifyPlayFab(PlayFabEconomy.SearchItems, {
+            searchPage += 1;
+            searchHttp = {};
+            const result = await observeHttpResponse(searchTarget, searchHttp, () => promisifyPlayFab(PlayFabEconomy.SearchItems, {
                 Count: 50,
                 Entity: titleEntity,
                 ContinuationToken: token || undefined
-            });
+            }));
             const page = Array.isArray(result?.Items) ? result.Items : [];
             page.forEach((item) => {
                 if (item?.Id) itemIds.push(item.Id);
@@ -715,6 +724,7 @@ async function loadCatalogCache() {
             console.log(`[カタログ] ページ取得: ${page.length}件 (累計: ${itemIds.length}件)`);
         } while (token);
 
+        diagnosticStage = 'NormalizeCatalog';
         const uniqueIds = Array.from(new Set(itemIds));
         const items = [];
         for (let i = 0; i < uniqueIds.length; i += 50) {
@@ -727,7 +737,7 @@ async function loadCatalogCache() {
                 const batchItems = Array.isArray(batchResult?.Items) ? batchResult.Items : [];
                 items.push(...batchItems);
             } catch (error) {
-                console.warn('[カタログ] GetItems failed:', error?.errorMessage || error?.message || error);
+                console.warn('[カタログ] GetItems failed:', JSON.stringify(describePlayFabCatalogFailure('GetItems', error)));
             }
         }
 
@@ -909,7 +919,7 @@ async function loadCatalogCache() {
         console.log(`[カタログ] 内訳確認: Ship = ${shipCount} 件`);
         console.log(`[カタログ] 内訳確認: Currency = ${Object.keys(catalogCurrencyMap).length} 件`);
     } catch (error) {
-        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', error?.errorMessage || error?.message || error);
+        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', JSON.stringify(describePlayFabCatalogFailure(diagnosticStage, error, searchPage, diagnosticStage === 'SearchItems' ? searchHttp : null)));
         process.exit(1);
     }
 }
