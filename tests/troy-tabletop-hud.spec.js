@@ -20,7 +20,7 @@ for (const seats of [3,4]) test('minimal TROY match controls at 320 / '+seats+' 
    const quiet=await page.locator('.kt-field-top .kt-card,.kt-fan-card').evaluateAll(nodes=>nodes.length>0&&nodes.every(node=>getComputedStyle(node).animationName==='none'));
    expect(quiet).toBe(true);
  }
- await expect(bar.locator('button')).toHaveCount(1);
+ await expect(bar.locator('button:visible')).toHaveCount(1);
  await expect(bar.locator('#ktDeck')).toHaveText(/^\d+$/);
  await expect(bar.locator('#ktDeck')).toHaveAttribute('aria-label',/\d/);
  await expect(table.locator('.kt-brand,.kt-session-controls,#ktSound')).toHaveCount(0);

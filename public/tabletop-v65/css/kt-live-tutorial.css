@@ -1,0 +1,27 @@
+/* The lesson fills the normal toolbar and message slots, not a second tabletop layout. */
+.kt-tutorial-header {
+  position: relative; z-index: 6; display: flex; align-items: center; gap: 4px; block-size: 30px;
+  padding: 0 3px 0 6px; border: 1px solid #b88b51; border-radius: 6px;
+  color: #ffde9b; background: #25150e;
+}
+.kt-tutorial-header p { flex: 1; min-width: 0; margin: 0; white-space: nowrap; font: 700 clamp(10px, 3.45vw, 12px)/1.2 var(--kt-serif); }
+.kt-tutorial-header .kt-bar-link { flex: none; font-size: 10px; padding-inline: 5px; min-height: 28px; }
+.kt-tutorial-coach {
+  display: flex; align-items: center; gap: 5px; min-height: 0; max-height: 38px;
+  padding: 1px 3px; border: 1px solid #d6ad60; border-radius: 6px;
+  color: #fff0c3; background: linear-gradient(#3e2b1c,#28180f); box-shadow: inset 0 0 13px #ca883028;
+}
+.kt-tutorial-coach p { flex: 1; min-width: 0; max-height: 34px; overflow-y: auto; margin: 0; font: 600 12px/1.38 system-ui,sans-serif; }
+.kt-tutorial-coach button { flex: none; min-height: 30px; padding: 3px 9px; font-size: 13px; white-space: nowrap; }
+.kt-tutorial-coach .kt-tutorial-detail { width: 30px; padding: 0; font-weight: 700; }
+.kt-tutorial-detail-dialog p { white-space: pre-line; overflow-wrap: anywhere; }
+.kt-tutorial-disclosure { margin-block-start: 8px; }
+.kt-tutorial-disclosure summary { cursor: pointer; font-weight: 700; }
+.kt-live-tutorial .kt-card.is-tutorial-target {
+  outline: solid 2px #ffe49a; outline-offset: 0; box-shadow: 0 0 10px 3px #ffd471cb;
+}
+.kt-live-tutorial .kt-card.is-tutorial-other { filter: saturate(.68) brightness(.78); }
+.kt-live-tutorial :is(.kt-actions,.kt-tutorial-coach) button.is-tutorial-target { outline: 2px solid #ffe49a; outline-offset: -1px; }
+.kt-live-tutorial ~ #ktDialog .tt-table-han { width: 100%; border-collapse: collapse; color: #fff0c3; margin-block: 8px; }
+.kt-live-tutorial ~ #ktDialog .tt-table-han :is(th,td) { padding: 4px; border-bottom: 1px solid #a783433e; text-align: left; font-size: 13px; }
+.kt-live-tutorial ~ #ktDialog .tt-rules { padding-left: 18px; font-size: 13px; }

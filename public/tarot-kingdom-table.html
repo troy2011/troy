@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-tabletop-host="troy">
+<html lang="ja" data-tabletop-host="troy" data-tutorial-picker="/tabletop-v65/tarot-kingdom-tutorial.html">
 <head>
 <base href="/tabletop-v65/">
 <meta charset="utf-8">
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/tarot-match-ending-v1.css">
 <link rel="stylesheet" href="css/troy-local.css">
 <link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=turn-layout-v1">
+<link rel="stylesheet" href="css/kt-live-tutorial.css?v=canonical-lesson-v1">
 </head>
 <body class="kt-tavern-theme kt-tavern-main kt-troy-local">
 <main id="ktApp" class="kt-app">
@@ -65,6 +66,11 @@
         <span id="ktRound" class="kt-bar-item kt-bar-round"></span>
         <span id="ktDeck" class="kt-bar-item kt-bar-deck" role="img"></span>
       </div>
+      <div id="ktTutorialHeader" class="kt-tutorial-header" hidden>
+        <p id="ktTutorialProgress"></p>
+        <button id="ktTutorialRestart" type="button" class="kt-bar-link">やり直す</button>
+        <button id="ktTutorialExit" type="button" class="kt-bar-link">章一覧</button>
+      </div>
       <button type="button" id="ktSettings" class="kt-bar-link kt-settings-button" aria-haspopup="dialog" aria-label="対戦設定">設定</button>
     </header>
     <p id="ktOnlinePlayStatus" class="kt-online-play-status" role="status" hidden></p>
@@ -103,6 +109,11 @@
     <div class="kt-message-wrap">
       <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
       <button type="button" id="ktMessageMore" class="kt-message-more" aria-label="説明の全文を表示" aria-haspopup="dialog" aria-controls="ktMessageDialog" hidden>…</button>
+      <section id="ktTutorialCoach" class="kt-tutorial-coach" aria-label="チュートリアルの案内" hidden>
+        <p id="ktTutorialText" tabindex="0" role="status" aria-live="polite"></p>
+        <button id="ktTutorialDetail" type="button" class="kt-button kt-tutorial-detail" aria-label="説明の詳細を見る" aria-haspopup="dialog" aria-controls="ktTutorialDetailDialog" hidden>?</button>
+        <button id="ktTutorialNext" type="button" class="kt-button kt-button-main" hidden>次へ</button>
+      </section>
     </div>
     <div id="ktActions" class="kt-actions">
       <button type="button" id="ktDraw" class="kt-button kt-button-draw">1枚引く</button>
@@ -138,6 +149,12 @@
 
   <button type="button" id="ktZoom" class="kt-zoom" aria-label="札を閉じる" hidden></button>
 </main>
+<dialog id="ktTutorialDetailDialog" class="kt-settings kt-tutorial-detail-dialog" aria-labelledby="ktTutorialDetailTitle">
+  <form method="dialog">
+    <header><h2 id="ktTutorialDetailTitle">詳しい説明</h2><button type="submit" class="kt-button">閉じる</button></header>
+    <p id="ktTutorialDetailText"></p>
+  </form>
+</dialog>
 <dialog id="ktHandInspector" class="kt-hand-inspector" aria-labelledby="ktInspectTitle">
   <header class="kt-inspect-header">
     <h2 id="ktInspectTitle"></h2>
@@ -182,6 +199,6 @@
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=table-host-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=canonical-lesson-v1"></script>
 </body>
 </html>

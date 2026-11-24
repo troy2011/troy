@@ -1,3 +1,4 @@
+import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=quick-tutorial-v1';
 import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1';
 import { turnOrder } from './turnOrder.js?v=sites-turn-order-v1';
 import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-v1';
@@ -87,6 +88,8 @@ const resultIdentity = () => online.view ? `${online.view.code}:${match.played}`
 const displayedPracticeVictories = new WeakSet();
 const seatAvatar = seat => online.view ? getAvatar(online.view.members[seat]?.avatarId) : seat === ME ? practiceAvatar : null;
 const params = new URLSearchParams(location.search);
+const tutorialChapter = tutorialIndex(params);
+let tutorial = null;
 const ratingPreview = false; // TROY local practice has no ranking or account.
 let playerRating = RATING_RULES.initial;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -585,7 +588,8 @@ function closeGraveyard() {
     $('ktDialog').inert = false;
     if (graveTrigger?.isConnected) graveTrigger.focus({ preventScroll: true });
     graveTrigger = null;
-    if (match && match.round.phase !== 'over') after();
+    if (tutorial) tutorial.refresh();
+    else if (match && match.round.phase !== 'over') after();
 }
 
 // The play the current selection would make, with the reason when it is not allowed.
@@ -656,7 +660,7 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
     const drawNotice = !arranging && !selected.size && drawn;
     $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : drawNotice ? `${acquiredCardLabel()}：${cardName(drawn)}` : myTurn ? (choosing ? 'タップで選択・長押しで詳細' : 'タップして選択') : '相手の手番';
     $('ktSelection').classList.toggle('kt-draw-notice', !!drawNotice);
-    $('ktSelection').classList.toggle('is-turn-note', !myTurn && !arranging && !selected.size && !drawNotice);
+    $('ktSelection').classList.toggle('is-turn-note', !!tutorial || (!myTurn && !arranging && !selected.size && !drawNotice));
     $('ktArrange').textContent = arranging ? '並べ替え完了' : '並べ替え';
     $('ktArrange').setAttribute('aria-pressed', String(arranging));
     $('ktArrange').disabled = round.phase === 'over' || round.phase === 'retrieve' || ferrying || giving;
@@ -809,6 +813,7 @@ function renderMessage(events, moves) {
 }
 
 function updateMessageOverflow() {
+    if (tutorial) { $('ktMessageMore').hidden = true; return; }
     const box = $('ktMessage');
     $('ktMessageMore').hidden = box.scrollHeight <= box.clientHeight + 1;
 }
@@ -850,6 +855,7 @@ function render() {
     renderTurnHints(events);
     renderActions();
     renderSessionControls();
+    if (tutorial) tutorial.paint();
     return playEffects(events, fieldBefore, feedback);
 }
 
@@ -1470,6 +1476,7 @@ function canExitCpu() {
 }
 
 function renderSessionControls() {
+    if (tutorial) { $('ktExitCpu').hidden = true; return; }
     const allowed = canExitCpu();
     $('ktExitCpu').hidden = !allowed;
     $('ktExitCpu').textContent = online.view ? 'CPU戦を終了' : '練習を終了';
@@ -1917,7 +1924,7 @@ const settingsDialog = $('ktSettingsDialog');
 const turnHintsInput = $('ktTurnHints');
 turnHintsInput.checked = turnHints;
 $('ktSettings').addEventListener('click', () => {
-    $('ktArrange').hidden = false;
+    $('ktArrange').hidden = !!tutorial;
     renderSessionControls();
     settingsDialog.showModal();
 });
@@ -1988,6 +1995,7 @@ $('ktHand').addEventListener('click', (event) => {
     const node = event.target.closest('.kt-card');
     if (!node || node.getAttribute('aria-disabled') === 'true') return;
     const id = node.dataset.card;
+    if (tutorial && !tutorial.selectAllowed(id)) return;
     if (arranging) { movingCard = id; renderHand(); return; }
     if (['trash','exchange','ferry','give','deathSwap'].includes(match.round.phase)) selected = new Set(selected.has(id) ? [] : [id]);
     else if (selected.has(id)) selected.delete(id);
@@ -2045,6 +2053,7 @@ $('ktStart').addEventListener('click', () => {
 });
 
 $('ktPlay').addEventListener('click', () => {
+    if (tutorial) { tutorial.act('play'); return; }
     const round = match.round;
     if (round.phase === 'deathSwap' ? !Rules.deathSwapCanChoose(round,ME) : round.turn !== ME) return;
     if (online.view) {
@@ -2072,6 +2081,7 @@ $('ktPlay').addEventListener('click', () => {
 });
 
 $('ktPass').addEventListener('click', () => {
+    if (tutorial) { tutorial.act('pass'); return; }
     const round = match.round;
     if (round.phase === 'deathSwap' ? !Rules.deathSwapCanChoose(round,ME) : round.turn !== ME) return;
     if (online.view) { sendAction({ type: ['trash', 'exchange', 'ferry', 'give', 'deathSwap'].includes(round.phase) ? round.phase : 'pass', id: null }); return; }
@@ -2082,6 +2092,7 @@ $('ktPass').addEventListener('click', () => {
 });
 
 $('ktDraw').addEventListener('click', () => {
+    if (tutorial) { return; }
     if (online.view) { sendAction({ type: 'draw' }); return; }
     if (Rules.draw(match.round, ME).ok) after();
 });
@@ -2113,3 +2124,45 @@ online.onView = view => {
 online.onExit = leaveTable;
 // A shared-link room can arrive while this module is loading.
 if (online.view?.match) online.onView(online.view);
+
+if (tutorialChapter !== null) {
+    tutorial = createTutorialMode({
+        loadMatch: scripted => {
+            clearTimeout(timer); timer = 0;
+            Fx.cancelAll(); cancelRulePropAnimations($("ktRuleProps"), {reset:true});
+            cancelResultPresentation();
+            resetDrawFeedback();
+            selected = new Set();
+            arranging = false;
+            manualHandOrder = null;
+            fieldKey = '';
+            seenEvents = scripted.round.events.length;
+            match = scripted;
+            NAMES = TUTORIAL_NAMES;
+            practiceAvatar = getAvatar(null);
+            $('ktSetup').hidden = true;
+            $('ktTable').hidden = false;
+            $('ktTable').classList.add('kt-live-tutorial');
+            $('ktFelt').dataset.seats = String(match.seats);
+            $('ktSeatTop').hidden = true;
+            $('ktTutorialHeader').hidden = false;
+            $('ktTutorialCoach').hidden = false;
+            $('ktArrange').hidden = true;
+            $('ktOnlinePlayStatus').hidden = true;
+            $('ktExitCpu').hidden = true;
+            $('ktSelection').setAttribute('aria-hidden', 'true');
+            $('ktHand').setAttribute('aria-describedby', 'ktHandStatus ktTutorialText');
+            $('ktMessage').hidden = true;
+            $('ktMessageMore').hidden = true;
+            $('ktTable').querySelector('.kt-bar-status').hidden = true;
+            for (const id of ['ktPass','ktPlay']) $(id).setAttribute('aria-describedby','ktTutorialText');
+        },
+        render, openDialog, closeDialog,
+        selection: () => [...selected],
+        applyOrigins: ids => {
+            playOrigins = new Map(ids.map(id=>[id,rectOf($('ktHand').querySelector('[data-card="'+id+'"]'))]));
+        },
+        clearSelection: () => { selected = new Set(); }
+    });
+    tutorial.launch(tutorialChapter);
+}

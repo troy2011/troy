@@ -11,7 +11,7 @@ const names = [
     'handInspect', 'handOrder', 'match', 'rating', 'roleAccents', 'roleCinematic',
     'roleJuicePlan', 'roleJuiceSound', 'roleRecordKey', 'rules', 'rulesBook',
     'selectedCardEffect', 'sfxReal', 'tableFeedback', 'tableHost', 'tavernTutorial', 'turnOrder',
-    'tutorialScript',
+    'tutorialMode', 'tutorialPicker', 'tutorialQuickCopy', 'tutorialScript',
 ];
 const js = names.map(name => 'js/kingdomTable/' + name + '.js');
 const props = [
@@ -24,6 +24,7 @@ const files = [
     ...js.map(samePath),
     samePath('js/kingdomTable/package.json'),
     samePath('css/tarot-common-board.css'),
+    samePath('css/kt-live-tutorial.css'),
     samePath('assets/tarot-kingdom-table/tavern-v1/chips.webp'),
     ...props.map(name => ({
         troy: troyPrefix + 'assets/pirate-tarot/rule-props/' + name + '.webp',
