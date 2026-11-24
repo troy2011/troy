@@ -12,6 +12,7 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
+import { animateRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=hourglass-paired-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=cheer-tail-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
@@ -533,6 +534,8 @@ function renderField() {
     const fieldState = $('ktFieldState');
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
+    fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
+    renderRuleProps($('ktRuleProps'), round);
     const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
     $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';
@@ -1064,6 +1067,15 @@ function namedConsequence(events, event) {
     return null;
 }
 
+function ruleImpactAnchor(events, event, floating) {
+    const cause = events.slice(0, events.indexOf(event)).findLastIndex(candidate=>abilityEventBoundary.has(candidate.type));
+    const play = events[cause];
+    if (!['play','start'].includes(play?.type) || !play.cards?.length) return null;
+    const card = play.cards[Math.floor((play.cards.length - 1) / 2)];
+    const settled = $('ktFieldCards').querySelector(`[data-card="${card.id}"]`);
+    return settled || floating.find(({node})=>node.dataset.card === card.id)?.rect || null;
+}
+
 function playEffects(events, fieldBefore, feedback) {
     if (!events.length || !Fx.active()) return 0;
     const round = match.round;
@@ -1134,6 +1146,17 @@ function playEffects(events, fieldBefore, feedback) {
             const named = namedConsequence(events, event);
             if (named?.announce) Fx.after(0, arrived || sweepBefore,
                 () => Fx.stamp(named.label, stampPoint(), 'gold', {ruleCue:true, compact:true}));
+            if (Fx.moving()) {
+                const cause = events.slice(0, events.indexOf(event)).findLast(c=>abilityEventBoundary.has(c.type));
+                if (cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8)) {
+                    const anchor = ruleImpactAnchor(events, event, floating);
+                    const ready = arrived || sweepBefore;
+                    arrived = Fx.untilPresentationReady(done=>Fx.after(0,ready,()=>{
+                        const finish = animateRuleProp($('ktRuleProps'), 'cut', {anchor});
+                        if (finish) finish.then(done); else done();
+                    }));
+                }
+            }
             const leaving = [...fieldBefore.filter(({ node }) => !floating.some((f) => f.node.dataset.card === node.dataset.card)), ...floating];
             fieldBefore = [];
             floating.length = 0;
@@ -1228,9 +1251,12 @@ function playEffects(events, fieldBefore, feedback) {
             const stamp = STAMPS[event.type];
             if (!stamp) break;
             const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?'11バック解除':event.type==='reset'?ABILITY.clearance:stamp[0];
+            const impactAnchor = event.type === 'cut' ? ruleImpactAnchor(events, event, floating) : null;
             const display=onDone=>{
                 const named = ['cut','back','reverse','reset'].includes(event.type) && namedConsequence(events, event);
-                if (named?.announce === false || (event.type === 'deathSwapStart' && event.devil && round.phase === 'deathSwap')) {
+                const propKind = ['cut','lock','back'].includes(event.type) ? event.type : null;
+                if (propKind && Fx.moving()) animateRuleProp($('ktRuleProps'), propKind, { anchor:impactAnchor });
+                if ((propKind && !named?.announce) || named?.announce === false || (event.type === 'deathSwapStart' && event.devil && round.phase === 'deathSwap')) {
                     if (onDone) Fx.later(380, onDone);
                 } else Fx.stamp(named?.label || label,stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
                 Sfx.play(stamp[2]);
@@ -1440,7 +1466,7 @@ function leaveTable() {
     liveVictoryRound = null; restoredFinishedRound = null; Sfx.cancelCheers();
     resetDrawFeedback();
     clearTimeout(timer); timer = 0;
-    cancelResultPresentation(); Fx.cancelAll(); cancelHandDrag();
+    cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps')); cancelHandDrag();
     cpuExitPrompt = false; online.paused = false; closeDialog();
     selected.clear(); match = null; onlineRoundKey = '';
     $('ktSessionControls').hidden = true; $('ktExitCpu').hidden = true;
@@ -1450,7 +1476,7 @@ function leaveTable() {
 function requestCpuExit() {
     if (!canExitCpu() || cpuExitPrompt) return;
     cpuExitPrompt = true; online.paused = true;
-    clearTimeout(timer); timer = 0; cancelResultPresentation(); Fx.cancelAll();
+    clearTimeout(timer); timer = 0; cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
     const rated = !!online.view;
     const body = [el('p', '', rated
         ? 'CPU全員への敗北としてレートを更新し、この対戦を終了します。退出後は友人の部屋を作成・参加できます。'
@@ -1846,7 +1872,7 @@ function begin(seats) {
     practiceAvatar = getAvatar(null);
     NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
     clearTimeout(timer);
-    Fx.cancelAll();
+    Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
     match = createMatch({ players: seats, rng: makeRng() });
     if (ratingPreview) {
         match.startRating = playerRating;
@@ -2043,7 +2069,7 @@ online.onView = view => {
         // A reload renders the current board; never replay old field sweeps or hold up the CPU.
         const resumed = !onlineRoundKey.startsWith(view.code + ':') && (match.round.phase === 'over' || match.round.events.some(event =>
             ['play', 'pass', 'draw', 'cede', 'exchange', 'trash', 'give', 'deathSwapComplete', 'retrieve'].includes(event.type)));
-        Fx.cancelAll();
+        Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
         resetDrawFeedback();
         onlineRoundKey = roundKey;
         cancelResultPresentation();
