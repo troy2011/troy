@@ -80,3 +80,35 @@ for (const seats of [3,4]) test('minimal TROY match controls at 320 / '+seats+' 
  await expect(page.locator('#ktSetup')).toBeVisible();
  expect(errors).toEqual([]);
 });
+
+test('shared board keeps a complete warning and field controls onscreen at 320 x 500',async({page})=>{
+ await page.setViewportSize({width:320,height:500});
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.goto('/tarot-kingdom-table.html#practice');
+ await page.locator('input[name=ktSeats][value="3"]').check();
+ await page.locator('#ktStart').click();
+ const warningText='Checking the connection. '.repeat(12);
+ const state=await page.evaluate(text=>{
+   const warning=document.getElementById('ktOnlinePlayStatus');
+   warning.textContent=text;
+   warning.hidden=false;
+   const table=document.getElementById('ktTable');
+   const field=document.getElementById('ktFelt');
+   return {
+     warning:warning.getBoundingClientRect().height,
+     nowrap:getComputedStyle(warning).whiteSpace,
+     text:warning.textContent,
+     fieldPadding:getComputedStyle(field).paddingTop,
+     roomPad:getComputedStyle(table).getPropertyValue('--kt-room-pad'),
+     document:document.scrollingElement.scrollHeight,
+     controlBottom:document.getElementById('ktActions').getBoundingClientRect().bottom
+   };
+ },warningText);
+ expect(state.warning).toBeLessThan(24);
+ expect(state.nowrap).toBe('nowrap');
+ expect(state.text).toBe(warningText);
+ expect(state.fieldPadding).toBe('12px');
+ expect(state.roomPad).not.toBe('');
+ expect(state.document).toBe(500);
+ expect(state.controlBottom).toBeLessThanOrEqual(488);
+});

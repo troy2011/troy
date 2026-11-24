@@ -36,10 +36,17 @@
   padding: 96px 0 0;
 }
 @media (max-height: 680px) {
-  .kt-felt { padding-top: clamp(48px, calc(18dvh - 45px), 77px); grid-template-rows: clamp(64px, 14dvh, 95px) minmax(0, 1fr); }
+  .kt-felt { padding-top: var(--kt-room-pad, clamp(48px, calc(18dvh - 45px), 77px)); grid-template-rows: var(--kt-room-seat, clamp(64px, 14dvh, 95px)) minmax(0, 1fr); }
+}
+/* Reallocate spare portrait space only if a real connection warning needs a row. */
+@media (max-height: 580px) {
+  .kt-table:has(> .kt-online-play-status:not([hidden], :empty)) {
+    --kt-room-pad: clamp(12px, calc(30dvh - 138px), 54px);
+    --kt-room-seat: clamp(52px, calc(20dvh - 48px), 95px);
+  }
 }
 @media (max-height: 740px) {
-  .kt-table.is-choice-focus .kt-felt { padding-top: 38px; }
+  .kt-table.is-choice-focus .kt-felt { padding-top: min(38px, var(--kt-room-pad, 38px)); }
 }
 .kt-felt[data-seats="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "left right" "field field"; }
 
