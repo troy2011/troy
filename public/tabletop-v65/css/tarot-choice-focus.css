@@ -19,31 +19,26 @@
   z-index: 7;
   display: grid;
   place-items: center;
+  grid-template-rows: minmax(0, auto) auto;
+  align-content: center;
+  gap: 7px;
   pointer-events: none;
 }
 .kt-choice-focus > .kt-card,
 .kt-retrieve-trigger > .kt-card {
   width: auto;
-  height: min(92%, 38dvh, 236px);
   box-shadow: 0 8px 32px #000a;
 }
 .kt-retrieve-trigger {
   display: grid;
   place-items: center;
   flex: none;
+  align-content: center;
+  gap: 7px;
   margin-bottom: 8px;
 }
 .kt-retrieve-trigger > .kt-card { height: clamp(56px, 14dvh, 115px); }
 
-/* Selection can wrap onto two lines on short screens; reserve room for actions. */
-@media (max-height: 740px) {
-  .kt-table.is-choice-focus .kt-felt { padding-top: 38px; }
-}
-
-/* Keep the trigger card and caption one centered group separate from hand / controls. */
-.kt-choice-focus, .kt-retrieve-trigger { align-content: center; gap: 7px; }
-/* stylelint-disable-next-line no-duplicate-selectors -- preserve shipped v65 override order */
-.kt-choice-focus { grid-template-rows: minmax(0, auto) auto; }
 .kt-choice-focus > .kt-card { height: min(29dvh, 212px); }
 .kt-choice-label {
   display: block;

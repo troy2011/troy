@@ -54,7 +54,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=table-focused-hud-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=canonical-board-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));

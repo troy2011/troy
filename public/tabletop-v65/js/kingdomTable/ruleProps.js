@@ -45,10 +45,11 @@ function trackCutContact(host, knife, anchor) {
     if (!anchor.isConnected || !knife.isConnected) return;
     const card = anchor.getBoundingClientRect();
     const stage = host.getBoundingClientRect();
+    const grouped = (anchor.parentElement?.querySelectorAll('.kt-card').length ?? 0) >= 3;
     if (!card.width || !stage.width) return;
     knife.dataset.cutContact = '';
-    knife.style.left = (card.left + card.width * .40 - stage.left) + 'px';
-    knife.style.top = (card.top + card.height * .71 - stage.top) + 'px';
+    knife.style.left = (card.left + card.width * (grouped ? .45 : .53) - stage.left) + 'px';
+    knife.style.top = (card.top + card.height * .85 - stage.top) + 'px';
   };
   const observer = new ResizeObserver(update);
   observer.observe(host);
@@ -127,8 +128,8 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
   const knife = prop('cut', assets);
   knife.classList.add('kt-rule-impact');
   knife.dataset.cutContact = '';
-  knife.style.left = (card.left + card.width * .40 - rect.left) + 'px';
-  knife.style.top = (card.top + card.height * .71 - rect.top) + 'px';
+  knife.style.left = (card.left + card.width * .45 - rect.left) + 'px';
+  knife.style.top = (card.top + card.height * .85 - rect.top) + 'px';
   host.append(knife);
   const duration = fadeIn + 160 + fadeOut;
   return knife.animate([

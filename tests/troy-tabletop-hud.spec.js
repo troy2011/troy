@@ -10,6 +10,14 @@ for (const seats of [3,4]) test('minimal TROY match controls at 320 / '+seats+' 
  const table=page.locator('#ktTable'),bar=table.locator('.kt-bar'),settings=page.locator('#ktSettingsDialog');
  const open=()=>page.locator('#ktSettings').click();
  await expect(table).toBeVisible();
+ if (seats===3) {
+   const owners=await page.evaluate(()=>{
+     const blocks=['.kt-table','.kt-bar','.kt-felt','.kt-seat-panel','.kt-field-cards','.kt-me','.kt-hand','.kt-message-wrap','.kt-grave-button'];
+     const ordinary=[...document.styleSheets].flatMap(sheet=>[...sheet.cssRules].map(rule=>[rule.selectorText,sheet.href]));
+     return Object.fromEntries(blocks.map(block=>[block,ordinary.filter(([selector])=>selector===block).map(([,href])=>new URL(href).pathname.split('/').at(-1))]));
+   });
+   expect(Object.values(owners).every(list=>list.length===1&&list[0]==='tarot-common-board.css')).toBe(true);
+ }
  await expect(bar.locator('button')).toHaveCount(1);
  await expect(bar.locator('#ktDeck')).toHaveText(/^\d+$/);
  await expect(bar.locator('#ktDeck')).toHaveAttribute('aria-label',/\d/);

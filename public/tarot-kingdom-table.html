@@ -7,14 +7,14 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
-<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=table-reference-depth-v1">
-<link rel="stylesheet" href="css/tarot-choice-focus.css?v=pirate-ability-v1">
-<link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=canonical-board-v1">
+<link rel="stylesheet" href="css/tarot-common-board.css?v=1">
+<link rel="stylesheet" href="css/tarot-choice-focus.css?v=canonical-board-v1">
+<link rel="stylesheet" href="css/tarot-tavern-preview.css?v=canonical-board-v1">
 <link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
 <link rel="stylesheet" href="css/tarot-match-ending-v1.css">
 <link rel="stylesheet" href="css/troy-local.css">
 <link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=turn-layout-v1">
-<link rel="stylesheet" href="css/kt-rule-props.css?v=table-focused-hud-v1">
 </head>
 <body class="kt-tavern-theme kt-tavern-main kt-troy-local">
 <main id="ktApp" class="kt-app">
@@ -95,11 +95,11 @@
       <div id="ktAvatarSeat" hidden aria-hidden="true"><div class="kt-avatar-art"></div></div>
     </div>
     <div class="kt-hand-header">
-      <span class="kt-hand-count-sr">手札 <strong id="ktHandCount"></strong></span>
+      <span id="ktHandStatus" class="kt-hand-count-sr">手札 <strong id="ktHandCount"></strong></span>
       <span id="ktSelection" role="status" aria-live="polite"></span>
       <button type="button" id="ktGrave" class="kt-grave-button" aria-haspopup="dialog" aria-controls="ktGraveDialog">墓地・除外 0枚</button>
     </div>
-    <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktSelection"></div>
+    <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktHandStatus ktSelection"></div>
     <div class="kt-message-wrap">
       <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
       <button type="button" id="ktMessageMore" class="kt-message-more" aria-label="説明の全文を表示" aria-haspopup="dialog" aria-controls="ktMessageDialog" hidden>…</button>
@@ -182,6 +182,6 @@
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=table-focused-hud-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=canonical-board-v1"></script>
 </body>
 </html>

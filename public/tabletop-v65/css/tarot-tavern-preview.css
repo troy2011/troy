@@ -113,7 +113,6 @@
   color: var(--nv-ink);
   border-color: var(--nv-edge);
 }
-.kt-tavern-main :is(.kt-bar,.kt-actions) { border-color: #946031; }
 .kt-tavern-theme :is(.tt-coach,.kt-settings) { border-color: var(--nv-brass); }
 @media (max-width: 349px) {
   .kt-tavern-nav { margin-inline: 6.7%; }
