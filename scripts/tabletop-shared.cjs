@@ -40,6 +40,9 @@ const source = path.resolve(__dirname, '..');
 function manifest() {
     const entries = files.map(spec => {
         const bytes = fs.readFileSync(path.join(source, spec.troy));
+        if (/\.(js|css|json|txt)$/.test(spec.troy) && bytes.toString('utf8').includes('\r\n')) {
+            throw Error('Shared text must use LF: ' + spec.troy);
+        }
         return { ...spec, bytes, sha256: digest(bytes) };
     });
     const closure = new Set(entries.map(entry => entry.troy));
