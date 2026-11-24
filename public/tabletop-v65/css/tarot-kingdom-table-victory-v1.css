@@ -401,7 +401,7 @@ body {
 .kt-me { display: flex; align-items: center; gap: 4px 5px; width: fit-content; min-width: 0; max-width: 100%; min-height: 32px; padding: 2px 6px; border: 3px double #b88a47; border-radius: 6px; background: linear-gradient(#42271c, #24120e); font-size: 14px; box-shadow: 0 3px 8px rgb(0 0 0 / 50%); }
 .kt-me > :not(strong) { flex: none; white-space: nowrap; }
 .kt-player-rating { color: var(--kt-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
-.kt-me strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--kt-serif); font-size: 16px; }
+.kt-me strong { flex: none; min-width: 3em; white-space: nowrap; font-family: var(--kt-serif); font-size: 16px; }
 
 .kt-hand-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 8px; color: var(--kt-ink); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #1a0c07; }
 .kt-draw-notice { color: #fff2d8; font-weight: 700; text-align: center; }

@@ -15,7 +15,6 @@ window.turnLayoutFixture=(kind)=>{
     round.players[ME].hand=[card('major-13'),card('coin-4')];
     render();
   } else if(kind==='long') {
-    NAMES[ME]='長いプレイヤー名'.repeat(15);
     $('ktAvatarSeat').hidden=false;
     playerRating=98765;
     hint='説明の全文です。'.repeat(48);
@@ -42,6 +41,9 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await expect(page.locator('#ktMessage')).not.toContainText('悪魔');
   await expect(page.locator('.kt-your-turn-flag')).toHaveCount(0);
   await expect(page.locator('#ktTurnOrder')).toContainText('手番');
+  const selfName=page.locator('#ktMe strong').first();
+  await expect(selfName).toHaveText('あなた');
+  expect(await selfName.evaluate(n=>n.scrollWidth===n.clientWidth && getComputedStyle(n).textOverflow!=='ellipsis')).toBe(true);
   const before=await dimensions(page);
   await page.evaluate(()=>window.turnLayoutFixture('long'));
   await expect(page.locator('#ktMe .kt-player-rating')).toHaveText('レート98765');
