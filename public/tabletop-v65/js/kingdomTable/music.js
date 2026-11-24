@@ -8,7 +8,7 @@ export const TRACKS = {
 
 export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError = () => {} }) {
     let context, bus, voice, gap = 0, revision = 0, loading = null;
-    let scene = null, resultKey = null, enabled = true, visible = true, ducked = false;
+    let scene = null, resultKey = null, enabled = true, visible = true;
     let titleBookmark = null;
     const buffers = new Map();
     const played = new Set();
@@ -33,23 +33,27 @@ export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError 
     };
 
     function volume() {
-        if (bus) bus.gain.setTargetAtTime(!enabled || !visible ? 0 : ducked ? 0.10 : 1, context.currentTime, 0.04);
+        if (bus) bus.gain.setTargetAtTime(!enabled || !visible ? 0 : 1, context.currentTime, 0.04);
     }
 
-    function sync() {
-        const config = tracks[scene];
-        if (!enabled || !visible || !context || context.state !== 'running' || !config || voice || gap || loading !== null) return;
-        if (config.oneShot && (played.has(resultKey) || ducked)) return;
-        const token = revision;
-        const key = resultKey;
-        loading = token;
+    function load(config) {
         if (!buffers.has(config.file)) {
             const buffer = Promise.resolve().then(() => fetchAudio(new URL(config.file, ROOT))).then(bytes => context.decodeAudioData(bytes));
             buffers.set(config.file, buffer);
             buffer.catch(() => { if (buffers.get(config.file) === buffer) buffers.delete(config.file); });
         }
-        void buffers.get(config.file).then(buffer => {
-            if (token !== revision || !enabled || !visible || (config.oneShot && ducked)) return;
+        return buffers.get(config.file);
+    }
+
+    function sync() {
+        const config = tracks[scene];
+        if (!enabled || !visible || !context || context.state !== 'running' || !config || voice || gap || loading !== null) return;
+        if (config.oneShot && played.has(resultKey)) return;
+        const token = revision;
+        const key = resultKey;
+        loading = token;
+        void load(config).then(buffer => {
+            if (token !== revision || !enabled || !visible) return;
             const source = context.createBufferSource();
             const gain = context.createGain();
             source.buffer = buffer;
@@ -131,10 +135,8 @@ export function createMusic({ makeContext, fetchAudio, tracks = TRACKS, onError 
             if (context && visible && enabled && context.state === 'suspended') void context.resume().then(sync, onError);
             sync();
         },
-        ducked(next) {
-            ducked = next;
-            volume();
-            sync();
+        prepare(next) {
+            if (enabled && context && tracks[next]) void load(tracks[next]).catch(onError);
         }
     };
 }

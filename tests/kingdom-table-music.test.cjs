@@ -49,15 +49,20 @@ test('gesture unlock, stale title download cannot bleed into a match, repeat eve
     assert.deepEqual(starts.map(s => s.buffer.name), ['match.mp3']);
     assert.deepEqual([starts[0].loop, starts[0].loopStart, starts[0].loopEnd], [true, 37.384, 86.912]);
 });
-test('audible final movie defers one-shot; muted or ended movie releases sound; repeated result does not replay', async () => {
-    const { player, starts, gains, context } = await setup();
+test('victory music can be preloaded but plays once only when requested, regardless of movie audio', async () => {
+    let readyVictory = 0;
+    const { player, starts, context } = await setup(async url => {
+        const file = url.pathname.split('/').at(-1);
+        if (file === 'victory.mp3') readyVictory++;
+        return file;
+    });
     player.unlock();
     player.scene('match'); await flush();
-    player.ducked(true);
-    assert.equal(gains.at(-1), 0.10);
-    player.scene('victory', 'one'); await flush();
+    player.prepare('victory'); await flush();
+    assert.equal(readyVictory, 1);
     assert.equal(starts.length, 1);
-    player.ducked(false); await flush();
+    player.scene('victory', 'one'); await flush();
+    assert.equal(readyVictory, 1);
     assert.equal(starts.at(-1).buffer.name, 'victory.mp3');
     assert.equal(starts.at(-1).loop, undefined);
     player.visible(false); assert.equal(context.state, 'suspended');

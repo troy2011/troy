@@ -1,4 +1,4 @@
-import { Music } from '/tabletop-v65/js/kingdomTable/music.js?v=home-title-v1';
+import { Music } from '/tabletop-v65/js/kingdomTable/music.js?v=victory-mix-v1';
 import { bindMusicSession } from '/tabletop-v65/js/kingdomTable/musicSession.js?v=home-title-v1';
 
 const wrapper = document.getElementById('appWrapper');

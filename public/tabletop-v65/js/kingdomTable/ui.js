@@ -18,7 +18,7 @@ import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
 import * as Sfx from './sfx.js?v=cheer-tail-v1';
-import { Music } from './music.js?v=home-title-v1';
+import { Music } from './music.js?v=victory-mix-v1';
 import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
@@ -1271,95 +1271,65 @@ const VICTORY_MOVIE_IDS = new Set([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,1
 // Only these already-published IDs required a second immutable rendition.
 const FULL_HEIGHT_MOVIE_V2 = new Set([4,5,6,7,8,9,10,11]);
 const VICTORY_MOVIE_DIR = new URL('../../assets/tarot-kingdom-table/victory-media', import.meta.url).pathname;
-function victoryMovie(avatar, still) {
+function victoryMovie(avatar, still, startBgm) {
     const id = String(avatar.id).padStart(2, '0');
     const file = VICTORY_MOVIE_DIR + '/victory-' + id + (avatar.id === 1 ? '-v3' : FULL_HEIGHT_MOVIE_V2.has(avatar.id) ? '-v2' : '-v1');
     const block = el('section', 'kt-victory-video');
     const frame = el('div', 'kt-victory-frame');
     const poster = avatarImage(file + '.webp', 'kt-victory-poster', avatar.name + 'の勝利');
     poster.addEventListener('error', () => { poster.src = still; }, { once: true });
-    const play = el('button', 'kt-victory-play', '勝利ムービーを見る');
-    play.type = 'button';
-    const sound = el('button', 'kt-victory-enable-sound', '音ありで最初から再生');
-    sound.type = 'button';
-    sound.hidden = true;
-    const state = el('span', 'kt-victory-media-status');
-    state.setAttribute('role', 'status');
-    let video = null;
-
-    const current = player => video === player && block.isConnected && !$('ktDialog').hidden;
-    function restore(player) {
-        if (video !== player) return;
-        player.pause();
-        Music.ducked(false);
-        player.remove();
-        video = null;
-        poster.hidden = false;
-        sound.hidden = true;
-        play.textContent = 'もう一度再生';
-        play.hidden = false;
-        state.textContent = '動画を再生できませんでした。';
-        if (current(null) && player.dataset.manual === 'true') play.focus();
-    }
-    function start(manual) {
-        if (video || !block.isConnected || $('ktDialog').hidden || document.hidden) return;
+    frame.append(poster);
+    block.append(frame);
+    const showing = () => block.isConnected && !$('ktDialog').hidden;
+    queueMicrotask(() => {
+        if (!showing()) return;
+        if (reducedMotion() || document.hidden) { startBgm(); return; }
         const player = el('video', 'kt-victory-player');
-        video = player;
         player.playsInline = true;
-        player.controls = true;
+        player.controls = false;
+        player.disablePictureInPicture = true;
         player.muted = !Sfx.isOn();
-        player.dataset.manual = String(manual);
+        player.volume = 0.28;
         player.setAttribute('aria-label', avatar.name + 'の勝利ムービー');
-        const syncMovieAudio = () => {
-            if (current(player)) Music.ducked(!player.paused && !player.ended && !player.muted && player.volume > 0);
+        const current = () => showing() && player.isConnected;
+        let begun = false;
+        const launchBgm = () => {
+            if (begun || !showing()) return;
+            begun = true;
+            startBgm();
         };
-        for (const event of ['playing', 'pause', 'ended', 'volumechange']) player.addEventListener(event, syncMovieAudio);
-        player.addEventListener('volumechange', () => {
-            if (!Sfx.isOn()) player.muted = true;
-            sound.hidden = !Sfx.isOn() || !player.muted;
-        });
-        player.addEventListener('error', () => restore(player), { once: true });
-        player.addEventListener('ended', () => { sound.hidden = !Sfx.isOn() || !player.muted; });
-        frame.insertBefore(player, play);
-        play.hidden = true;
-        state.textContent = '';
-        player.src = file + '.mp4';
-        const show = () => {
-            if (!current(player)) return;
-            if (document.hidden) player.pause();
+        // Start in sync with the movie, but never hold music for a slow or blocked stream.
+        const wait = setTimeout(launchBgm, 1400);
+        const restore = () => {
+            clearTimeout(wait);
+            if (!current()) return;
+            player.pause();
+            player.remove();
+            poster.hidden = false;
+            launchBgm();
+        };
+        player.addEventListener('playing', () => {
+            clearTimeout(wait);
+            if (!current() || document.hidden) { player.pause(); return; }
             poster.hidden = true;
-            sound.hidden = !Sfx.isOn() || !player.muted;
-            if (manual) player.focus();
-        };
-        void player.play().then(show, async () => {
-            if (!current(player)) return;
-            if (!manual && !player.muted && !document.hidden) {
-                player.muted = true;
-                try { await player.play(); show(); return; } catch { /* Manual fallback below. */ }
-            }
-            restore(player);
+            launchBgm();
         });
-    }
-    play.addEventListener('click', () => start(true));
-    sound.addEventListener('click', () => {
-        const player = video;
-        if (!player || !Sfx.isOn()) return;
-        player.dataset.manual = 'true';
-        if (player.seekable.length) player.currentTime = 0;
-        else player.load(); // Byte-range support is optional; a fresh load also restarts.
-        player.muted = false;
-        void player.play().then(() => { if (current(player)) player.focus(); }, () => restore(player));
+        player.addEventListener('error', restore, { once: true });
+        frame.insertBefore(player, poster);
+        player.src = file + '.mp4';
+        void player.play().catch(async () => {
+            if (!current()) return;
+            if (!player.muted && !document.hidden) {
+                player.muted = true;
+                try { await player.play(); return; } catch { /* Keep the poster if blocked. */ }
+            }
+            restore();
+        });
     });
-    frame.append(poster, play);
-    block.append(frame, sound, state);
-    if (!reducedMotion()) queueMicrotask(() => start(false));
     return block;
 }
 
-function pauseVictoryMovie() {
-    $('ktDialogBody').querySelector('.kt-victory-player')?.pause();
-    Music.ducked(false);
-}
+function pauseVictoryMovie() { $('ktDialogBody').querySelector('.kt-victory-player')?.pause(); }
 window.addEventListener('pagehide', pauseVictoryMovie);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseVictoryMovie(); });
 
@@ -1528,6 +1498,7 @@ function queueResult(result, effects) {
     const beat=pendingAgari;
     cancelResultPresentation();
     resultRoundKey = key;
+    if (match?.over) Music.prepare('victory');
     const pause = result.winner === null ? effects : Math.max(WIN_CARD_HOLD_MS, effects);
     const start=performance.now();
     const schedule=()=>{
@@ -1649,15 +1620,21 @@ function showResult(result) {
     const clashTitle = soleVictory ? '勝利' : ownLead ? '同率1位' : '敗北';
     const clashMode = soleVictory ? 'victory' : ownLead ? 'match-tie' : 'match-loss';
     const viewerRank = order.findIndex(({ chips }) => chips === match.chips[ME]) + 1;
-    Music.scene(soleVictory ? 'victory' : ownLead ? null : 'defeat', room ? 'room:' + room : match);
+    const musicKey = room ? 'room:' + room : match;
+    const finalMatch = resultIdentity();
+    const startVictoryBgm = () => { if (match?.over && resultIdentity() === finalMatch) Music.scene('victory', musicKey); };
+    let movieStartsMusic = false;
     if (avatar && soleVictory &&
         (room ? displayedOnlineVictory !== room : !displayedPracticeVictories.has(match))) {
         if (room) displayedOnlineVictory = room;
         else displayedPracticeVictories.add(match);
         const still = avatar.victoryStill ?? avatar.portrait;
-        body.unshift(VICTORY_MOVIE_IDS.has(avatar.id) ? victoryMovie(avatar, still)
+        movieStartsMusic = VICTORY_MOVIE_IDS.has(avatar.id);
+        body.unshift(movieStartsMusic ? victoryMovie(avatar, still, startVictoryBgm)
             : avatarImage(reducedMotion() ? still : avatar.victory, 'kt-avatar-victory', avatar.name + 'の勝利'));
     }
+    if (movieStartsMusic) Music.scene(null);
+    else Music.scene(soleVictory ? 'victory' : ownLead ? null : 'defeat', musicKey);
     const reward = online.view && Number.isSafeInteger(match.earnedCoins) && match.earnedCoins > 0
         ? el('p', 'kt-avatar-earned', `アバターコイン +${match.earnedCoins}枚`) : null;
     if (reward && soleVictory) body.unshift(reward);
