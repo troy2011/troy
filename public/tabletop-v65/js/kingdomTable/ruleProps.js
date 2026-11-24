@@ -79,7 +79,7 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
     wrap.querySelector('.kt-hourglass-flip')?.remove();
     const flip = art.cloneNode(false);
     flip.className = 'kt-hourglass-flip';
-    flip.src = new URL('hourglass.webp', assets).href;
+    flip.src = new URL('hourglass-before.webp', assets).href;
     wrap.append(flip);
     // Only the frame turns. A separate image shows the settled sand under gravity.
     return flip.decode().then(() => {
