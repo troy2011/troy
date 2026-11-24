@@ -44,13 +44,27 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
    return [Math.abs(k.left+k.width*.40-(c.left+c.width*.40)),Math.abs(k.top+k.height*.87-(c.top+c.height*.71))];
  });
  expect(contact.every(d=>d<1)).toBe(true);
- expect(await projected.evaluate(n=>getComputedStyle(n).transform.startsWith('matrix3d'))).toBe(true);
+ const compression=await projected.evaluate(n=>{
+   const style=getComputedStyle(n), matrix=new DOMMatrix(style.transform);
+   const [,originY]=style.transformOrigin.split(' ').map(parseFloat);
+   const card=n.querySelector('.kt-field-top .kt-card');
+   const x=card.offsetWidth, y=(n.offsetHeight-card.offsetHeight)/2-originY;
+   const top=new DOMPoint(x,y,0,1).matrixTransform(matrix);
+   const bottom=new DOMPoint(x,y+card.offsetHeight,0,1).matrixTransform(matrix);
+   const depth=Math.abs(bottom.y/bottom.w-top.y/top.w)/((x/top.w+x/bottom.w)/2);
+   return {taper:bottom.w/top.w,depth};
+ });
+ expect(compression.taper).toBeGreaterThan(.79);
+ expect(compression.taper).toBeLessThan(.84);
+ expect(compression.depth).toBeGreaterThan(.9);
+ expect(compression.depth).toBeLessThan(1.05);
+ console.log('field projection',width,compression);
  expect(await page.locator('#ktHand').evaluate(n=>getComputedStyle(n).transform)).toBe('none');
  const nominal=await upper.locator('.kt-card').evaluate(n=>n.offsetWidth);
  const projection=async name=>{
    if(process.env.TROY_DEPTH_CAPTURE && width===320) {
      await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
-     await page.screenshot({path:process.env.TEMP+'/TROY-depth-no-added-suit-'+name+'-DPR3.png'});
+     await page.screenshot({path:process.env.TEMP+'/TROY-reference-depth-'+name+'-DPR3.png'});
    }
  };
  await projection('single');

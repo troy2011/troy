@@ -18,9 +18,10 @@ window.rulePropFixture = (kind) => {
     }
     if (kind === 'triple-preview') {
         seenEvents = round.events.length;
+        delete $('ktMessage').dataset.last;
         round.players[ME].hand=['cup-4','coin-6','sword-9'].map(card);
-        Object.assign(round, {phase:'play', turn:1, last:1, passed:[], direction:1,cut:true,back:true,lock:'coin',
-            field:{kind:'normal',count:3,plays:[{by:1,cards:['cup-8','coin-8','sword-8'].map(card)}]}});
+        Object.assign(round, {phase:'play', turn:1, last:ME, dealer:ME, han:[1,0,0], passed:[], direction:1,cut:true,back:true,lock:'coin',
+            field:{kind:'normal',count:3,plays:[{by:ME,cards:['cup-8','coin-8','sword-8'].map(card)}]}});
         render();
         return;
     }

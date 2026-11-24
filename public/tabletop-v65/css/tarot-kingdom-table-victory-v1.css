@@ -314,7 +314,7 @@ body {
   width: 100%;
   height: max(108px, calc(var(--kt-field-card-width) * 1.5));
   flex: none;
-  transform: perspective(330px) rotateX(27deg);
+  transform: perspective(calc(var(--kt-field-card-width) * 5.55)) rotateX(50deg);
   transform-origin: 50% 55%;
 }
 .kt-field-play { position: relative; grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: 5px; transform: translate(var(--kt-pile-x), var(--kt-pile-y)) rotate(var(--kt-pile-angle)); }
