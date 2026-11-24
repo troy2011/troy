@@ -5,16 +5,17 @@ const fixture = `
 window.rulePropFixture = (kind) => {
     const card = id => Rules.buildDeck().find(c => c.id === id);
     const round = match.round;
-    const after = { stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
-    const before = { stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
+    const after = { alt:13, stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
+    const before = { alt:14, stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
+    const suit = kind === "alt" ? "sword-" : "coin-";
     Object.assign(round, {
         phase: 'play', turn: ME, last: 1, passed: [], direction: 1, cut: false,
-        back: kind === 'lock' || kind === 'stack', lock: kind === 'stack' ? 'coin' : null,
-        field: {kind:'normal',count:kind==='pair'?2:1,plays:[{by:1,cards:kind==='pair'?[card('coin-'+before),card('sword-'+before)]:[card('coin-'+before)]}]}
+        back: kind === 'lock' || kind === 'stack' || kind === 'alt', lock: kind === 'stack' ? 'coin' : null,
+        field: {kind:'normal',count:kind==='pair'?2:1,plays:[{by:1,cards:kind==='pair'?[card('coin-'+before),card('sword-'+before)]:[card(suit+before)]}]}
     });
-    round.players[ME].hand = [card('coin-'+after), card('cup-4')];
+    round.players[ME].hand = [card(suit+after), card('cup-4')];
     if (kind === 'pair') round.players[ME].hand.push(card('sword-'+after));
-    if (kind !== 'clear' && !Rules.play(round, ME, kind==='pair'?['coin-'+after,'sword-'+after]:['coin-'+after], 'normal').ok) throw Error('Illegal rule setup: '+kind);
+    if (kind !== 'clear' && !Rules.play(round, ME, kind==='pair'?['coin-'+after,'sword-'+after]:[suit+after], 'normal').ok) throw Error('Illegal rule setup: '+kind);
     render();
 };
 `;
@@ -22,7 +23,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=exact-table-fx-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=exact-table-fx-v2', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -62,7 +63,7 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
         }
         if (kind === 'back' || kind === 'lock') {
             const glass = layer.locator('[data-kind="back"] img:not(.kt-hourglass-flip)');
-            await expect(glass).toHaveAttribute('src', /hourglass-settled\.webp$/);
+            await expect(glass).toHaveAttribute('src', /hourglass-reference\.webp$/);
             expect(await glass.evaluate(node=>getComputedStyle(node).transform)).toBe('none');
         }
         if (motion==='reduce') {
@@ -80,12 +81,24 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     }
     await page.evaluate(() => window.rulePropFixture('stack'));
     await expect(layer.locator('.kt-rule-prop:not(.kt-rule-impact)')).toHaveCount(3);
-    await expect(layer.locator('[data-kind="cut"]:not(.kt-rule-impact) img')).toHaveAttribute('src', /knife-embedded/);
+    await expect(layer.locator('[data-kind="cut"]:not(.kt-rule-impact) img')).toHaveAttribute('src', /knife-reference/);
+    const exactMug=layer.locator('[data-kind="lock"]');
+    await expect(exactMug.locator('img')).toHaveAttribute('src', /tankard-reference/);
+    await expect(exactMug.locator('.kt-rule-suits')).toBeHidden();
     await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(1);
     await expect(page.locator('#ktSeatRight .kt-seat-panel')).toHaveAttribute('data-turn','current');
     await expect(page.locator('#ktSeatLeft .kt-seat-panel')).toHaveAttribute('data-turn','next');
     await expect(page.locator('#ktFieldCards .kt-field-top [data-card="coin-8"]')).toBeVisible();
     expect(await scroll()).toBe(568);
+    for (const control of await page.locator('#ktActions button').all()) {
+       const {x,y,width,height} = await control.boundingBox();
+       expect(x).toBeGreaterThanOrEqual(0);
+       expect(x+width).toBeLessThanOrEqual(320);
+       expect(y+height).toBeLessThanOrEqual(556);
+    }
+    await page.evaluate(() => window.rulePropFixture('alt'));
+    await expect(layer.locator('[data-kind="lock"] img')).toHaveAttribute('src', /tankard.webp$/);
+    await expect(layer.locator('svg[data-suit="sword"]')).toBeVisible();
     await page.evaluate(() => window.rulePropFixture('pair'));
     if (motion==='no-preference') await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);

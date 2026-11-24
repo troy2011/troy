@@ -1,5 +1,5 @@
 // Ornamental witnesses to rule state, never a source of gameplay truth.
-const files = { cut:'knife-embedded', lock:'tankard', back:'hourglass-settled' };
+const files = { cut:'knife-reference', lock:'tankard', back:'hourglass-reference' };
 const base = new URL('../../assets/pirate-tarot/rule-props/', import.meta.url);
 const icons = {
   sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
@@ -41,6 +41,9 @@ export function renderRuleProps(host, round, { assets = base } = {}) {
     if (!node) { node = prop(kind, assets); host.append(node); }
     if (kind === 'lock' && node.dataset.suits !== suits.join(',')) {
       node.dataset.suits = suits.join(',');
+      const exactEmblem = suits.length === 1 && suits[0] === 'coin';
+      node.toggleAttribute('data-exact-emblem', exactEmblem);
+      node.querySelector('img').src = new URL(exactEmblem ? 'tankard-reference.webp' : 'tankard.webp', assets).href;
       const plaque = document.createElement('span');
       plaque.className = 'kt-rule-suits';
       plaque.append(...suits.map(makeSuit));
@@ -58,7 +61,7 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
     const card = anchor.getBoundingClientRect?.() ?? anchor;
     if (!rect.width || !card.width) return null;
     host.querySelector('.kt-rule-impact')?.remove();
-    const impact = prop('cut', assets, 'knife');
+    const impact = prop('cut', assets);
     impact.classList.add('kt-rule-impact');
     impact.style.left = (card.left + card.width * .53 - rect.left) + 'px';
     impact.style.top = (card.top + card.height * .55 - rect.top) + 'px';
