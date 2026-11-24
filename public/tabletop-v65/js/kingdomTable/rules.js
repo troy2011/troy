@@ -177,7 +177,11 @@ export function checkNormal(state, p, cards) {
     if (state.cut && !(world && isMajor(top[0], 8))) return no('8のあとはコールかパスだけです');
     if (playHasMajor && top.every(c => isMinor(c, 15))
         && !devilAgainstAce && !(loneAce && card.num === aceCounterMajor(top[0].suit))) {
-        return no('小札Aには、通常は同じスートの大札16〜19、11バック中は悪魔で返せます');
+        if (!loneAce) return no('小札Aの複数枚には大札を混ぜて返せません');
+        if (state.back) return no('11バック中は、この大札で小札Aに返せません。');
+        const names = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'コイン' };
+        const suit = top[0].suit;
+        return no(`この大札では小札Aに返せません（${names[suit]}は大札${aceCounterMajor(suit)}）。`);
     }
     if (state.lock && !cards.every((c) => suitsOf(c).some(suit => lockSuits(state.lock).includes(suit)) || isMajor(c, 14))) return no('ロック中はそのスートで返します');
     if (world) {

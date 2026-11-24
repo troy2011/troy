@@ -145,7 +145,8 @@ body {
 .kt-settings-option input { flex: none; width: 23px; height: 23px; accent-color: var(--kt-gold); cursor: pointer; }
 
 /* Table */
-.kt-table { flex: none; display: flex; flex-direction: column; gap: 3px; min-height: calc(100dvh - 8px - env(safe-area-inset-bottom)); padding-top: 3px; }
+.kt-table { flex: none; display: flex; flex-direction: column; gap: 3px; height: calc(100dvh - 8px - env(safe-area-inset-bottom)); padding-top: 3px; }
+.kt-table > :not(.kt-felt) { flex-shrink: 0; }
 /* Keep the toolbar in a single shallow row above the artwork. */
 .kt-bar { position: relative; z-index: 6; display: flex; align-items: center; gap: 4px; min-height: 30px; font-size: 11px; }
 .kt-brand { flex: 1 1 0; min-width: 0; margin: 0; color: #ffdc8e; font: 700 clamp(10px, 2.55vw, 16px)/1.2 var(--kt-serif); letter-spacing: -0.04em; text-shadow: 0 1px 2px #190e08; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -165,10 +166,11 @@ body {
 .kt-felt {
   position: relative;
   z-index: 2;
-  flex: 1 0 auto;
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: 100px auto;
+  grid-template-rows: 100px minmax(0, 1fr);
   grid-template-areas: "left top right" "field field field";
   gap: 6px;
   padding: 66px 0 0;
@@ -383,23 +385,23 @@ body {
 }
 .kt-card.is-zoomable { cursor: zoom-in; }
 
-.kt-message {
-  margin: 0;
-  min-height: 24px;
-  padding: 2px 8px;
-  display: flex;
+.kt-message-wrap {
+  position: relative;
+  display: grid;
   align-items: center;
-  justify-content: center;
+  min-height: 40px;
+  padding-inline: 27px;
+  min-width: 0;
   border-top: 1px solid rgb(239 198 109 / 55%);
   border-bottom: 1px solid rgb(239 198 109 / 55%);
   background: linear-gradient(90deg, rgb(36 19 12 / 65%), rgb(36 19 12 / 95%) 20%, rgb(36 19 12 / 95%) 80%, rgb(36 19 12 / 65%));
-  font-size: 12px;
-  line-height: 1.45;
-  text-align: center;
 }
-.kt-me { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 5px; width: fit-content; max-width: 100%; min-height: 32px; padding: 2px 6px; border: 3px double #b88a47; border-radius: 6px; background: linear-gradient(#42271c, #24120e); font-size: 14px; box-shadow: 0 3px 8px rgb(0 0 0 / 50%); }
-.kt-player-rating { color: var(--kt-dim); font-size: 11px; }
-.kt-me strong { font-family: var(--kt-serif); font-size: 16px; }
+.kt-message { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0; max-height: 32px; font-size: 12px; line-height: 16px; text-align: center; overflow-wrap: anywhere; }
+.kt-message-more { position: absolute; inset-inline-end: 3px; inset-block: 3px; width: 23px; border: 1px solid #9a784b; border-radius: 4px; background: #302016; color: var(--kt-ink); cursor: pointer; }
+.kt-me { display: flex; align-items: center; gap: 4px 5px; width: fit-content; min-width: 0; max-width: 100%; min-height: 32px; padding: 2px 6px; border: 3px double #b88a47; border-radius: 6px; background: linear-gradient(#42271c, #24120e); font-size: 14px; box-shadow: 0 3px 8px rgb(0 0 0 / 50%); }
+.kt-me > :not(strong) { flex: none; white-space: nowrap; }
+.kt-player-rating { color: var(--kt-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.kt-me strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--kt-serif); font-size: 16px; }
 
 .kt-hand-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 8px; color: var(--kt-ink); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #1a0c07; }
 .kt-draw-notice { color: #fff2d8; font-weight: 700; text-align: center; }
@@ -764,7 +766,7 @@ body {
 .kt-fx-stamp.is-big { padding: 4px 20px 6px; font-size: 30px; }
 /* Display models are decorative; real cards remain interactive in the hand row below. */
 #ktLocalPlayer { position: relative; min-height: 36px; display: flex; align-items: flex-end; }
-#ktLocalPlayer:has(#ktAvatarSeat:not([hidden])) { padding-inline-end: 104px; }
+#ktLocalPlayer:has(#ktAvatarSeat:not([hidden])) { padding-inline-end: clamp(46px,calc(30vw - 48px),104px); }
 #ktAvatarSeat { position: absolute; z-index: 1; inset-inline-end: 0; inset-block-end: 0; isolation: isolate; pointer-events: none; height: clamp(92px,29vw,144px); aspect-ratio: 8/7; }
 .kt-avatar-art{position:relative;height:100%;width:100%}
 .kt-avatar-portrait,.kt-avatar-fingers{position:absolute;inset:0;width:100%;height:100%}
@@ -980,6 +982,13 @@ body:has(#ktDialog.is-victory:not([hidden])) .kt-fx-stamp { visibility: hidden; 
 
 
 /* Audible autoplay may be rejected by a browser. Keep the user gesture in easy reach. */
+@media (max-height: 680px) {
+  .kt-felt { padding-top: clamp(18px, calc(18dvh - 75px), 47px); grid-template-rows: clamp(64px, 14dvh, 95px) minmax(0, 1fr); }
+  .kt-field-cards { --kt-field-card-width: clamp(42px, 13dvh, 56px); height: calc(var(--kt-field-card-width) * 1.5); }
+  .kt-hand { --kt-hand-card-width: clamp(44px, 10dvh, 63px); min-height: 0; padding-block: 15px 5px; }
+  #ktTable { --kt-local-art-height: clamp(82px, 19dvh, 127px); }
+}
+
 .kt-victory-video { position: relative; }
 .kt-victory-player[hidden], .kt-victory-enable-sound[hidden] { display: none; }
 .kt-victory-enable-sound {

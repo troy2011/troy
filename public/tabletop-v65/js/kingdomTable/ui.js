@@ -6,8 +6,8 @@ import { choiceFocusState, renderChoiceFocus } from './choiceFocus.js?v=quiet-ab
 import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-v1';
 import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=sites-devil-visual-v1';
-import { roleName, roleHan } from './rules.js?v=sites-devil-visual-v1';
+import * as Rules from './rules.js?v=turn-layout-v1';
+import { roleName, roleHan } from './rules.js?v=turn-layout-v1';
 import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=sites-death-devil-v1';
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
@@ -674,9 +674,7 @@ function renderMe() {
     $('ktMe').replaceChildren(el('strong', '', NAMES[ME]), el('span', 'kt-me-chips kt-chip', `${match.chips[ME]}`), hanPill(ME), badges(ME));
     if (online.view) $('ktMe').append(el('span', 'kt-player-rating', `レート${match.ratingResult?.rating ?? match.startRating}`));
     else if (ratingPreview) $('ktMe').append(el('span', 'kt-player-rating', `レート${playerRating}`));
-    const ownTurn = round.phase === 'play' && round.turn === ME;
     $('ktMe').classList.toggle('is-turn', round.phase !== 'deathSwap' && round.phase !== 'over' && round.turn === ME);
-    if (ownTurn) $('ktMe').append(el('span', 'kt-your-turn-flag', 'あなたの番'));
     if (round.players[ME].hand.length === 1 && round.phase !== 'over')
         $('ktMe').append(el('span', 'kt-last-card-flag', '残り1枚'));
     const avatar = seatAvatar(ME);
@@ -744,9 +742,15 @@ function renderMessage(events, moves) {
         if (round.phase === 'trash') text = round.trashKind === 'death'
             ? '死神の効果：コートカード（小札11〜14）を1枚だけ除外できます。最後の1枚も除外して上がれます。'
             : ABILITY.banish + '：手札を1枚だけ除外できます。最後の1枚も除外して上がれます。';
-        else if (round.phase === 'deathSwap') text = round.effectTriggerCard?.num === 15
-            ? ABILITY.devil + '：渡す手札を1枚選ぶか、見送ります。見送った相手は悪魔を出した人に1翻渡します。'
-            : '死神の交換：渡す手札を1枚選ぶか、参加しないを押してください。選んだ人だけで交換します。';
+        else if (round.phase === 'deathSwap') {
+            if (round.effectTriggerCard?.num === 15) {
+                const actor = round.deathSwap?.seats?.[0] ?? round.last;
+                const detail = actor === ME
+                    ? '交換する札を1枚選ぶか、見送ります。見送り、かつ翻がある相手から1翻受け取ります。'
+                    : '交換する札を1枚選ぶか、見送ります。見送ると、翻がある場合だけ悪魔を出した人に1翻渡します。';
+                text = ABILITY.devil + '：' + detail;
+            } else text = '死神の交換：渡す手札を1枚選ぶか、参加しないを押してください。選んだ人だけで交換します。';
+        }
         else if (round.phase === 'give') text = `${ABILITY.hang}：${NAMES[round.giveTo]} に渡す手札を1枚選んでください。渡さないこともできます。`;
         else if (round.phase === 'exchange') text = '悪魔の効果：任意の手札を1枚捨て、山札から1枚引いて交換できます。見送ることもできます。';
         else if (round.phase==='ferry') {
@@ -767,11 +771,26 @@ function renderMessage(events, moves) {
                 : '出せる札がありません';
             // Keep fresh turn transitions and draw feedback, not stale descriptions.
             const context = drawnCard() && text ? text : events.filter(event => ['pass', 'clear', 'cede'].includes(event.type)).map(describe).at(-1);
-            text = context ? `${context} ／ ${guide}` : `あなたの番：${guide}`;
+            text = context ? `${context} ／ ${guide}` : guide;
         }
     }
-    box.textContent = text;
+    if (box.textContent !== text) {
+        box.textContent = text;
+        if ($('ktMessageDialog').open) $('ktMessageFull').textContent = text;
+        updateMessageOverflow();
+    }
 }
+
+function updateMessageOverflow() {
+    const box = $('ktMessage');
+    $('ktMessageMore').hidden = box.scrollHeight <= box.clientHeight + 1;
+}
+
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateMessageOverflow).observe($('ktMessage'));
+$('ktMessageMore').addEventListener('click', () => {
+    $('ktMessageFull').textContent = $('ktMessage').textContent;
+    $('ktMessageDialog').showModal();
+});
 
 function renderTurnHints(events = []) {
     const moves = turnHints ? Rules.listMoves(match.round, ME) : [];

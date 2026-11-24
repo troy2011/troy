@@ -7,13 +7,13 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
-<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css">
+<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=turn-layout-v1">
 <link rel="stylesheet" href="css/tarot-choice-focus.css?v=pirate-ability-v1">
 <link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
 <link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
 <link rel="stylesheet" href="css/tarot-match-ending-v1.css">
 <link rel="stylesheet" href="css/troy-local.css">
-<link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=1">
+<link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=turn-layout-v1">
 </head>
 <body class="kt-tavern-theme kt-tavern-main kt-troy-local">
 <main id="ktApp" class="kt-app">
@@ -103,7 +103,10 @@
       <button type="button" id="ktArrange" class="kt-hand-arrange" aria-pressed="false" aria-controls="ktArrangeActions">並べ替え</button>
     </div>
     <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktSelection"></div>
-    <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
+    <div class="kt-message-wrap">
+      <p id="ktMessage" class="kt-message" role="status" aria-live="polite"></p>
+      <button type="button" id="ktMessageMore" class="kt-message-more" aria-label="説明の全文を表示" aria-haspopup="dialog" aria-controls="ktMessageDialog" hidden>…</button>
+    </div>
     <div id="ktActions" class="kt-actions">
       <button type="button" id="ktDraw" class="kt-button kt-button-draw">1枚引く</button>
       <button type="button" id="ktPass" aria-describedby="ktMessage" class="kt-button kt-button-pass">パス</button>
@@ -162,6 +165,12 @@
 
 
 
-<script type="module" src="js/kingdomTable/ui.js?v=victory-mix-v1"></script>
+<dialog id="ktMessageDialog" class="kt-settings" aria-labelledby="ktMessageDialogTitle">
+  <form method="dialog">
+    <header><h2 id="ktMessageDialogTitle">説明</h2><button type="submit" class="kt-button">閉じる</button></header>
+    <p id="ktMessageFull"></p>
+  </form>
+</dialog>
+<script type="module" src="js/kingdomTable/ui.js?v=turn-layout-v1"></script>
 </body>
 </html>

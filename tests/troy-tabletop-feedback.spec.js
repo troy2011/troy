@@ -7,7 +7,7 @@ for(const transfer of ['give','devilCardTransfer']) test('local tabletop feedbac
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.addInitScript(()=>{window.cues=[]});
  const synth=fs.readFileSync(root+'sfx.js','utf8').replace('export function play(name, at = 0, ...args) {', 'export function play(name, at = 0, ...args) { window.cues.push(name);');
- await page.route('**/sfx.js?v=round-score-v1',r=>r.fulfill({contentType:'text/javascript',body:synth}));
+ await page.route('**/sfx.js?v=cheer-tail-v1',r=>r.fulfill({contentType:'text/javascript',body:synth}));
  await page.route('**/turn-pass-v1/self-turn.mp3',r=>r.fulfill({status:404}));
  const bracket=String.raw`
 window.fxFixture=(kind)=>{
@@ -26,14 +26,15 @@ window.fxFixture=(kind)=>{
  render();
 };
 `;
- await page.route('**/ui.js?v=round-score-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+bracket}));
+ await page.route('**/ui.js?v=turn-layout-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+bracket}));
  await page.goto('/tarot-kingdom-table.html?v=65');
  await expect.poll(()=>page.evaluate(()=>typeof window.fxFixture)).toBe('function');
  await page.evaluate(()=>window.fxFixture('start'));
  await expect(page.locator('.kt-your-turn-flag')).toHaveCount(0);
  await expect(page.locator('#ktHand [data-card="cup-11"]')).toHaveCount(0);
  await page.evaluate(transfer=>window.fxFixture(transfer),transfer);
- await expect(page.locator('.kt-your-turn-flag')).toBeVisible();
+ await expect(page.locator('.kt-your-turn-flag')).toHaveCount(0);
+ await expect(page.locator('#ktTurnOrder')).toContainText('手番');
  await expect(page.locator('.kt-seat.is-last-card .kt-last-card-flag')).toHaveCount(1);
  await expect(page.locator('#ktHand [data-card="cup-11"]')).toHaveClass(/is-drawn/);
  for(const cue of ['turn','last-card']) await expect.poll(()=>page.evaluate(cue=>window.cues.filter(x=>x===cue).length,cue)).toBe(1);
