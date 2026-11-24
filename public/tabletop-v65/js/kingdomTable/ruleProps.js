@@ -1,5 +1,6 @@
 // Ornamental witnesses to rule state, never a source of gameplay truth.
 const files = { cut:'knife-reference', lock:'tankard', back:'hourglass-reference' };
+const tankardFiles = { coin:'tankard-coin.webp', sword:'tankard-sword.webp', wand:'tankard-wand.webp', cup:'tankard-cup.webp' };
 const base = new URL('../../assets/pirate-tarot/rule-props/', import.meta.url);
 const icons = {
   sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
@@ -67,9 +68,10 @@ export function renderRuleProps(host, round, { assets = base, anchor } = {}) {
     if (!node) { node = prop(kind, assets); host.append(node); }
     if (kind === 'lock' && node.dataset.suits !== suits.join(',')) {
       node.dataset.suits = suits.join(',');
-      const exactEmblem = suits.length === 1 && suits[0] === 'coin';
-      node.toggleAttribute('data-exact-emblem', exactEmblem);
-      node.querySelector('img').src = new URL(exactEmblem ? 'tankard-reference.webp' : 'tankard.webp', assets).href;
+      const vessel = suits.length === 1 ? suits[0] : 'mixed';
+      node.dataset.vessel = vessel;
+      node.toggleAttribute('data-exact-emblem', vessel !== 'mixed');
+      node.querySelector('img').src = new URL(tankardFiles[vessel] || 'tankard.webp', assets).href;
       const plaque = document.createElement('span');
       plaque.className = 'kt-rule-suits';
       plaque.append(...suits.map(makeSuit));
@@ -132,6 +134,8 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
 }
 
 export function cancelRulePropAnimations(host) {
+  cutContactTracks.get(host)?.stop();
+  cutContactTracks.delete(host);
   for (const animation of host.getAnimations({subtree:true})) animation.cancel();
   for (const node of host.querySelectorAll('.kt-rule-impact, .kt-hourglass-flip')) node.remove();
 }

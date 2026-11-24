@@ -1,8 +1,22 @@
 .kt-rule-stage { position: relative; width: 100%; min-width: 0; }
 .kt-rule-props { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.kt-rule-prop { position: absolute; display: block; bottom: clamp(10px, 4.5vw, 18px); }
-.kt-rule-prop img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 3px 2px #1a0d08bb); }
-.kt-rule-prop[data-kind="lock"] { inset-inline-start: calc(50% + clamp(21px, 6.6vw, 40px)); width: clamp(59px, 22vw, 91px); aspect-ratio: 206 / 181; container-type: inline-size; z-index: 1; }
+.kt-rule-prop { position: absolute; display: block; bottom: clamp(10px, 4.5vw, 18px); isolation: isolate; }
+.kt-rule-prop img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(2px 4px 2px #1b0801ba); }
+.kt-rule-prop::before {
+  content: ""; position: absolute; z-index: -1; left: 3%; bottom: -4.5%; width: 115%; height: 15%;
+  background: radial-gradient(ellipse at 41% 44%, #180900e8 0%, #230b02c7 31%, #2c110478 49%, #2b13042e 67%, transparent 77%);
+  pointer-events: none;
+}
+.kt-rule-prop[data-kind="back"]::before { left: 5%; bottom: -4%; width: 123%; }
+.kt-rule-prop[data-kind="cut"]::before {
+  left: 22%; bottom: 7%; width: 42%; height: 12%; transform: rotate(-8deg);
+  background: radial-gradient(ellipse at 41% 44%, #170900f6 0%, #260b04db 30%, #2c110474 55%, transparent 77%);
+}
+.kt-rule-prop.kt-rule-impact::before { display: none; }
+.kt-rule-prop[data-kind="lock"] { inset-inline-start: calc(50% + clamp(21px, 6.6vw, 40px)); --kt-bowl-width: clamp(59px, 22vw, 91px); width: var(--kt-bowl-width); aspect-ratio: 206 / 181; container-type: inline-size; z-index: 1; }
+.kt-rule-prop[data-vessel="cup"] { width: calc(var(--kt-bowl-width) * .951); aspect-ratio: 252 / 233; }
+.kt-rule-prop[data-vessel="sword"] { width: calc(var(--kt-bowl-width) * .806); aspect-ratio: 231 / 252; }
+.kt-rule-prop[data-vessel="wand"] { width: calc(var(--kt-bowl-width) * .955); aspect-ratio: 252 / 232; }
 .kt-rule-prop[data-kind="back"] { inset-inline-start: calc(50% - clamp(78px, 28vw, 121px)); width: clamp(28px, 10.2vw, 52px); aspect-ratio: 96 / 172; }
 .kt-rule-prop img.kt-hourglass-flip { position: absolute; inset: 0; opacity: 0; }
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; inset-inline-start: calc(50% - 5px); transform: translateX(-40%); }

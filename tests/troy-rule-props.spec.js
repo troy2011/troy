@@ -1,16 +1,18 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
+if (process.env.TROY_MUG_CAPTURE) test.use({deviceScaleFactor:3});
 
 const fixture = `
 window.rulePropFixture = (kind) => {
     const card = id => Rules.buildDeck().find(c => c.id === id);
     const round = match.round;
-    const after = { alt:13, stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
-    const before = { alt:14, stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
-    const suit = kind === "alt" ? "sword-" : "coin-";
+    const suffix = kind.startsWith("vessel:") ? kind.slice(7) : null;
+    const after = suffix ? 13 : { alt:13, stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
+    const before = suffix ? 14 : { alt:14, stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
+    const suit = suffix ? suffix + "-" : kind === "alt" ? "sword-" : "coin-";
     Object.assign(round, {
         phase: 'play', turn: ME, last: 1, passed: [], direction: 1, cut: false,
-        back: kind === 'lock' || kind === 'stack' || kind === 'alt', lock: kind === 'stack' ? 'coin' : null,
+        back: kind === 'lock' || kind === 'stack' || kind === 'alt' || !!suffix, lock: kind === 'stack' ? 'coin' : null,
         field: {kind:'normal',count:kind==='pair'?2:1,plays:[{by:1,cards:kind==='pair'?[card('coin-'+before),card('sword-'+before)]:[card(suit+before)]}]}
     });
     round.players[ME].hand = [card(suit+after), card('cup-4')];
@@ -23,7 +25,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=field-depth-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=table-vessels-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -83,7 +85,7 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     await expect(layer.locator('.kt-rule-prop:not(.kt-rule-impact)')).toHaveCount(3);
     await expect(layer.locator('[data-kind="cut"]:not(.kt-rule-impact) img')).toHaveAttribute('src', /knife-reference/);
     const exactMug=layer.locator('[data-kind="lock"]');
-    await expect(exactMug.locator('img')).toHaveAttribute('src', /tankard-reference/);
+    await expect(exactMug.locator('img')).toHaveAttribute('src', /tankard-coin/);
     await expect(exactMug.locator('.kt-rule-suits')).toBeHidden();
     await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(1);
     await expect(page.locator('#ktSeatRight .kt-seat-panel')).toHaveAttribute('data-turn','current');
@@ -96,9 +98,20 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
        expect(x+width).toBeLessThanOrEqual(320);
        expect(y+height).toBeLessThanOrEqual(556);
     }
-    await page.evaluate(() => window.rulePropFixture('alt'));
-    await expect(layer.locator('[data-kind="lock"] img')).toHaveAttribute('src', /tankard.webp$/);
-    await expect(layer.locator('svg[data-suit="sword"]')).toBeVisible();
+    for (const suit of ['coin','cup','sword','wand']) {
+        await page.evaluate(s=>window.rulePropFixture('vessel:'+s),suit);
+        const mug=layer.locator('[data-kind="lock"]');
+        await expect(mug).toHaveAttribute('data-vessel',suit);
+        await expect(mug.locator('img')).toHaveAttribute('src',new RegExp('tankard-'+suit+'[.]webp'));
+        await expect.poll(()=>mug.locator('img').evaluate(n=>n.complete && n.naturalWidth>0)).toBe(true);
+        expect(await mug.evaluate(n=>getComputedStyle(n,'::before').backgroundImage)).toContain('radial-gradient');
+        await expect(mug.locator('svg[data-suit="'+suit+'"]')).toHaveCount(1);
+        await expect(mug.locator('.kt-rule-suits')).toBeHidden();
+        if (process.env.TROY_MUG_CAPTURE && motion==='reduce') {
+            await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
+            await page.screenshot({path:process.env.TEMP+'/TROY-live-vessel-'+suit+'-DPR3.png'});
+        }
+    }
     await page.evaluate(() => window.rulePropFixture('pair'));
     if (motion==='no-preference') await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
