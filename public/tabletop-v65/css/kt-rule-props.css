@@ -6,6 +6,7 @@
 .kt-rule-prop[data-kind="back"] { inset-inline-start: calc(50% - clamp(78px, 28vw, 121px)); width: clamp(28px, 10.2vw, 52px); aspect-ratio: 96 / 172; }
 .kt-rule-prop img.kt-hourglass-flip { position: absolute; inset: 0; opacity: 0; }
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; inset-inline-start: calc(50% - 5px); transform: translateX(-40%); }
+.kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-40%, -87%); }
 .kt-rule-suits { position: absolute; display: flex; justify-content: center; align-items: center; gap: 1px; inset-inline-start: 40%; top: 55%; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 1px #17101a); }
 .kt-rule-prop[data-exact-emblem] .kt-rule-suits { visibility: hidden; }
 .kt-rule-suits svg { width: clamp(12px, 3.8vw, 18px); max-width: 35cqi; aspect-ratio: 1; fill: none; stroke: #ffe3a3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

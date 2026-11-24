@@ -12,7 +12,7 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { animateRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=exact-table-fx-v2';
+import { animateRuleProp, cancelRulePropAnimations, makeSuit, renderRuleProps } from './ruleProps.js?v=field-depth-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=cheer-tail-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
@@ -506,7 +506,18 @@ function renderField() {
             group.style.setProperty('--kt-pile-y', `${current ? 0 : depth * 1.5}px`);
             if (!current) group.setAttribute('aria-hidden', 'true');
             const role = cards.length===5 ? (current ? round.field.role : Rules.evaluateRole(cards)) : null;
-            group.append(...layoutRole(cards,role).map(card => current ? zoomableCard(card) : cardNode(card)));
+            if (role && cards.length === 5) group.dataset.fieldFan = 'true';
+            group.append(...layoutRole(cards,role).map(card => {
+                const node = current ? zoomableCard(card) : cardNode(card);
+                if (role && cards.length === 5) {
+                    const suits = Rules.suitsOf(card);
+                    const glyph = el('span', 'kt-field-role-suit');
+                    glyph.setAttribute('aria-hidden', 'true');
+                    glyph.append(makeSuit(suits.length === 1 ? suits[0] : 'major'));
+                    node.querySelector('.kt-card-rank').append(glyph);
+                }
+                return node;
+            }));
             return group;
         }));
         if (!layers.length) host.append(el('span', 'kt-field-empty', round.openingWin ? openingRoleName(round.openingWin) : '最初の札を出してください'));
@@ -535,7 +546,7 @@ function renderField() {
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
     fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
-    renderRuleProps($('ktRuleProps'), round);
+    renderRuleProps($('ktRuleProps'), round, { anchor: host.querySelector('.kt-field-top .kt-card') });
     const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
     $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';

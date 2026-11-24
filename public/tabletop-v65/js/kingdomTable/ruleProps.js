@@ -20,18 +20,44 @@ function prop(kind, assets = base, file = files[kind]) {
   return wrapper;
 }
 
-function makeSuit(suit) {
+export function makeSuit(suit) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.dataset.suit = suit;
   svg.setAttribute('viewBox','0 0 20 20');
   const path = document.createElementNS(ns, 'path');
-  path.setAttribute('d',icons[suit]);
+  path.setAttribute('d', icons[suit] ?? 'M10 2l7.5 8-7.5 8-7.5-8zM10 6v8m-4-4h8');
   svg.append(path);
   return svg;
 }
 
-export function renderRuleProps(host, round, { assets = base } = {}) {
+const cutContactTracks = new WeakMap();
+function trackCutContact(host, knife, anchor) {
+  const prior = cutContactTracks.get(host);
+  if (prior?.knife === knife && prior.anchor === anchor) { prior.update(); return; }
+  prior?.stop();
+  if (!knife || !anchor) { cutContactTracks.delete(host); return; }
+  const update = () => {
+    if (!anchor.isConnected || !knife.isConnected) return;
+    const card = anchor.getBoundingClientRect();
+    const stage = host.getBoundingClientRect();
+    if (!card.width || !stage.width) return;
+    knife.dataset.cutContact = '';
+    knife.style.left = (card.left + card.width * .40 - stage.left) + 'px';
+    knife.style.top = (card.top + card.height * .71 - stage.top) + 'px';
+  };
+  const observer = new ResizeObserver(update);
+  observer.observe(host);
+  observer.observe(anchor);
+  anchor.addEventListener('animationend', update);
+  cutContactTracks.set(host, {knife,anchor,update,stop:() => {
+    observer.disconnect();
+    anchor.removeEventListener('animationend', update);
+  }});
+  update();
+}
+
+export function renderRuleProps(host, round, { assets = base, anchor } = {}) {
   const suits = (Array.isArray(round.lock) ? round.lock : [round.lock]).filter(suit => Object.hasOwn(icons, suit));
   const active = !['over','waiting'].includes(round.phase);
   const targets = { cut:active && !!round.cut, lock:active && suits.length > 0, back:active && !!round.back };
@@ -51,6 +77,7 @@ export function renderRuleProps(host, round, { assets = base } = {}) {
       node.append(plaque);
     }
   }
+  trackCutContact(host, host.querySelector('.kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact)'), anchor);
 }
 
 // Called after the causative card lands. Restored state never calls this path.

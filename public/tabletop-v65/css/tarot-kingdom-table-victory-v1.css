@@ -320,11 +320,21 @@ body {
   width: 100%;
   height: max(108px, calc(var(--kt-field-card-width) * 1.5));
   flex: none;
-  transform: perspective(650px) rotateX(27deg);
+  transform: perspective(330px) rotateX(27deg);
   transform-origin: 50% 55%;
 }
 .kt-field-play { position: relative; grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; gap: 5px; transform: translate(var(--kt-pile-x), var(--kt-pile-y)) rotate(var(--kt-pile-angle)); }
 .kt-field-play .kt-card { flex: none; width: var(--kt-field-card-width); box-shadow: 0 1px 1px #3d2415, 0 4px 6px rgb(0 0 0 / 48%); }
+/* Deliberately asymmetric tabletop deal. The overlap stays to the right of every rank corner. */
+.kt-field-play[data-field-fan="true"] { gap: 0; }
+.kt-field-play[data-field-fan="true"] .kt-card + .kt-card { margin-inline-start: calc(var(--kt-field-card-width) * -.18); }
+.kt-field-play[data-field-fan="true"] .kt-card:nth-child(1) { translate: 0 2px; rotate: -3deg; }
+.kt-field-play[data-field-fan="true"] .kt-card:nth-child(2) { translate: 0 -3px; rotate: 2deg; }
+.kt-field-play[data-field-fan="true"] .kt-card:nth-child(3) { translate: 0 1px; rotate: -2deg; }
+.kt-field-play[data-field-fan="true"] .kt-card:nth-child(4) { translate: 0 -2px; rotate: 3deg; }
+.kt-field-play[data-field-fan="true"] .kt-card:nth-child(5) { translate: 0 3px; rotate: -1deg; }
+.kt-field-role-suit { display: grid; place-items: center; margin-top: 1px; }
+.kt-field-role-suit svg { display: block; width: 8px; height: 8px; fill: none; stroke: currentcolor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .kt-field-past { pointer-events: none; }
 .kt-field-top .kt-card { animation: kt-drop 200ms ease-out both; }
 .kt-field-cards .kt-card.is-arriving { visibility: hidden; }
