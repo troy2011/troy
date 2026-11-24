@@ -18,6 +18,7 @@ import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
 import * as Sfx from './sfx.js?v=round-score-v1';
+import { Music } from './music.js?v=table-music-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
@@ -1289,6 +1290,7 @@ function victoryMovie(avatar, still) {
     function restore(player) {
         if (video !== player) return;
         player.pause();
+        Music.ducked(false);
         player.remove();
         video = null;
         poster.hidden = false;
@@ -1307,6 +1309,10 @@ function victoryMovie(avatar, still) {
         player.muted = !Sfx.isOn();
         player.dataset.manual = String(manual);
         player.setAttribute('aria-label', avatar.name + 'の勝利ムービー');
+        const syncMovieAudio = () => {
+            if (current(player)) Music.ducked(!player.paused && !player.ended && !player.muted && player.volume > 0);
+        };
+        for (const event of ['playing', 'pause', 'ended', 'volumechange']) player.addEventListener(event, syncMovieAudio);
         player.addEventListener('volumechange', () => {
             if (!Sfx.isOn()) player.muted = true;
             sound.hidden = !Sfx.isOn() || !player.muted;
@@ -1349,7 +1355,10 @@ function victoryMovie(avatar, still) {
     return block;
 }
 
-function pauseVictoryMovie() { $('ktDialogBody').querySelector('.kt-victory-player')?.pause(); }
+function pauseVictoryMovie() {
+    $('ktDialogBody').querySelector('.kt-victory-player')?.pause();
+    Music.ducked(false);
+}
 window.addEventListener('pagehide', pauseVictoryMovie);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseVictoryMovie(); });
 
@@ -1639,6 +1648,7 @@ function showResult(result) {
     const clashTitle = soleVictory ? '勝利' : ownLead ? '同率1位' : '敗北';
     const clashMode = soleVictory ? 'victory' : ownLead ? 'match-tie' : 'match-loss';
     const viewerRank = order.findIndex(({ chips }) => chips === match.chips[ME]) + 1;
+    Music.scene(soleVictory ? 'victory' : ownLead ? null : 'defeat', room ? 'room:' + room : match);
     if (avatar && soleVictory &&
         (room ? displayedOnlineVictory !== room : !displayedPracticeVictories.has(match))) {
         if (room) displayedOnlineVictory = room;
@@ -1859,7 +1869,10 @@ turnHintsInput.addEventListener('change', () => {
 });
 
 function syncTableAudio() {
-    Sfx.setTableAudio(!$('ktTable').hidden && !!match?.round && match.round.phase !== 'over' && !match.over);
+    const atTable = !$('ktTable').hidden;
+    Sfx.setTableAudio(atTable && !!match?.round && match.round.phase !== 'over' && !match.over);
+    if (!atTable) Music.scene('title');
+    else if (match?.round && !match.over) Music.scene('match');
 }
 new MutationObserver(syncTableAudio).observe($('ktTable'),{attributes:true,attributeFilter:['hidden']});
 
@@ -1870,6 +1883,23 @@ function renderSoundButton() {
     $('ktSound').setAttribute('aria-label', on ? '効果音：オン' : '効果音：オフ');
 }
 renderSoundButton();
+const musicSetting = $('ktMusicSetting');
+const MUSIC_KEY = 'troy:kingdom-table:music';
+try { musicSetting.checked = localStorage.getItem(MUSIC_KEY) !== 'off'; } catch { musicSetting.checked = true; }
+Music.enabled(musicSetting.checked);
+const unlockMusic = () => Music.unlock();
+document.addEventListener('click', unlockMusic, { capture: true });
+document.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') unlockMusic(); }, { capture: true });
+musicSetting.addEventListener('change', () => {
+    Music.enabled(musicSetting.checked);
+    if (musicSetting.checked) unlockMusic();
+    try { localStorage.setItem(MUSIC_KEY, musicSetting.checked ? 'on' : 'off'); } catch { /* This visit only. */ }
+});
+document.addEventListener('visibilitychange', () => Music.visible(!document.hidden));
+window.addEventListener('pagehide', () => Music.visible(false));
+window.addEventListener('pageshow', () => Music.visible(!document.hidden));
+Music.visible(!document.hidden);
+syncTableAudio();
 // Online audio, like practice audio, requires a trusted user gesture.
 $('ktTable').addEventListener('click',()=>{if(Fx.active())Sfx.unlock();},{capture:true});
 $('ktSound').addEventListener('click', () => setSoundOn(!Sfx.isOn()));
