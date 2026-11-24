@@ -27,7 +27,6 @@
   inset-inline-start: clamp(8px, 6vw, 35px);
 }
 .kt-rule-prop[data-wide-field][data-kind="lock"] {
-  --kt-bowl-width: clamp(44px, 16vw, 74px);
   inset-inline-start: auto;
   inset-inline-end: clamp(17px, 5.3vw, 32px);
 }

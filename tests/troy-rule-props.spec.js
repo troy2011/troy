@@ -18,8 +18,9 @@ window.rulePropFixture = (kind) => {
     }
     if (kind === 'triple-preview') {
         seenEvents = round.events.length;
-        Object.assign(round, {phase:'play', turn:ME, last:1, passed:[], direction:1,cut:true,back:true,lock:'coin',
-            field:{kind:'normal',count:3,plays:[{by:1,cards:['coin-8','cup-8','wand-8'].map(card)}]}});
+        round.players[ME].hand=['cup-4','coin-6','sword-9'].map(card);
+        Object.assign(round, {phase:'play', turn:1, last:1, passed:[], direction:1,cut:true,back:true,lock:'coin',
+            field:{kind:'normal',count:3,plays:[{by:1,cards:['cup-8','coin-8','sword-8'].map(card)}]}});
         render();
         return;
     }
@@ -52,7 +53,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=prop-fade-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=table-focused-hud-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -167,6 +168,12 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
         await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).toHaveCount(3);
         expect(await scroll()).toBe(568);
         await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
-        await page.screenshot({path:process.env.TEMP+'/TROY-triple-props-painted-shadows-DPR3.png'});
+        const dims = await page.locator('#ktRuleProps .kt-rule-prop').evaluateAll(nodes=>Object.fromEntries(nodes.map(n=>[n.dataset.kind,[n.getBoundingClientRect().width,n.getBoundingClientRect().height]])));
+        console.log('320 DPR3 non-shadow props',dims);
+        for(const [kind,[width,height]] of Object.entries({cut:[56,78.05],back:[32.64,58.48],lock:[70.4,61.86]})){
+            expect(dims[kind][0]).toBeCloseTo(width,1);
+            expect(dims[kind][1]).toBeCloseTo(height,1);
+        }
+        await page.screenshot({path:process.env.TEMP+'/TROY-triple-aligned-hud-DPR3.png'});
     }
 });

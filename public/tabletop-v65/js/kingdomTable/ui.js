@@ -227,7 +227,7 @@ $('ktInspectClose').addEventListener('click', () => $('ktHandInspector').close()
 $('ktHandInspector').addEventListener('close', () => {
     if ($('ktHandInspector').open) return;
     const fallback = !$('ktDialog').hidden ? $('ktDialogActions').querySelector('button')
-        : !$('ktGraveDialog').hidden ? $('ktGraveClose') : $('ktHand').querySelector('button') ?? $('ktArrange');
+        : !$('ktGraveDialog').hidden ? $('ktGraveClose') : $('ktHand').querySelector('button') ?? $('ktSettings');
     (inspectTrigger?.isConnected && $('ktDialog').hidden && $('ktGraveDialog').hidden
         ? inspectTrigger : fallback)?.focus({ preventScroll: true });
     inspectTrigger = null;
@@ -537,7 +537,8 @@ function renderField() {
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
     fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
-    renderRuleProps($('ktRuleProps'), round, { anchor: host.querySelector('.kt-field-top .kt-card'), motion: Fx.moving() });
+    const fieldCards = host.querySelectorAll('.kt-field-top .kt-card');
+    renderRuleProps($('ktRuleProps'), round, { anchor: fieldCards[Math.floor(fieldCards.length / 2)], motion: Fx.moving() });
     const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
     $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';
@@ -834,7 +835,8 @@ function render() {
     // Once the last round is settled the label stays on it.
     $('ktRound').textContent = match.over ? `全${match.rounds}局` : `${roundLabel(match)} / ${match.rounds}`;
     $('ktPot').textContent = `場 ${match.pot}`;
-    $('ktDeck').textContent = `山札 ${round.deck.length}`;
+    $('ktDeck').textContent = String(round.deck.length);
+    $('ktDeck').setAttribute('aria-label', `山札 残り${round.deck.length}枚`);
     for (const [seat, host] of seatSlots()) renderSeat(seat, host);
     if(round.phase!=='over')for(const node of $('ktTable').querySelectorAll('.is-thrown'))node.classList.remove('is-thrown');
     renderField();
@@ -1465,7 +1467,6 @@ function canExitCpu() {
 
 function renderSessionControls() {
     const allowed = canExitCpu();
-    $('ktSessionControls').hidden = !online.view && !allowed;
     $('ktExitCpu').hidden = !allowed;
     $('ktExitCpu').textContent = online.view ? 'CPU戦を終了' : '練習を終了';
 }
@@ -1481,7 +1482,7 @@ function leaveTable() {
     cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true}); cancelHandDrag();
     cpuExitPrompt = false; online.paused = false; closeDialog();
     selected.clear(); match = null; onlineRoundKey = '';
-    $('ktSessionControls').hidden = true; $('ktExitCpu').hidden = true;
+    $('ktOnlinePlayStatus').hidden = true; $('ktExitCpu').hidden = true;
     $('ktTable').hidden = true; $('ktSetup').hidden = false;
 }
 
@@ -1911,7 +1912,15 @@ $('ktGraveDialog').addEventListener('click', event => {
 const settingsDialog = $('ktSettingsDialog');
 const turnHintsInput = $('ktTurnHints');
 turnHintsInput.checked = turnHints;
-$('ktSettings').addEventListener('click', () => settingsDialog.showModal());
+$('ktSettings').addEventListener('click', () => {
+    $('ktArrange').hidden = false;
+    renderSessionControls();
+    settingsDialog.showModal();
+});
+settingsDialog.addEventListener('close', () => {
+    $('ktArrange').hidden = true;
+    $('ktExitCpu').hidden = true;
+});
 const showCpuLobbyAfterMatch = installTavernMenu(settingsDialog);
 turnHintsInput.addEventListener('change', () => {
     turnHints = turnHintsInput.checked;
@@ -1930,14 +1939,11 @@ new MutationObserver(syncTableAudio).observe($('ktTable'),{attributes:true,attri
 function renderSoundButton() {
     const on = Sfx.isOn();
     $('nvSoundSetting').checked = on;
-    $('ktSound').setAttribute('aria-pressed', String(on));
-    $('ktSound').setAttribute('aria-label', on ? '効果音：オン' : '効果音：オフ');
 }
 renderSoundButton();
 bindMusicSession({ player: Music, checkbox: $('ktMusicSetting'), syncScene: syncTableAudio });
 // Online audio, like practice audio, requires a trusted user gesture.
 $('ktTable').addEventListener('click',()=>{if(Fx.active())Sfx.unlock();},{capture:true});
-$('ktSound').addEventListener('click', () => setSoundOn(!Sfx.isOn()));
 $('nvSoundSetting').addEventListener('change', event => setSoundOn(event.target.checked));
 function setSoundOn(on) {
     Sfx.setOn(on);
@@ -1986,12 +1992,20 @@ $('ktHand').addEventListener('click', (event) => {
     render();
 });
 
-$('ktArrange').addEventListener('click', () => {
+function setHandArranging(value) {
+    if (!match) return;
     cancelHandDrag();
-    arranging = !arranging;
+    arranging = value;
     movingCard = null;
     renderHand();
+    const focus = arranging ? $('ktHand').querySelector('button:not(:disabled)') : $('ktSettings');
+    focus?.focus({preventScroll:true});
+}
+$('ktArrange').addEventListener('click', () => {
+    settingsDialog.close();
+    setHandArranging(!arranging);
 });
+$('ktArrangeDone').addEventListener('click', () => setHandArranging(false));
 $('ktSortHand').addEventListener('click', () => {
     cancelHandDrag();
     manualHandOrder = null;
@@ -2006,7 +2020,7 @@ $('ktMoveLeft').addEventListener('click', () => shiftMovingCard(-1));
 $('ktMoveRight').addEventListener('click', () => shiftMovingCard(1));
 $('ktHand').addEventListener('keydown', event => {
     if (!arranging) return;
-    if (event.key === 'Escape') { event.preventDefault(); $('ktArrange').click(); $('ktArrange').focus(); return; }
+    if (event.key === 'Escape') { event.preventDefault(); setHandArranging(false); return; }
     if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
     const node = event.target.closest('.kt-card');
     if (!node || node.disabled) return;
@@ -2016,7 +2030,7 @@ $('ktHand').addEventListener('keydown', event => {
     node.focus({ preventScroll: true });
 });
 
-$('ktExitCpu').addEventListener('click', requestCpuExit);
+$('ktExitCpu').addEventListener('click', () => { settingsDialog.close(); requestCpuExit(); });
 
 $('ktStart').addEventListener('click', () => {
     fast = $('ktFast').checked || params.has('fast');

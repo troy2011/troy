@@ -148,21 +148,15 @@ body {
 .kt-table { flex: none; display: flex; flex-direction: column; gap: 3px; height: calc(100dvh - 12px - env(safe-area-inset-bottom)); padding-top: 3px; }
 .kt-table > :not(.kt-felt) { flex-shrink: 0; }
 /* Keep the toolbar in a single shallow row above the artwork. */
-.kt-bar { position: relative; z-index: 6; display: flex; align-items: center; gap: 4px; min-height: 30px; font-size: 11px; }
-.kt-brand { flex: 1 1 0; min-width: 0; margin: 0; color: #ffdc8e; font: 700 clamp(10px, 2.55vw, 16px)/1.2 var(--kt-serif); letter-spacing: -0.04em; text-shadow: 0 1px 2px #190e08; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kt-brand strong { font: inherit; }
-.kt-brand span { display: none; }
+.kt-bar { position: relative; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 30px; font-size: 11px; }
 .kt-bar-status { display: flex; flex: none; align-items: center; gap: 3px; }
 .kt-bar-item { white-space: nowrap; }
 .kt-bar-round, .kt-bar-deck { padding: 1px 4px; border: 1px solid #a57e49; border-radius: 4px; color: #ffe8b8; background: #27190f; font-size: 10px; font-weight: 700; line-height: 18px; }
 .kt-bar-deck { display: inline-flex; align-items: center; gap: 2px; }
 .kt-bar-deck::before { content: ""; width: 8px; height: 12px; border: 1px solid #e8c77e; border-radius: 2px; background: linear-gradient(135deg, #34407a, #1b2149); }
 .kt-bar-link { display: grid; place-items: center; min-width: 29px; min-height: 28px; padding: 2px 3px; border: 1px solid #bf8f43; border-radius: 6px; color: #ffe7ac; background: linear-gradient(#50301d, #21120d); font: inherit; font-size: 12px; line-height: 1.2; text-decoration: none; }
-.kt-sound { position: relative; width: 29px; font-size: 17px; cursor: pointer; }
-.kt-sound[aria-pressed="false"] { color: var(--kt-dim); }
-/* Off: a line through the note. */
-.kt-sound[aria-pressed="false"]::after { content: ""; position: absolute; top: 50%; right: 8px; left: 8px; height: 2px; background: #ff8c73; transform: rotate(-35deg); }
 
+.kt-settings-button { min-inline-size: 44px; cursor: pointer; }
 .kt-felt {
   position: relative;
   z-index: 2;
@@ -173,7 +167,7 @@ body {
   grid-template-rows: 100px minmax(0, 1fr);
   grid-template-areas: "left top right" "field field field";
   gap: 6px;
-  padding: 66px 0 0;
+  padding: 96px 0 0;
 }
 .kt-felt[data-seats="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "left right" "field field"; }
 
@@ -246,7 +240,7 @@ body {
 .kt-field { position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 0; }
 .kt-field-heading { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; min-height: 44px; }
 .kt-field-tools { flex: none; display: flex; align-items: center; justify-content: center; gap: 10px; }
-.kt-grave-button { min-height: 36px; white-space: nowrap; padding: 3px 9px; border: 1px solid #ba8b4c; border-radius: 5px; color: var(--kt-ink); background: #352014; font: inherit; font-size: 12px; cursor: pointer; }
+.kt-grave-button { position: absolute; inset-inline-end: 8px; inset-block-start: 0; z-index: 3; min-height: 32px; white-space: nowrap; padding: 3px 9px; border: 1px solid #ba8b4c; border-radius: 5px; color: var(--kt-ink); background: #352014; font: inherit; font-size: 12px; cursor: pointer; }
 .kt-grave-button:disabled { opacity: 0.6; cursor: default; }
 .kt-pot { position: relative; padding: 1px 20px; border: 3px double #dcac5b; border-radius: 8px; background: linear-gradient(#44291b, #24130e); font-family: var(--kt-serif); font-size: 18px; line-height: 24px; box-shadow: 0 3px 8px rgb(0 0 0 / 45%); }
 .kt-pot::before { content: ""; position: absolute; bottom: calc(100% - 1px); left: 50%; width: 0; height: 0; background: url("../assets/tarot-kingdom-table/tavern-v1/chips.webp") center bottom / contain no-repeat; transform: translateX(-50%); pointer-events: none; }
@@ -429,10 +423,7 @@ body {
 .kt-hand-header { position: relative; height: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; color: var(--kt-ink); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #1a0c07; }
 .kt-draw-notice { color: #fff2d8; font-weight: 700; text-align: center; }
 .kt-hand-count-sr, #ktSelection.is-turn-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-#ktSelection:not(.is-turn-note) { padding-inline-end: 70px; }
-.kt-hand-arrange { position: absolute; z-index: 3; inset-inline-end: 8px; inset-block-start: 0; flex: none; min-height: 32px; padding: 4px 8px; border: 1px solid #c6954e; border-radius: 5px; color: var(--kt-ink); background: #302016; font: inherit; cursor: pointer; }
-.kt-hand-arrange[aria-pressed="true"] { color: #291407; background: var(--kt-gold); }
-.kt-hand-arrange:disabled { opacity: 0.55; cursor: default; }
+#ktSelection:not(.is-turn-note) { padding-inline-end: 105px; }
 .kt-hand {
   --kt-hand-card-width: clamp(58px, 17vw, 84px);
   --kt-hand-overlap: clamp(26px, calc(6.3vw + 2.5px), 32px);
@@ -474,6 +465,7 @@ body {
 .kt-hand-drag-card { position: fixed; z-index: 9; pointer-events: none; box-shadow: 0 8px 20px rgb(0 0 0 / 70%); }
 .kt-hand-drop-marker { position: fixed; z-index: 8; width: 3px; border-radius: 2px; background: #ffe3a0; box-shadow: 0 0 6px #fff0c2; pointer-events: none; }
 
+#ktArrangeActions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .kt-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding-top: 2px; }
 .kt-actions .kt-button { padding: 8px 2px; font-family: var(--kt-serif); font-size: 16px; }
 /* During your turn Play stays visibly primary, even before a legal selection exists. */
@@ -775,9 +767,11 @@ body {
 #ktOnlineStatus:empty { display: none; }
 #ktOnlineStatus { font-size: 12px; color: #ffdfa8; }
 .kt-lobby-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.kt-session-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 2px 6px; background: #1c1511; }
-.kt-online-play-status { flex: 1; min-width: 0; margin: 0; color: #ffe0a0; font-size: 11px; line-height: 1.4; }
-.kt-session-exit { flex-shrink: 0; padding: 2px 6px; }
+.kt-online-play-status { position: relative; z-index: 6; margin: 0; padding: 2px 4px; border-radius: 3px; background: #1c1511; color: #ffe0a0; font-size: 11px; line-height: 1.4; }
+.kt-online-play-status:empty { display: none; }
+.kt-settings-match { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 12px 14px 0; }
+.kt-settings-match .kt-bar-link { min-block-size: 40px; padding-inline: 10px; cursor: pointer; }
+.kt-settings-match .kt-session-exit { border-color: #d18972; color: #ffe5d3; background: linear-gradient(#57322a,#301b15); }
 
 .kt-fx-card.is-taken { box-shadow: 0 0 0 2px #ffe08a, 0 0 18px rgb(255 205 98 / 90%), 0 14px 20px rgb(0 0 0 / 60%); }
 .kt-fx-streak { border-radius: 8px; }
@@ -1007,7 +1001,7 @@ body:has(#ktDialog.is-victory:not([hidden])) .kt-fx-stamp { visibility: hidden; 
 
 /* Audible autoplay may be rejected by a browser. Keep the user gesture in easy reach. */
 @media (max-height: 680px) {
-  .kt-felt { padding-top: clamp(18px, calc(18dvh - 75px), 47px); grid-template-rows: clamp(64px, 14dvh, 95px) minmax(0, 1fr); }
+  .kt-felt { padding-top: clamp(48px, calc(18dvh - 45px), 77px); grid-template-rows: clamp(64px, 14dvh, 95px) minmax(0, 1fr); }
   .kt-field-cards { --kt-field-card-width: clamp(42px, 13dvh, 56px); height: calc(var(--kt-field-card-width) * 1.5); }
   .kt-hand { --kt-hand-card-width: clamp(44px, 10dvh, 63px); min-height: 0; padding-block: 15px 5px; }
   #ktTable { --kt-local-art-height: clamp(82px, 19dvh, 127px); }

@@ -7,14 +7,14 @@
 <meta name="theme-color" content="#24130d">
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
-<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=prop-fade-v1">
+<link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=table-focused-hud-v1">
 <link rel="stylesheet" href="css/tarot-choice-focus.css?v=pirate-ability-v1">
 <link rel="stylesheet" href="css/tarot-tavern-preview.css?v=menu-pages-v1">
 <link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
 <link rel="stylesheet" href="css/tarot-match-ending-v1.css">
 <link rel="stylesheet" href="css/troy-local.css">
 <link rel="stylesheet" href="css/tarot-seat-feedback-v1.css?v=turn-layout-v1">
-<link rel="stylesheet" href="css/kt-rule-props.css?v=prop-fade-v1">
+<link rel="stylesheet" href="css/kt-rule-props.css?v=table-focused-hud-v1">
 </head>
 <body class="kt-tavern-theme kt-tavern-main kt-troy-local">
 <main id="ktApp" class="kt-app">
@@ -60,20 +60,14 @@
   </section>
 
   <section id="ktTable" class="kt-table" hidden>
-    <div id="ktSessionControls" class="kt-session-controls" hidden>
-      <p id="ktOnlinePlayStatus" class="kt-online-play-status" role="status" hidden></p>
-      <button type="button" id="ktExitCpu" class="kt-bar-link kt-session-exit" hidden>CPU戦を終了</button>
-    </div>
     <header class="kt-bar">
-      <div class="kt-brand"><strong>タロットキングダム</strong><span>卓上戦</span></div>
       <div class="kt-bar-status">
         <span id="ktRound" class="kt-bar-item kt-bar-round"></span>
-        <span id="ktDeck" class="kt-bar-item kt-bar-deck"></span>
+        <span id="ktDeck" class="kt-bar-item kt-bar-deck" role="img"></span>
       </div>
-      <button type="button" id="ktSound" class="kt-bar-link kt-sound" aria-pressed="true" aria-label="効果音：オン">♪</button>
-      <a class="kt-bar-link" href="tarot-kingdom-table-rules.html" target="_blank" rel="noopener">ルール</a>
       <button type="button" id="ktSettings" class="kt-bar-link kt-settings-button" aria-haspopup="dialog" aria-label="対戦設定">設定</button>
     </header>
+    <p id="ktOnlinePlayStatus" class="kt-online-play-status" role="status" hidden></p>
     <div id="ktFelt" class="kt-felt">
       <div id="ktSeatTop" class="kt-seat kt-seat-top" hidden></div>
       <div id="ktSeatLeft" class="kt-seat kt-seat-left" hidden></div>
@@ -82,7 +76,6 @@
         <div class="kt-field-heading">
           <div class="kt-field-tools">
             <div class="kt-pot"><span id="ktPot" class="kt-chip"></span></div>
-            <button type="button" id="ktGrave" class="kt-grave-button" aria-haspopup="dialog" aria-controls="ktGraveDialog">墓地・除外 0枚</button>
           </div>
           <p id="ktFieldOwner" class="kt-field-owner"></p>
         </div>
@@ -104,7 +97,7 @@
     <div class="kt-hand-header">
       <span class="kt-hand-count-sr">手札 <strong id="ktHandCount"></strong></span>
       <span id="ktSelection" role="status" aria-live="polite"></span>
-      <button type="button" id="ktArrange" class="kt-hand-arrange" aria-pressed="false" aria-controls="ktArrangeActions">並べ替え</button>
+      <button type="button" id="ktGrave" class="kt-grave-button" aria-haspopup="dialog" aria-controls="ktGraveDialog">墓地・除外 0枚</button>
     </div>
     <div id="ktHand" class="kt-hand" aria-label="あなたの手札" aria-describedby="ktSelection"></div>
     <div class="kt-message-wrap">
@@ -120,6 +113,7 @@
       <button type="button" id="ktMoveLeft" class="kt-button">← 左へ</button>
       <button type="button" id="ktSortHand" class="kt-button">数字順</button>
       <button type="button" id="ktMoveRight" class="kt-button">右へ →</button>
+      <button type="button" id="ktArrangeDone" class="kt-button">完了</button>
     </div>
   </section>
 
@@ -163,6 +157,12 @@
       <input id="ktTurnHints" type="checkbox" role="switch">
     </label>
 
+    <nav class="kt-settings-match" aria-label="対戦メニュー">
+      <a class="kt-bar-link" href="tarot-kingdom-table-rules.html" target="_blank" rel="noopener">ルール</a>
+      <button type="button" id="ktArrange" class="kt-bar-link" aria-pressed="false" aria-controls="ktArrangeActions" hidden>並べ替え</button>
+      <button type="button" id="ktExitCpu" class="kt-bar-link kt-session-exit" hidden>練習を終了</button>
+    </nav>
+
     <p><a href="tarot-kingdom-audio-credits.html" target="_blank" rel="noopener">効果音クレジット</a></p>
   </form>
 </dialog>
@@ -182,6 +182,6 @@
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=prop-fade-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=table-focused-hud-v1"></script>
 </body>
 </html>
