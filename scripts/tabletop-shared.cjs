@@ -10,7 +10,7 @@ const names = [
     'abilityNames', 'ai', 'cardAbility', 'cheerPlan', 'choiceFocus', 'effects',
     'handInspect', 'handOrder', 'match', 'rating', 'roleAccents', 'roleCinematic',
     'roleJuicePlan', 'roleJuiceSound', 'roleRecordKey', 'rules', 'rulesBook',
-    'selectedCardEffect', 'sfxReal', 'tableFeedback', 'tableHost', 'tavernTutorial', 'turnOrder',
+    'ruleProps', 'rulePropMaterials', 'selectedCardEffect', 'sfxReal', 'tableFeedback', 'tableHost', 'tavernTutorial', 'turnOrder',
     'tutorialMode', 'tutorialPicker', 'tutorialQuickCopy', 'tutorialScript',
 ];
 const js = names.map(name => 'js/kingdomTable/' + name + '.js');
@@ -26,14 +26,8 @@ const files = [
     samePath('css/tarot-common-board.css'),
     samePath('css/kt-live-tutorial.css'),
     samePath('assets/tarot-kingdom-table/tavern-v1/chips.webp'),
-    ...props.map(name => ({
-        troy: troyPrefix + 'assets/pirate-tarot/rule-props/' + name + '.webp',
-        sites: sitesPrefix + 'assets/tarot-kingdom-table/rule-props/' + name + '.webp',
-    })),
-    ...foley.map(name => ({
-        troy: troyPrefix + 'assets/tarot-kingdom-table/prop-foley-v1/' + name,
-        sites: sitesPrefix + 'assets/tarot-kingdom-table/rule-prop-foley-v1/' + name,
-    })),
+    ...props.map(name => samePath('assets/tarot-kingdom-table/rule-props/' + name + '.webp')),
+    ...foley.map(name => samePath('assets/tarot-kingdom-table/rule-prop-foley-v1/' + name)),
 ];
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const source = path.resolve(__dirname, '..');

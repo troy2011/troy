@@ -1,3 +1,4 @@
+import { rulePropSoundBase as propSoundBase, rulePropSounds, rulePropSoundKey } from './rulePropMaterials.js';
 import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
 import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdVoices, selectRoundVoice, roundOutTier } from './roleCrowdPreview.js?v=round-score-v1';
@@ -93,12 +94,10 @@ function ready() {
     return enabled && context && context.state === 'running';
 }
 
-const propSoundBase = new URL('../../assets/tarot-kingdom-table/prop-foley-v1/', import.meta.url);
-const rulePropSounds = ['knife','hourglass','mug-coin','mug-sword','mug-wand','mug-cup'];
 export function playRuleProp(kind, suit) {
     if (!activeTable || document.hidden || !ready()) return;
-    const key = kind === 'cut' ? 'knife' : kind === 'back' ? 'hourglass' : kind === 'lock' ? 'mug-' + suit : '';
-    if (rulePropSounds.includes(key)) playRecorded('prop-' + key, 0);
+    const key = rulePropSoundKey(kind, suit);
+    if (key) playRecorded('prop-' + key, 0);
 }
 
 // Plays a named sound `at` seconds from now.

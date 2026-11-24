@@ -9,7 +9,7 @@ window.rulePropFixture = (kind) => {
     const round = match.round;
     const suffix = kind.startsWith("vessel:") ? kind.slice(7) : null;
     if (kind === 'initial' || kind === 'back-off') {
-        if (kind==='initial') { seenEvents=round.events.length; cancelRulePropAnimations($('ktRuleProps'),{reset:true}); Object.assign(round,{cut:false,back:false,lock:null}); render(); return; }
+        if (kind==='initial') { seenEvents=round.events.length; cancelRulePropAnimations($('ktRuleProps')); Object.assign(round,{cut:false,back:false,lock:null}); render(); return; }
         round.back = true;
         Object.assign(round,{phase:'play',turn:ME,lock:null,cut:false,field:{kind:null,count:0,plays:[]}});
         round.players[ME].hand = [card('coin-11'),card('cup-4')];
@@ -31,7 +31,7 @@ window.rulePropFixture = (kind) => {
         render();
         // Simulate restoring a snapshot: settled props must not replay their presentation cues.
         const host = $('ktRuleProps');
-        cancelRulePropAnimations(host, {reset:true});
+        cancelRulePropAnimations(host);
         Object.assign(round, {cut:true,back:true,lock:'coin'});
         render();
         return;
@@ -54,11 +54,11 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=canonical-lesson-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=canonical-props-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
-    await page.route('**/sfx.js?v=prop-fade-v1', route => route.fulfill({
+    await page.route('**/sfx.js?v=canonical-props-v1', route => route.fulfill({
         contentType:'text/javascript',
         body:fs.readFileSync('public/tabletop-v65/js/kingdomTable/sfx.js','utf8')
             .replace('export function playRuleProp(kind, suit) {',

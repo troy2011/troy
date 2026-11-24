@@ -13,13 +13,13 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { animateRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=canonical-board-v1';
+import { flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=canonical-props-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=prop-fade-v1';
+import {animateRole} from './roleJuice.js?v=canonical-props-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=prop-fade-v1';
+import * as Sfx from './sfx.js?v=canonical-props-v1';
 import { Music } from './music.js?v=victory-mix-v1';
 import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
@@ -544,8 +544,7 @@ function renderField() {
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
     fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
-    const fieldCards = host.querySelectorAll('.kt-field-top .kt-card');
-    renderRuleProps($('ktRuleProps'), round, { anchor: fieldCards[Math.floor(fieldCards.length / 2)], motion: Fx.moving() });
+    renderRuleProps($('ktRuleProps'), round, { motion: Fx.moving(), animateNew: true });
     const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
     $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';
@@ -1175,7 +1174,7 @@ function playEffects(events, fieldBefore, feedback) {
                     const ready = arrived || sweepBefore;
                     arrived = Fx.untilPresentationReady(done=>Fx.after(0,ready,()=>{
                         propCue('cut');
-                        const finish = animateRuleProp($('ktRuleProps'), 'cut', {anchor});
+                        const finish = flashRuleProp($('ktRuleProps'), anchor);
                         if (finish) finish.then(done); else done();
                     }));
                 } else Fx.after(0, arrived || sweepBefore, () => { propCue('cut'); });
@@ -1490,7 +1489,7 @@ function leaveTable() {
     liveVictoryRound = null; restoredFinishedRound = null; Sfx.cancelCheers();
     resetDrawFeedback();
     clearTimeout(timer); timer = 0;
-    cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true}); cancelHandDrag();
+    cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps')); cancelHandDrag();
     cpuExitPrompt = false; online.paused = false; closeDialog();
     selected.clear(); match = null; onlineRoundKey = '';
     $('ktOnlinePlayStatus').hidden = true; $('ktExitCpu').hidden = true;
@@ -1500,7 +1499,7 @@ function leaveTable() {
 function requestCpuExit() {
     if (!canExitCpu() || cpuExitPrompt) return;
     cpuExitPrompt = true; online.paused = true;
-    clearTimeout(timer); timer = 0; cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
+    clearTimeout(timer); timer = 0; cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), true);
     const rated = !!online.view;
     const body = [el('p', '', rated
         ? 'CPU全員への敗北としてレートを更新し、この対戦を終了します。退出後は友人の部屋を作成・参加できます。'
@@ -1896,7 +1895,7 @@ function begin(seats) {
     practiceAvatar = getAvatar(null);
     NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
     clearTimeout(timer);
-    Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true});
+    Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), true);
     match = createMatch({ players: seats, rng: makeRng() });
     if (ratingPreview) {
         match.startRating = playerRating;
@@ -2110,7 +2109,7 @@ online.onView = view => {
         // A reload renders the current board; never replay old field sweeps or hold up the CPU.
         const resumed = !onlineRoundKey.startsWith(view.code + ':') && (match.round.phase === 'over' || match.round.events.some(event =>
             ['play', 'pass', 'draw', 'cede', 'exchange', 'trash', 'give', 'deathSwapComplete', 'retrieve'].includes(event.type)));
-        Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true});
+        Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), true);
         resetDrawFeedback();
         onlineRoundKey = roundKey;
         cancelResultPresentation();
@@ -2129,7 +2128,7 @@ if (tutorialChapter !== null) {
     tutorial = createTutorialMode({
         loadMatch: scripted => {
             clearTimeout(timer); timer = 0;
-            Fx.cancelAll(); cancelRulePropAnimations($("ktRuleProps"), {reset:true});
+            Fx.cancelAll(); cancelRulePropAnimations($("ktRuleProps"));
             cancelResultPresentation();
             resetDrawFeedback();
             selected = new Set();

@@ -28,7 +28,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  await page.setViewportSize({width,height});
  await page.emulateMedia({reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/ui.js?v=canonical-lesson-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+ await page.route('**/ui.js?v=canonical-props-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
  await page.goto('/tarot-kingdom-table.html?fast');
  await page.getByRole('button',{name:'CPU練習'}).click();
  await page.locator('input[name=ktSeats][value="3"]').check();
