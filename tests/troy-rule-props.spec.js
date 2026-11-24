@@ -5,11 +5,11 @@ const fixture = `
 window.rulePropFixture = (kind) => {
     const card = id => Rules.buildDeck().find(c => c.id === id);
     const round = match.round;
-    const after = { pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
-    const before = { pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
+    const after = { stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
+    const before = { stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
     Object.assign(round, {
         phase: 'play', turn: ME, last: 1, passed: [], direction: 1, cut: false,
-        back: kind === 'lock', lock: null,
+        back: kind === 'lock' || kind === 'stack', lock: kind === 'stack' ? 'coin' : null,
         field: {kind:'normal',count:kind==='pair'?2:1,plays:[{by:1,cards:kind==='pair'?[card('coin-'+before),card('sword-'+before)]:[card('coin-'+before)]}]}
     });
     round.players[ME].hand = [card('coin-'+after), card('cup-4')];
@@ -78,6 +78,14 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
             if (process.env.TROY_RULE_PREVIEW && motion==='reduce') await page.screenshot({ path: process.env.TEMP+'/TROY-rule-lock-back.png' });
         }
     }
+    await page.evaluate(() => window.rulePropFixture('stack'));
+    await expect(layer.locator('.kt-rule-prop:not(.kt-rule-impact)')).toHaveCount(3);
+    await expect(layer.locator('[data-kind="cut"]:not(.kt-rule-impact) img')).toHaveAttribute('src', /knife-embedded/);
+    await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(1);
+    await expect(page.locator('#ktSeatRight .kt-seat-panel')).toHaveAttribute('data-turn','current');
+    await expect(page.locator('#ktSeatLeft .kt-seat-panel')).toHaveAttribute('data-turn','next');
+    await expect(page.locator('#ktFieldCards .kt-field-top [data-card="coin-8"]')).toBeVisible();
+    expect(await scroll()).toBe(568);
     await page.evaluate(() => window.rulePropFixture('pair'));
     if (motion==='no-preference') await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);

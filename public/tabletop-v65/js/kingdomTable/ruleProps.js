@@ -1,21 +1,21 @@
 // Ornamental witnesses to rule state, never a source of gameplay truth.
-const files = { cut:'knife', lock:'tankard', back:'hourglass-settled' };
+const files = { cut:'knife-embedded', lock:'tankard', back:'hourglass-settled' };
 const base = new URL('../../assets/pirate-tarot/rule-props/', import.meta.url);
 const icons = {
   sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
   wand:'M4 18l12-12m-2-2 4 4M14 8l-4-1',
   cup:'M4 4h12v4a6 6 0 0 1-12 0zM10 14v4m-4 0h8',
-  coin:'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 3 2 7-5-4h6l-5 4z'
+  coin:'M10 2a8 8 0 1 1 0 16 8 8 0 1 1 0-16zm0 2.8 1.8 3.8 4.2.4-3.1 2.9.9 4.1-3.8-2.1-3.8 2.1.9-4.1-3.1-2.9 4.2-.4z'
 };
 
-function prop(kind, assets = base) {
+function prop(kind, assets = base, file = files[kind]) {
   const wrapper = document.createElement('span');
   wrapper.className = 'kt-rule-prop';
   wrapper.dataset.kind = kind;
   const art = document.createElement('img');
   art.alt = '';
   art.draggable = false;
-  art.src = new URL(files[kind]+'.webp', assets).href;
+  art.src = new URL(file+'.webp', assets).href;
   wrapper.append(art);
   return wrapper;
 }
@@ -58,7 +58,7 @@ export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
     const card = anchor.getBoundingClientRect?.() ?? anchor;
     if (!rect.width || !card.width) return null;
     host.querySelector('.kt-rule-impact')?.remove();
-    const impact = prop('cut', assets);
+    const impact = prop('cut', assets, 'knife');
     impact.classList.add('kt-rule-impact');
     impact.style.left = (card.left + card.width * .53 - rect.left) + 'px';
     impact.style.top = (card.top + card.height * .55 - rect.top) + 'px';

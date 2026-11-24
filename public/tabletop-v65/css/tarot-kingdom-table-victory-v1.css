@@ -260,10 +260,10 @@ body {
   border-color: #ffe8a2; box-shadow: 0 0 10px rgb(255 194 76 / 60%), inset 0 0 12px rgb(255 194 76 / 12%);
 }
 [data-turn="current"] {
-  --kt-rim-low: #319d95; --kt-rim-mid: #66ded0; --kt-rim-high: #c9fff6; --kt-rim-halo: #32ffde92;
+  --kt-rim-low: #24f6db; --kt-rim-mid: #7ffff7; --kt-rim-high: #e5fff9; --kt-light-near: #21f7d5e0; --kt-light-far: #07deba90;
 }
 [data-turn="next"] {
-  --kt-rim-low: #be7c40; --kt-rim-mid: #edb56a; --kt-rim-high: #ffe8b2; --kt-rim-halo: #fda33e80;
+  --kt-rim-low: #e99635; --kt-rim-mid: #ffd17d; --kt-rim-high: #fff0cb; --kt-light-near: #ffb14ebd; --kt-light-far: #ff942250;
 }
 .kt-seat-panel[data-turn], .kt-me[data-turn] {
   --kt-rim-light: conic-gradient(from 13deg,
@@ -273,20 +273,20 @@ body {
 }
 .kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before,
 .kt-seat-panel[data-turn]::after, .kt-me[data-turn]::after {
-  content: ""; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none;
+  content: ""; position: absolute; inset: -1.5px; border-radius: inherit; pointer-events: none;
 }
 .kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before {
   border: 1px solid var(--kt-rim-mid); box-shadow: 0 0 5px var(--kt-rim-low);
 }
 @supports (mask-composite: exclude) {
   .kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before {
-    padding: 1px; border: 0; box-shadow: none;
+    padding: 1.5px; border: 0; box-shadow: none;
     background: var(--kt-rim-light);
     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     mask-composite: exclude;
   }
   .kt-seat-panel[data-turn]::after, .kt-me[data-turn]::after {
-    box-shadow: 0 0 5px 1px var(--kt-rim-halo), 0 0 10px var(--kt-rim-halo);
+    inset: -1px; box-shadow: 0 0 5px 2px var(--kt-light-near), 0 0 12px 3px var(--kt-light-far);
   }
 }
 /* One inlaid plaque, not a row of floating notification pills. */
