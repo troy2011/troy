@@ -5,6 +5,7 @@ if (process.env.TROY_MUG_CAPTURE) test.use({deviceScaleFactor:3});
 const fixture = `
 window.rulePropFixture = (kind) => {
     const card = id => Rules.buildDeck().find(c => c.id === id);
+    clearTimeout(timer); timer = 0;
     const round = match.round;
     const suffix = kind.startsWith("vessel:") ? kind.slice(7) : null;
     const after = suffix ? 13 : { alt:13, stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
@@ -25,7 +26,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=table-vessels-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=table-vessels-v2', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));

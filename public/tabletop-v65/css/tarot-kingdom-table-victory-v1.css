@@ -333,8 +333,6 @@ body {
 .kt-field-play[data-field-fan="true"] .kt-card:nth-child(3) { translate: 0 1px; rotate: -2deg; }
 .kt-field-play[data-field-fan="true"] .kt-card:nth-child(4) { translate: 0 -2px; rotate: 3deg; }
 .kt-field-play[data-field-fan="true"] .kt-card:nth-child(5) { translate: 0 3px; rotate: -1deg; }
-.kt-field-role-suit { display: grid; place-items: center; margin-top: 1px; }
-.kt-field-role-suit svg { display: block; width: 8px; height: 8px; fill: none; stroke: currentcolor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .kt-field-past { pointer-events: none; }
 .kt-field-top .kt-card { animation: kt-drop 200ms ease-out both; }
 .kt-field-cards .kt-card.is-arriving { visibility: hidden; }

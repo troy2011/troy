@@ -28,7 +28,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  await page.setViewportSize({width,height});
  await page.emulateMedia({reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/ui.js?v=table-vessels-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+ await page.route('**/ui.js?v=table-vessels-v2',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
  await page.goto('/tarot-kingdom-table.html?fast');
  await page.getByRole('button',{name:'CPU練習'}).click();
  await page.locator('input[name=ktSeats][value="3"]').check();
@@ -50,7 +50,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  const projection=async name=>{
    if(process.env.TROY_DEPTH_CAPTURE && width===320) {
      await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
-     await page.screenshot({path:process.env.TEMP+'/TROY-depth-'+name+'-DPR3.png'});
+     await page.screenshot({path:process.env.TEMP+'/TROY-depth-no-added-suit-'+name+'-DPR3.png'});
    }
  };
  await projection('single');
@@ -59,7 +59,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  await expect(upper).toHaveAttribute('data-field-fan','true');
  const cards=upper.locator('.kt-card');
  await expect(cards).toHaveCount(5);
- await expect(upper.locator('.kt-field-role-suit svg')).toHaveCount(5);
+ await expect(upper.locator('.kt-field-role-suit svg')).toHaveCount(0);
  expect(await cards.evaluateAll(nodes=>nodes.every(n=>n.offsetWidth===nodes[0].offsetWidth) && nodes[0].offsetWidth>0)).toBe(true);
  expect(await cards.first().evaluate(n=>n.offsetWidth)).toBe(nominal);
  const ranks=await cards.evaluateAll(nodes=>nodes.map((node,i)=>{

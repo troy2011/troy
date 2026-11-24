@@ -21,7 +21,7 @@ function prop(kind, assets = base, file = files[kind]) {
   return wrapper;
 }
 
-export function makeSuit(suit) {
+function makeSuit(suit) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.dataset.suit = suit;
