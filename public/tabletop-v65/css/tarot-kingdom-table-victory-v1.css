@@ -259,41 +259,35 @@ body {
 .kt-seat.is-turn .kt-seat-panel:not([data-turn]), .kt-me.is-turn:not([data-turn]) {
   border-color: #ffe8a2; box-shadow: 0 0 10px rgb(255 194 76 / 60%), inset 0 0 12px rgb(255 194 76 / 12%);
 }
+[data-turn="current"] {
+  --kt-rim-low: #319d95; --kt-rim-mid: #66ded0; --kt-rim-high: #c9fff6; --kt-rim-halo: #32ffde92;
+}
+[data-turn="next"] {
+  --kt-rim-low: #be7c40; --kt-rim-mid: #edb56a; --kt-rim-high: #ffe8b2; --kt-rim-halo: #fda33e80;
+}
+.kt-seat-panel[data-turn], .kt-me[data-turn] {
+  --kt-rim-light: conic-gradient(from 13deg,
+    var(--kt-rim-high) 0deg, var(--kt-rim-mid) 46deg, var(--kt-rim-low) 103deg, var(--kt-rim-mid) 143deg,
+    var(--kt-rim-high) 173deg, var(--kt-rim-mid) 220deg, var(--kt-rim-low) 278deg, var(--kt-rim-mid) 322deg,
+    var(--kt-rim-high) 360deg);
+}
 .kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before,
 .kt-seat-panel[data-turn]::after, .kt-me[data-turn]::after {
-  content: ""; position: absolute; display: block; pointer-events: none;
+  content: ""; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none;
 }
-[data-turn="current"]::before {
-  inset: -3px;
-  border: 1px solid #48e7d682;
-  border-radius: inherit;
-  box-shadow: 0 0 5px #27cbbb4f, inset 0 0 4px #52e4db37;
+.kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before {
+  border: 1px solid var(--kt-rim-mid); box-shadow: 0 0 5px var(--kt-rim-low);
 }
-@supports (offset-path: inset(0 round 5px)) {
-  #ktTable:not(.is-quiet-effects) [data-turn="current"]::after {
-    top: 0; left: 0; width: 44px; height: 16px; border-radius: 50%;
-    background: radial-gradient(ellipse at center, #ebfffc 4%, #74fff1e6 24%, #20e4d798 48%, transparent 76%);
-    offset-path: inset(0 round 5px);
-    offset-anchor: center;
-    offset-rotate: auto;
-    animation: kt-current-light-lap 3.1s linear infinite;
+@supports (mask-composite: exclude) {
+  .kt-seat-panel[data-turn]::before, .kt-me[data-turn]::before {
+    padding: 1px; border: 0; box-shadow: none;
+    background: var(--kt-rim-light);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
   }
-}
-@keyframes kt-current-light-lap {
-  from { offset-distance: 0%; }
-  to { offset-distance: 100%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #ktTable:not(.is-quiet-effects) [data-turn="current"]::after { display: none; animation: none; }
-}
-[data-turn="next"]::before {
-  bottom: 100%; inset-inline: -2px; height: 47px;
-  background: radial-gradient(ellipse 66% 90% at 53% 100%, #ffb84085, #e6853a36 54%, transparent 89%);
-}
-[data-turn="next"]::after {
-  inset-inline: 7%; top: -1px; height: 2px; border-radius: 50%;
-  background: linear-gradient(90deg, transparent, #ffa83a77 22%, #ffdf9c 52%, #ffb95390 80%, transparent);
-  filter: drop-shadow(0 0 4px #e89744);
+  .kt-seat-panel[data-turn]::after, .kt-me[data-turn]::after {
+    box-shadow: 0 0 5px 1px var(--kt-rim-halo), 0 0 10px var(--kt-rim-halo);
+  }
 }
 /* One inlaid plaque, not a row of floating notification pills. */
 .kt-field-state {
