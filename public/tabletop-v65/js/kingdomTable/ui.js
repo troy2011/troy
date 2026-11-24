@@ -6,8 +6,8 @@ import { choiceFocusState, renderChoiceFocus } from './choiceFocus.js?v=quiet-ab
 import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-v1';
 import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=turn-layout-v1';
-import { roleName, roleHan } from './rules.js?v=turn-layout-v1';
+import * as Rules from './rules.js?v=table-shared-core-v1';
+import { roleName, roleHan } from './rules.js?v=table-shared-core-v1';
 import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=sites-death-devil-v1';
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
@@ -24,7 +24,8 @@ import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
-import { online, send, sendAction, returnToLobby, waitForCpuPresentation } from './localTable.js';
+import * as tableHostAdapter from './localTable.js?v=table-host-v1';
+import { resolveTableHost } from './tableHost.js?v=table-host-v1';
 import { getAvatar, avatarImage, createLocalAvatar, fitOpponentFanWidth, avatarGripClip } from './avatarArt.js?v=roster-kraken-ink-v1';
 import { openingRoleName } from './roleRecordKey.js?v=piece-of-eight-v1';
 
@@ -66,6 +67,9 @@ const LEGEND_HAN = 10;
 // Pirate Tarot artwork, as served for the rest of the app (same version and delivery revision, so the cache is shared).
 const ART_QUERY = `?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=20261025`;
 import {selectedCardEffect} from './selectedCardEffect.js?v=pirate-ability-v1';
+
+const { online, send, sendAction, returnToLobby, waitForCpuPresentation } =
+    resolveTableHost(document.documentElement.dataset.tabletopHost, tableHostAdapter);
 
 const ART_SUIT = { wand: 'wand', sword: 'sword', cup: 'cup', coin: 'pentacle' };
 const ART_FACE = { 11: 'page', 12: 'knight', 13: 'queen', 14: 'king', 15: '1' };

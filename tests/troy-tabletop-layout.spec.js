@@ -36,7 +36,7 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=canonical-board-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=table-host-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -46,7 +46,7 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
   await expect(page.locator('#ktTable')).toBeVisible();
   await page.evaluate(()=>window.turnLayoutFixture('reason'));
   await page.locator('#ktHand [data-card="major-13"]').click();
-  await expect(page.locator('#ktMessage')).toContainText('この大札では小札Aに返せません（コインは大札18）。');
+  await expect(page.locator('#ktMessage')).toContainText('この大札では小札Aに返せません（ペンタクルは大札18）。');
   await expect(page.locator('#ktMessage')).not.toContainText('悪魔');
   await expect(page.locator('.kt-your-turn-flag')).toHaveCount(0);
   await expect(page.locator('#ktTurnOrder')).toContainText('手番：あなた');
@@ -128,7 +128,7 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
 test('both turns light the whole unchanged frame without moving or intercepting taps',async({page})=>{
   await page.setViewportSize({width:320,height:568});
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.route('**/ui.js?v=canonical-board-v1',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+  await page.route('**/ui.js?v=table-host-v1',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
   await page.goto('/tarot-kingdom-table.html');
   await page.getByRole('button',{name:'CPU練習'}).click();
   await page.locator('input[name=ktSeats][value="3"]').check();

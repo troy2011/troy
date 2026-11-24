@@ -17,7 +17,7 @@
 .kt-bar-link:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 
 .kt-settings-button { min-inline-size: 44px; cursor: pointer; }
-.kt-online-play-status { position: relative; z-index: 6; margin: 0; padding: 2px 4px; border-radius: 3px; background: #1c1511; color: #ffe0a0; font-size: 11px; line-height: 1.4; }
+.kt-online-play-status { position: relative; z-index: 6; margin: 0; padding: 2px 4px; border-radius: 3px; background: #1c1511; color: #ffe0a0; font-size: 11px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kt-online-play-status:empty { display: none; }
 .kt-settings-match { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 12px 14px 0; }
 .kt-settings-match .kt-bar-link { min-block-size: 40px; padding-inline: 10px; cursor: pointer; }
