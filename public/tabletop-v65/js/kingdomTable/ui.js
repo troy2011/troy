@@ -12,13 +12,13 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { animateRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-vessels-v2';
+import { animateRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=prop-fade-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=cheer-tail-v1';
+import {animateRole} from './roleJuice.js?v=prop-fade-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=cheer-tail-v1';
+import * as Sfx from './sfx.js?v=prop-fade-v1';
 import { Music } from './music.js?v=victory-mix-v1';
 import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
@@ -114,6 +114,7 @@ let hint = '';
 let acquisition = null;
 let turnFeedback = null;
 let feedbackGeneration = 0;
+let propVisibilityGeneration = 0;
 let fieldKey = '';
 let zoomTrigger = null;
 let inspectTrigger = null;
@@ -536,7 +537,7 @@ function renderField() {
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
     fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
-    renderRuleProps($('ktRuleProps'), round, { anchor: host.querySelector('.kt-field-top .kt-card') });
+    renderRuleProps($('ktRuleProps'), round, { anchor: host.querySelector('.kt-field-top .kt-card'), motion: Fx.moving() });
     const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
     $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';
@@ -650,6 +651,7 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
     const drawNotice = !arranging && !selected.size && drawn;
     $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : drawNotice ? `${acquiredCardLabel()}：${cardName(drawn)}` : myTurn ? (choosing ? 'タップで選択・長押しで詳細' : 'タップして選択') : '相手の手番';
     $('ktSelection').classList.toggle('kt-draw-notice', !!drawNotice);
+    $('ktSelection').classList.toggle('is-turn-note', !myTurn && !arranging && !selected.size && !drawNotice);
     $('ktArrange').textContent = arranging ? '並べ替え完了' : '並べ替え';
     $('ktArrange').setAttribute('aria-pressed', String(arranging));
     $('ktArrange').disabled = round.phase === 'over' || round.phase === 'retrieve' || ferrying || giving;
@@ -1079,6 +1081,12 @@ function ruleImpactAnchor(events, event, floating) {
 
 function playEffects(events, fieldBefore, feedback) {
     if (!events.length || !Fx.active()) return 0;
+    const propGeneration = feedbackGeneration;
+    const incomingPropsAudible = !document.hidden;
+    const visibility = propVisibilityGeneration;
+    const propCue = (kind, suit) => {
+        if (incomingPropsAudible && visibility === propVisibilityGeneration && propGeneration === feedbackGeneration && match && Fx.active()) Sfx.playRuleProp(kind, suit);
+    };
     const round = match.round;
     const floating = [];
     let at = 0;
@@ -1147,16 +1155,18 @@ function playEffects(events, fieldBefore, feedback) {
             const named = namedConsequence(events, event);
             if (named?.announce) Fx.after(0, arrived || sweepBefore,
                 () => Fx.stamp(named.label, stampPoint(), 'gold', {ruleCue:true, compact:true}));
-            if (Fx.moving()) {
-                const cause = events.slice(0, events.indexOf(event)).findLast(c=>abilityEventBoundary.has(c.type));
-                if (cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8)) {
+            const cause = events.slice(0, events.indexOf(event)).findLast(c=>abilityEventBoundary.has(c.type));
+            const multiCut = cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8);
+            if (multiCut && !events.slice(events.indexOf(cause)+1, events.indexOf(event)).some(entry=>entry.type === 'cut')) {
+                if (Fx.moving()) {
                     const anchor = ruleImpactAnchor(events, event, floating);
                     const ready = arrived || sweepBefore;
                     arrived = Fx.untilPresentationReady(done=>Fx.after(0,ready,()=>{
+                        propCue('cut');
                         const finish = animateRuleProp($('ktRuleProps'), 'cut', {anchor});
                         if (finish) finish.then(done); else done();
                     }));
-                }
+                } else Fx.after(0, arrived || sweepBefore, () => { propCue('cut'); });
             }
             const leaving = [...fieldBefore.filter(({ node }) => !floating.some((f) => f.node.dataset.card === node.dataset.card)), ...floating];
             fieldBefore = [];
@@ -1252,15 +1262,14 @@ function playEffects(events, fieldBefore, feedback) {
             const stamp = STAMPS[event.type];
             if (!stamp) break;
             const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?'11バック解除':event.type==='reset'?ABILITY.clearance:stamp[0];
-            const impactAnchor = event.type === 'cut' ? ruleImpactAnchor(events, event, floating) : null;
             const display=onDone=>{
                 const named = ['cut','back','reverse','reset'].includes(event.type) && namedConsequence(events, event);
                 const propKind = ['cut','lock','back'].includes(event.type) ? event.type : null;
-                if (propKind && Fx.moving()) animateRuleProp($('ktRuleProps'), propKind, { anchor:impactAnchor });
+                if (propKind && event.on !== false) propCue(propKind, event.suit);
                 if ((propKind && !named?.announce) || named?.announce === false || (event.type === 'deathSwapStart' && event.devil && round.phase === 'deathSwap')) {
                     if (onDone) Fx.later(380, onDone);
                 } else Fx.stamp(named?.label || label,stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
-                Sfx.play(stamp[2]);
+                if (!propKind && event.type !== 'unlock') Sfx.play(stamp[2]);
             };
             const dependencies=arrived&&sweepBefore?Promise.all([arrived,sweepBefore]):arrived||sweepBefore;
             if(Fx.moving()){
@@ -1393,7 +1402,9 @@ function victoryMovie(avatar, still, startBgm) {
 
 function pauseVictoryMovie() { $('ktDialogBody').querySelector('.kt-victory-player')?.pause(); }
 window.addEventListener('pagehide', pauseVictoryMovie);
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseVictoryMovie(); });
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { propVisibilityGeneration++; pauseVictoryMovie(); }
+});
 
 function closeDialog() {
     pauseVictoryMovie();
@@ -1467,7 +1478,7 @@ function leaveTable() {
     liveVictoryRound = null; restoredFinishedRound = null; Sfx.cancelCheers();
     resetDrawFeedback();
     clearTimeout(timer); timer = 0;
-    cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps')); cancelHandDrag();
+    cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true}); cancelHandDrag();
     cpuExitPrompt = false; online.paused = false; closeDialog();
     selected.clear(); match = null; onlineRoundKey = '';
     $('ktSessionControls').hidden = true; $('ktExitCpu').hidden = true;
@@ -1873,7 +1884,7 @@ function begin(seats) {
     practiceAvatar = getAvatar(null);
     NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
     clearTimeout(timer);
-    Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
+    Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true});
     match = createMatch({ players: seats, rng: makeRng() });
     if (ratingPreview) {
         match.startRating = playerRating;
@@ -2070,7 +2081,7 @@ online.onView = view => {
         // A reload renders the current board; never replay old field sweeps or hold up the CPU.
         const resumed = !onlineRoundKey.startsWith(view.code + ':') && (match.round.phase === 'over' || match.round.events.some(event =>
             ['play', 'pass', 'draw', 'cede', 'exchange', 'trash', 'give', 'deathSwapComplete', 'retrieve'].includes(event.type)));
-        Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'));
+        Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), {reset:true});
         resetDrawFeedback();
         onlineRoundKey = roundKey;
         cancelResultPresentation();

@@ -426,10 +426,11 @@ body {
 .kt-player-rating { color: var(--kt-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
 .kt-me strong { flex: none; min-width: 3em; white-space: nowrap; font-family: var(--kt-serif); font-size: 16px; }
 
-.kt-hand-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 8px; color: var(--kt-ink); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #1a0c07; }
+.kt-hand-header { position: relative; height: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; color: var(--kt-ink); font-size: 11px; text-shadow: 0 1px 3px #000, 0 0 5px #1a0c07; }
 .kt-draw-notice { color: #fff2d8; font-weight: 700; text-align: center; }
-.kt-hand-header strong { margin-left: 4px; color: var(--kt-ink); font-weight: 500; }
-.kt-hand-arrange { flex: none; min-height: 32px; padding: 4px 8px; border: 1px solid #c6954e; border-radius: 5px; color: var(--kt-ink); background: #302016; font: inherit; cursor: pointer; }
+.kt-hand-count-sr, #ktSelection.is-turn-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#ktSelection:not(.is-turn-note) { padding-inline-end: 70px; }
+.kt-hand-arrange { position: absolute; z-index: 3; inset-inline-end: 8px; inset-block-start: 0; flex: none; min-height: 32px; padding: 4px 8px; border: 1px solid #c6954e; border-radius: 5px; color: var(--kt-ink); background: #302016; font: inherit; cursor: pointer; }
 .kt-hand-arrange[aria-pressed="true"] { color: #291407; background: var(--kt-gold); }
 .kt-hand-arrange:disabled { opacity: 0.55; cursor: default; }
 .kt-hand {

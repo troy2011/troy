@@ -1,6 +1,6 @@
 // Ornamental witnesses to rule state, never a source of gameplay truth.
-const files = { cut:'knife-reference', lock:'tankard', back:'hourglass-reference' };
-const tankardFiles = { coin:'tankard-coin.webp', sword:'tankard-sword.webp', wand:'tankard-wand.webp', cup:'tankard-cup.webp' };
+const files = { cut:'knife-reference-shadow', lock:'tankard-shadow', back:'hourglass-reference-shadow' };
+const tankardFiles = { coin:'tankard-coin-shadow.webp', sword:'tankard-sword-shadow.webp', wand:'tankard-wand-shadow.webp', cup:'tankard-cup-shadow.webp' };
 const base = new URL('../../assets/pirate-tarot/rule-props/', import.meta.url);
 const icons = {
   sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
@@ -33,6 +33,9 @@ function makeSuit(suit) {
 }
 
 const cutContactTracks = new WeakMap();
+const renderedHosts = new WeakSet();
+const fadeIn = 180, fadeOut = 160;
+const opacity = (node,frames,options) => node.animate(frames.map(value=>({opacity:value})), options);
 function trackCutContact(host, knife, anchor) {
   const prior = cutContactTracks.get(host);
   if (prior?.knife === knife && prior.anchor === anchor) { prior.update(); return; }
@@ -58,84 +61,86 @@ function trackCutContact(host, knife, anchor) {
   update();
 }
 
-export function renderRuleProps(host, round, { assets = base, anchor } = {}) {
+export function renderRuleProps(host, round, { assets = base, anchor, motion = false } = {}) {
+  const fade = motion && !document.hidden && renderedHosts.has(host);
+  renderedHosts.add(host);
   const suits = (Array.isArray(round.lock) ? round.lock : [round.lock]).filter(suit => Object.hasOwn(icons, suit));
   const active = !['over','waiting'].includes(round.phase);
+  const wide = (anchor?.parentElement?.querySelectorAll('.kt-card').length ?? 0) >= 3;
   const targets = { cut:active && !!round.cut, lock:active && suits.length > 0, back:active && !!round.back };
   for (const [kind,on] of Object.entries(targets)) {
     let node = host.querySelector('.kt-rule-prop[data-kind="'+kind+'"]:not(.kt-rule-impact)');
-    if (!on) { node?.remove(); continue; }
-    if (!node) { node = prop(kind, assets); host.append(node); }
+    if (!on) {
+      if (node && !fade) node.remove();
+      else if (node && !node.hasAttribute('data-leaving')) {
+        const visible = Number(getComputedStyle(node).opacity);
+        for (const running of node.getAnimations()) running.cancel();
+        node.setAttribute('data-leaving', '');
+        opacity(node,[visible,0],{duration:fadeOut,fill:'forwards'}).finished
+          .then(() => node.remove(), () => {});
+      }
+      continue;
+    }
+    const entering = !node;
+    if (!node) {
+      node = prop(kind, assets); host.append(node);
+    } else if (node.hasAttribute('data-leaving')) {
+      const visible = Number(getComputedStyle(node).opacity);
+      for (const running of node.getAnimations()) running.cancel();
+      node.removeAttribute('data-leaving');
+      if (fade) opacity(node,[visible,1],{duration:fadeIn});
+    }
+    node.toggleAttribute('data-wide-field', wide);
     if (kind === 'lock' && node.dataset.suits !== suits.join(',')) {
       node.dataset.suits = suits.join(',');
       const vessel = suits.length === 1 ? suits[0] : 'mixed';
       node.dataset.vessel = vessel;
       node.toggleAttribute('data-exact-emblem', vessel !== 'mixed');
-      node.querySelector('img').src = new URL(tankardFiles[vessel] || 'tankard.webp', assets).href;
+      node.querySelector('img').src = new URL(tankardFiles[vessel] || 'tankard-shadow.webp', assets).href;
       const plaque = document.createElement('span');
       plaque.className = 'kt-rule-suits';
       plaque.append(...suits.map(makeSuit));
       node.querySelector('.kt-rule-suits')?.remove();
       node.append(plaque);
     }
+    if (entering && fade) {
+      const animation = opacity(node,[0,1],{duration:fadeIn,fill:'backwards'});
+      const art = node.querySelector('img');
+      if (!art.complete) {
+        animation.pause(); animation.currentTime = 0;
+        art.decode().catch(() => {}).then(() => {
+          if (animation.playState === 'paused') animation.play();
+        });
+      }
+    }
   }
-  trackCutContact(host, host.querySelector('.kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact)'), anchor);
+  trackCutContact(host, host.querySelector('.kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact):not([data-leaving])'), anchor);
 }
 
-// Called after the causative card lands. Restored state never calls this path.
+// Multi-eight immediately clears the real field; a stationary knife can still briefly witness it.
 export function animateRuleProp(host, kind, { anchor, assets = base } = {}) {
-  if (kind === 'cut') {
-    if (!anchor) return null;
-    const rect = host.getBoundingClientRect();
-    const card = anchor.getBoundingClientRect?.() ?? anchor;
-    if (!rect.width || !card.width) return null;
-    host.querySelector('.kt-rule-impact')?.remove();
-    const impact = prop('cut', assets);
-    impact.classList.add('kt-rule-impact');
-    impact.style.left = (card.left + card.width * .53 - rect.left) + 'px';
-    impact.style.top = (card.top + card.height * .55 - rect.top) + 'px';
-    host.append(impact);
-    const impactDone = impact.animate([
-      { opacity:0, transform:'translate(-12%, -165%) rotate(29deg) scale(1.13)', offset:0 },
-      { opacity:1, transform:'translate(-12%, -96%) rotate(10deg) scale(.98)', offset:.26 },
-      { opacity:1, transform:'translate(-12%, -100%) rotate(13deg)', offset:.76 },
-      { opacity:0, transform:'translate(-12%, -100%) rotate(13deg)', offset:1 }
-    ], {duration:525, easing:'ease-out'});
-    return impactDone.finished.catch(() => {}).finally(() => impact.remove());
-  }
-  const art = host.querySelector('.kt-rule-prop[data-kind="'+kind+'"] > img');
-  if (!art) return null;
-  for (const running of art.getAnimations()) running.cancel();
-  if (kind === 'back') {
-    const wrap = art.parentElement;
-    wrap.querySelector('.kt-hourglass-flip')?.remove();
-    const flip = art.cloneNode(false);
-    flip.className = 'kt-hourglass-flip';
-    flip.src = new URL('hourglass-before.webp', assets).href;
-    wrap.append(flip);
-    // Only the frame turns. A separate image shows the settled sand under gravity.
-    return flip.decode().then(() => {
-      if (!flip.isConnected) return;
-      const options = { duration:475, easing:'ease-in-out' };
-      const turning = flip.animate([
-        { opacity:1, transform:'rotate(0deg)' },
-        { opacity:1, transform:'rotate(180deg)' }
-      ], options);
-      const reveal = art.animate([{opacity:0},{opacity:0}], options);
-      return Promise.allSettled([turning.finished, reveal.finished]);
-    }).catch(() => {}).finally(() => flip.remove());
-  }
-  const frames = [
-    {opacity:.2,transform:'translateY(-32%)'},
-    {opacity:1,transform:'translateY(5%)',offset:.72},
-    {opacity:1,transform:'translateY(0)'}
-  ];
-  return art.animate(frames,{ duration:350, easing:'ease-out' }).finished.catch(() => {});
+  if (kind !== 'cut' || !anchor || document.hidden) return null;
+  const rect = host.getBoundingClientRect();
+  const card = anchor.getBoundingClientRect?.() ?? anchor;
+  if (!rect.width || !card.width) return null;
+  host.querySelector('.kt-rule-impact')?.remove();
+  const knife = prop('cut', assets);
+  knife.classList.add('kt-rule-impact');
+  knife.dataset.cutContact = '';
+  knife.style.left = (card.left + card.width * .40 - rect.left) + 'px';
+  knife.style.top = (card.top + card.height * .71 - rect.top) + 'px';
+  host.append(knife);
+  const duration = fadeIn + 160 + fadeOut;
+  return knife.animate([
+    {opacity:0,offset:0}, {opacity:1,offset:fadeIn/duration},
+    {opacity:1,offset:1-fadeOut/duration}, {opacity:0,offset:1}
+  ], {duration,fill:'both'}).finished.catch(() => {}).finally(() => knife.remove());
 }
 
-export function cancelRulePropAnimations(host) {
+export function cancelRulePropAnimations(host, { reset = false } = {}) {
   cutContactTracks.get(host)?.stop();
   cutContactTracks.delete(host);
   for (const animation of host.getAnimations({subtree:true})) animation.cancel();
-  for (const node of host.querySelectorAll('.kt-rule-impact, .kt-hourglass-flip')) node.remove();
+  for (const node of host.querySelectorAll('.kt-rule-impact, [data-leaving]')) node.remove();
+  if (reset) { renderedHosts.delete(host); host.replaceChildren(); }
 }

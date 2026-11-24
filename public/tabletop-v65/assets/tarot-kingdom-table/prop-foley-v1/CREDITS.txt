@@ -1,0 +1,11 @@
+Sources for these six trimmed, leveled tabletop Foley cues.
+
+AHTu20 — Medieval Tavern SFX Pack
+https://ahtu20.itch.io/medieval-tavern-sfx-pack
+Included README: allowed in commercial and non-commercial games, videos and other projects. Do not resell or distribute sounds as a sound pack/library. AI-generated with Stable Audio and edited by the author.
+
+Leohpaz with Krishna Palacio — Minifantasy - Weapons SFX Pack
+https://leohpaz.itch.io/minifantasy-weapons-sfx-pack
+Included Licensing.txt: personal/commercial project use permitted. Do not sell or distribute the asset pack; attribution not mandatory.
+
+Exact individual source paths and hashes: tracks.json. Mug sound assignments are material-inspired proxies, not four certified live material recordings.

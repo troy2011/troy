@@ -81,6 +81,7 @@ export function unlock() {
             void loadCheerAssets(context);
             if (crowdPreviewActive) void loadPreviewCrowd(context);
             void loadImpactAssets(context);
+            for (const file of rulePropSounds) void loadCueAsset(context, propSoundBase, "prop-" + file, file + ".mp3");
             void loadCueAsset(context, new URL('../../assets/tarot-kingdom-table/turn-pass-v1/', import.meta.url), 'self-turn', 'self-turn.mp3');
         }
         if (context.state === 'suspended') void context.resume().then(syncAmbience).catch(() => {});
@@ -90,6 +91,14 @@ export function unlock() {
 
 function ready() {
     return enabled && context && context.state === 'running';
+}
+
+const propSoundBase = new URL('../../assets/tarot-kingdom-table/prop-foley-v1/', import.meta.url);
+const rulePropSounds = ['knife','hourglass','mug-coin','mug-sword','mug-wand','mug-cup'];
+export function playRuleProp(kind, suit) {
+    if (!activeTable || document.hidden || !ready()) return;
+    const key = kind === 'cut' ? 'knife' : kind === 'back' ? 'hourglass' : kind === 'lock' ? 'mug-' + suit : '';
+    if (rulePropSounds.includes(key)) playRecorded('prop-' + key, 0);
 }
 
 // Plays a named sound `at` seconds from now.

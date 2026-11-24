@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
-if (process.env.TROY_MUG_CAPTURE) test.use({deviceScaleFactor:3});
+if (process.env.TROY_MUG_CAPTURE || process.env.TROY_TRIPLE_CAPTURE) test.use({deviceScaleFactor:3});
 
 const fixture = `
 window.rulePropFixture = (kind) => {
@@ -8,6 +8,32 @@ window.rulePropFixture = (kind) => {
     clearTimeout(timer); timer = 0;
     const round = match.round;
     const suffix = kind.startsWith("vessel:") ? kind.slice(7) : null;
+    if (kind === 'initial' || kind === 'back-off') {
+        if (kind==='initial') { seenEvents=round.events.length; cancelRulePropAnimations($('ktRuleProps'),{reset:true}); Object.assign(round,{cut:false,back:false,lock:null}); render(); return; }
+        round.back = true;
+        Object.assign(round,{phase:'play',turn:ME,lock:null,cut:false,field:{kind:null,count:0,plays:[]}});
+        round.players[ME].hand = [card('coin-11'),card('cup-4')];
+        if (!Rules.play(round, ME, ['coin-11'], 'normal').ok) throw Error('Illegal 11 back-off setup');
+        render(); return;
+    }
+    if (kind === 'triple-preview') {
+        seenEvents = round.events.length;
+        Object.assign(round, {phase:'play', turn:ME, last:1, passed:[], direction:1,cut:true,back:true,lock:'coin',
+            field:{kind:'normal',count:3,plays:[{by:1,cards:['coin-8','cup-8','wand-8'].map(card)}]}});
+        render();
+        return;
+    }
+    if (kind === 'conceal') {
+        seenEvents = round.events.length;
+        Object.assign(round, {cut:false,back:false,lock:null});
+        render();
+        // Simulate restoring a snapshot: settled props must not replay their presentation cues.
+        const host = $('ktRuleProps');
+        cancelRulePropAnimations(host, {reset:true});
+        Object.assign(round, {cut:true,back:true,lock:'coin'});
+        render();
+        return;
+    }
     const after = suffix ? 13 : { alt:13, stack:8, pair:8, cut: 8, back: 11, lock: 13, clear: 7 }[kind];
     const before = suffix ? 14 : { alt:14, stack:13, pair:7, cut: 7, back: 10, lock: 14, clear: 6 }[kind];
     const suit = suffix ? suffix + "-" : kind === "alt" ? "sword-" : "coin-";
@@ -26,20 +52,31 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=table-vessels-v2', route => route.fulfill({
+    await page.route('**/ui.js?v=prop-fade-v1', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
+    }));
+    await page.route('**/sfx.js?v=prop-fade-v1', route => route.fulfill({
+        contentType:'text/javascript',
+        body:fs.readFileSync('public/tabletop-v65/js/kingdomTable/sfx.js','utf8')
+            .replace('export function playRuleProp(kind, suit) {',
+                'export function playRuleProp(kind, suit) { (window.propCueLog ??= []).push([kind,suit ?? null]);')
     }));
     await page.goto('/tarot-kingdom-table.html?v=65');
     await page.getByRole('button',{ name:'CPU練習' }).click();
     await page.locator('input[name=ktSeats][value="3"]').check();
     await page.locator('#ktStart').click();
     await expect(page.locator('#ktTable')).toBeVisible();
+    await page.evaluate(() => window.rulePropFixture('initial'));
     const layer = page.locator('#ktRuleProps');
     const scroll = () => page.evaluate(() => document.scrollingElement.scrollHeight);
     const controls = await page.locator('#ktActions').boundingBox();
     for (const kind of ['cut','back','lock']) {
-        await page.evaluate(flag => window.rulePropFixture(flag), kind);
+        const frames = await page.evaluate(flag => {
+            window.rulePropFixture(flag);
+            return document.querySelector('#ktRuleProps [data-kind="'+flag+'"]')?.getAnimations()[0]?.effect.getKeyframes() ?? [];
+        }, kind);
+        await expect(layer.locator('[data-leaving]')).toHaveCount(0);
         await expect(layer).toBeVisible();
         await expect(layer).toHaveAttribute('aria-hidden','true');
         await expect(layer.locator('img').first()).toBeVisible();
@@ -47,26 +84,15 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
         expect(await layer.evaluate(n => getComputedStyle(n).pointerEvents)).toBe('none');
         expect(await scroll()).toBe(568);
         expect(await page.locator('#ktActions').boundingBox()).toEqual(controls);
-        if (kind==='cut' && motion==='no-preference') {
-            const impact = layer.locator('.kt-rule-impact');
-            await expect(impact).toHaveCount(1);
-            if (process.env.TROY_RULE_PREVIEW) {
-                await impact.evaluate(node => { const [animation] = node.getAnimations(); animation.pause(); animation.currentTime = 250; });
-                await page.screenshot({ path: process.env.TEMP+'/TROY-rule-cut.png' });
-                await impact.evaluate(node => node.getAnimations()[0]?.play());
-            }
-            await expect(impact).toHaveCount(0);
-        }
-        if (kind==='back' && motion==='no-preference') {
-            const flip = layer.locator('.kt-hourglass-flip');
-            await expect(flip).toHaveCount(1);
-            await expect(flip).toHaveAttribute("src", /hourglass-before\.webp$/);
-            await expect.poll(() => flip.evaluate(node=>node.getAnimations()[0]?.effect.getKeyframes().at(-1).transform)).toContain('180deg');
-            await expect(flip).toHaveCount(0);
+        if (kind!=='lock') {
+            if (motion==='no-preference') {
+                expect(frames.map(frame=>frame.opacity)).toEqual(['0','1']);
+                expect(frames.every(frame=>frame.transform===undefined)).toBe(true);
+            } else expect(frames).toEqual([]);
         }
         if (kind === 'back' || kind === 'lock') {
             const glass = layer.locator('[data-kind="back"] img:not(.kt-hourglass-flip)');
-            await expect(glass).toHaveAttribute('src', /hourglass-reference\.webp$/);
+            await expect(glass).toHaveAttribute('src', /hourglass-reference-shadow\.webp$/);
             expect(await glass.evaluate(node=>getComputedStyle(node).transform)).toBe('none');
         }
         if (motion==='reduce') {
@@ -103,9 +129,9 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
         await page.evaluate(s=>window.rulePropFixture('vessel:'+s),suit);
         const mug=layer.locator('[data-kind="lock"]');
         await expect(mug).toHaveAttribute('data-vessel',suit);
-        await expect(mug.locator('img')).toHaveAttribute('src',new RegExp('tankard-'+suit+'[.]webp'));
+        await expect(mug.locator('img')).toHaveAttribute('src',new RegExp('tankard-'+suit+'-shadow[.]webp'));
         await expect.poll(()=>mug.locator('img').evaluate(n=>n.complete && n.naturalWidth>0)).toBe(true);
-        expect(await mug.evaluate(n=>getComputedStyle(n,'::before').backgroundImage)).toContain('radial-gradient');
+        expect(await mug.locator('img').evaluate(n=>n.naturalWidth>n.parentNode.offsetWidth && getComputedStyle(n).filter==='none')).toBe(true);
         await expect(mug.locator('svg[data-suit="'+suit+'"]')).toHaveCount(1);
         await expect(mug.locator('.kt-rule-suits')).toBeHidden();
         if (process.env.TROY_MUG_CAPTURE && motion==='reduce') {
@@ -113,10 +139,34 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
             await page.screenshot({path:process.env.TEMP+'/TROY-live-vessel-'+suit+'-DPR3.png'});
         }
     }
+    await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(row=>row[0]==='lock').map(row=>row[1]) ?? [])).toEqual(['coin','coin','cup','sword','wand']);
+    const beforePair = await page.evaluate(() => window.propCueLog?.filter(([k])=>k==='cut').length ?? 0);
     await page.evaluate(() => window.rulePropFixture('pair'));
     if (motion==='no-preference') await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
     await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
-    await page.evaluate(() => window.rulePropFixture('clear'));
+    await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(([k])=>k==='cut').length ?? 0)).toBe(beforePair+1);
+    const audioCount = await page.evaluate(() => window.propCueLog?.length ?? 0);
+    await page.evaluate(() => window.rulePropFixture('back-off'));
+    await expect(layer.locator('[data-kind="back"]')).toHaveCount(0);
+    await page.evaluate(() => window.rulePropFixture('conceal'));
+    expect(await layer.evaluate(n=>n.getAnimations({subtree:true}).length)).toBe(0);
+    const fade = await page.evaluate(() => {
+        window.rulePropFixture('clear');
+        return [...document.querySelectorAll('#ktRuleProps [data-leaving]')].map(n=>n.getAnimations()[0]?.effect.getKeyframes());
+    });
+    if (motion==='no-preference') {
+        expect(fade).toHaveLength(3);
+        expect(fade.every(frames=>frames.map(frame=>frame.opacity).join(',')==='1,0'&&frames.every(frame=>frame.transform===undefined))).toBe(true);
+    } else expect(fade).toEqual([]);
     await expect(layer.locator(".kt-rule-prop:not(.kt-rule-impact)")).toHaveCount(0);
+    expect(await page.evaluate(() => window.propCueLog?.length ?? 0)).toBe(audioCount);
+    if (process.env.TROY_TRIPLE_CAPTURE && motion==='reduce') {
+        await page.evaluate(()=>window.rulePropFixture('triple-preview'));
+        await expect(layer.locator('.kt-rule-prop')).toHaveCount(3);
+        await expect(page.locator('#ktFieldCards .kt-field-top .kt-card')).toHaveCount(3);
+        expect(await scroll()).toBe(568);
+        await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
+        await page.screenshot({path:process.env.TEMP+'/TROY-triple-props-painted-shadows-DPR3.png'});
+    }
 });

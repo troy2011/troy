@@ -1,0 +1,74 @@
+{
+  "knife": {
+    "file": "knife.mp3",
+    "bytes": 5999,
+    "durationSec": 0.44,
+    "startSec": 0.02179138321995465,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -8.021914873452165,
+    "gainDb": -10.934470428824303,
+    "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
+    "source": "WAV/misc/tavern_knife_stab_table_01.wav",
+    "sha256": "6103305245a0bc0c6e520b0eddec3d73d924200a985bcab95f9da5f5e5bdcd35"
+  },
+  "hourglass": {
+    "file": "hourglass.mp3",
+    "bytes": 3492,
+    "durationSec": 0.22,
+    "startSec": 0,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -7.180209284308081,
+    "gainDb": -7.8133336526742685,
+    "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
+    "source": "WAV/ui/tavern_ui_menu_wood_click_01.wav",
+    "sha256": "c9e40f789301a1c488f798be38b25d8b0263fe648cad88aa204b263c7c8b9620"
+  },
+  "mug-coin": {
+    "file": "mug-coin.mp3",
+    "bytes": 5999,
+    "durationSec": 0.42,
+    "startSec": 0.019229024943310656,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -13.375367007315004,
+    "gainDb": -12.669280913831336,
+    "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
+    "source": "WAV/drinks/tavern_mug_slam_table_03.wav",
+    "sha256": "a3f1f24be19779bf4b3ad71a249fe8132372585cc50edd1caed3c3f33aa39016"
+  },
+  "mug-sword": {
+    "file": "mug-sword.mp3",
+    "bytes": 4119,
+    "durationSec": 0.27,
+    "startSec": 0.006961451247165533,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -8.823568068829065,
+    "gainDb": -7.547845457097306,
+    "credit": "Leohpaz — Minifantasy - Weapons SFX Pack (with Krishna Palacio)",
+    "source": "Minifantasy_Weapons_SFX/Hits/Hit_Metal_on_wood.wav",
+    "sha256": "ef7ed6503eee0b952b3d9fd656e8e43f5050f21f41817dc51b633e079765b020"
+  },
+  "mug-wand": {
+    "file": "mug-wand.mp3",
+    "bytes": 5059,
+    "durationSec": 0.36,
+    "startSec": 0.01655328798185941,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -7.251215550898532,
+    "gainDb": -8.831597229540343,
+    "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
+    "source": "WAV/food/tavern_plate_set_down_01.wav",
+    "sha256": "ba83e9063cb10a39788c3bb0dbb8ad295f6edfa566e72236127172abe09826b9"
+  },
+  "mug-cup": {
+    "file": "mug-cup.mp3",
+    "bytes": 5373,
+    "durationSec": 0.38,
+    "startSec": 0.025011337868480726,
+    "encoding": "MP3 mono 44.1 kHz /96k",
+    "peakDbFS": -10.24423062684113,
+    "gainDb": -11.322218290883033,
+    "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
+    "source": "WAV/drinks/tavern_mug_clink_01.wav",
+    "sha256": "adc41fae4e8841983061a0bc8a9d747ea789da45837445af382aeb7cb98ef56b"
+  }
+}

@@ -36,7 +36,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=table-vessels-v2',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=prop-fade-v1',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -128,7 +128,7 @@ for(const [width,height] of [[320,568],[360,640],[390,844]])test('embedded TROY 
 test('both turns light the whole unchanged frame without moving or intercepting taps',async({page})=>{
   await page.setViewportSize({width:320,height:568});
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.route('**/ui.js?v=table-vessels-v2',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+  await page.route('**/ui.js?v=prop-fade-v1',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
   await page.goto('/tarot-kingdom-table.html');
   await page.getByRole('button',{name:'CPU練習'}).click();
   await page.locator('input[name=ktSeats][value="3"]').check();
