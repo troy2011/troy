@@ -26,7 +26,7 @@ window.fxFixture=(kind)=>{
  render();
 };
 `;
- await page.route('**/ui.js?v=turn-layout-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+bracket}));
+ await page.route('**/ui.js?v=seat-order-v1',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+bracket}));
  await page.goto('/tarot-kingdom-table.html?v=65');
  await expect.poll(()=>page.evaluate(()=>typeof window.fxFixture)).toBe('function');
  await page.evaluate(()=>window.fxFixture('start'));

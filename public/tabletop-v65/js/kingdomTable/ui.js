@@ -435,28 +435,18 @@ function fieldMark(kind, text) {
 function renderTurnOrder(round) {
     const box = $('ktTurnOrder');
     const order = turnOrder(round);
-    box.hidden = !order;
-    if (!order) return;
-    const { current, next } = order;
-    const currentName = NAMES[current] || `${current + 1}番席`;
-    const nextName = next === null ? null : NAMES[next] || `${next + 1}番席`;
-    const key = JSON.stringify([current, currentName, next, nextName]);
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    const now = el('span', 'kt-turn-step kt-turn-current');
-    const name = el('strong', 'kt-turn-name', currentName);
-    now.append(el('span', 'kt-turn-tag', '手番'), name);
-    name.title = currentName;
-    box.replaceChildren(now);
-    if (nextName !== null) {
-        const arrow = el('span', 'kt-turn-arrow', '→');
-        arrow.setAttribute('aria-hidden', 'true');
-        const later = el('span', 'kt-turn-step');
-        const nextPlayer = el('strong', 'kt-turn-name', nextName);
-        later.append(el('span', 'kt-turn-tag', '次'), nextPlayer);
-        nextPlayer.title = nextName;
-        box.append(arrow, later);
+    const { current, next } = order ?? {};
+    for (const [seat, root] of [[ME, $('ktMe')], ...seatSlots()]) {
+        root.classList.toggle('is-next-turn', seat === next);
+        const panel = seat === ME ? root : root.querySelector('.kt-seat-panel');
+        if (!panel || (seat !== current && seat !== next)) continue;
+        const marker = el('span', 'kt-turn-marker', seat === current ? '▶ 手番' : '▾ 次');
+        marker.setAttribute('aria-hidden', 'true');
+        panel.append(marker);
     }
+    const name = seat => NAMES[seat] || String(seat + 1) + '番席';
+    const status = order ? '手番：' + name(current) + (next === null ? '' : '、次：' + name(next)) : '';
+    if (box.textContent !== status) box.textContent = status;
 }
 
 function renderField() {
@@ -816,9 +806,9 @@ function render() {
     for (const [seat, host] of seatSlots()) renderSeat(seat, host);
     if(round.phase!=='over')for(const node of $('ktTable').querySelectorAll('.is-thrown'))node.classList.remove('is-thrown');
     renderField();
-    renderTurnOrder(round);
     renderAbilityFocus(round);
     renderMe();
+    renderTurnOrder(round);
     renderTurnHints(events);
     renderActions();
     renderSessionControls();

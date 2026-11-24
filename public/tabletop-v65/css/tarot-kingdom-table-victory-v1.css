@@ -252,28 +252,9 @@ body {
 .kt-field-owner { min-width: 0; padding: 1px 10px; line-height: 20px; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; border: 1px solid #ba8b4c; border-radius: 3px; color: #35200e; background: linear-gradient(#f1d9a5, #d3ad70); font-family: var(--kt-serif); font-weight: 700; }
 .kt-navigation { position: relative; z-index: 2; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
 .kt-navigation:not(:has(> :not([hidden]))) { display: none; }
-.kt-turn-order {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  max-width: 100%;
-  margin: 0;
-  padding: 3px 7px;
-  border: 1px solid #95723f;
-  border-radius: 5px;
-  color: #f3dfbc;
-  background: #271a11;
-  font-size: 12px;
-  line-height: 16px;
-}
-.kt-turn-step { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.kt-turn-tag { flex: none; color: #dec49c; font-size: 10px; }
-.kt-turn-current { color: #fff0be; }
-.kt-turn-current .kt-turn-tag { padding: 0 4px; border-radius: 3px; color: #312010; background: #efcd8a; font-weight: 700; }
-.kt-turn-name { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kt-turn-arrow { flex: none; color: #cda76e; }
+.kt-turn-order { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.kt-turn-marker { position: absolute; z-index: 5; inset-inline-start: 4px; bottom: calc(100% + 2px); padding: 1px 4px; border: 1px solid #ffde8f; border-radius: 4px; background: #f4cc76; color: #352014; font-size: 10px; font-weight: 700; line-height: 14px; white-space: nowrap; pointer-events: none; }
+.is-next-turn .kt-turn-marker { border-color: #abe6d7; background: #225e55; color: #ecfff7; }
 /* One inlaid plaque, not a row of floating notification pills. */
 .kt-field-state {
   display: flex;
