@@ -7,6 +7,7 @@ test('language choice takes precedence and automatic uses the first device langu
  assert.equal(resolveTableLanguage('ja','en-GB'),'ja');
  assert.equal(resolveTableLanguage('en','ja-JP'),'en');
  assert.equal(localizedLabel('正義執行','en'),'Justice Served');
+ assert.equal(localizedLabel('清めの盃','en'),'Purification');
  assert.equal(localizedLabel('正義執行','ja'),'正義執行');
  assert.equal(formatScoreHan(1,'en'),'1 han');
  assert.equal(formatScoreHan(1,'ja'),'1翻');

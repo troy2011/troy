@@ -1,4 +1,4 @@
-import { choiceAbility } from './abilityNames.js?v=pirate-ability-v1';
+import { choiceAbility } from './abilityNames.js?v=pirate-ability-finish-han-v1';
 
 // Public triggering card only: never substitute a selected card from anyone's hand.
 const choicePhases = new Set(['exchange', 'trash', 'give', 'deathSwap', 'retrieve', 'ferry']);

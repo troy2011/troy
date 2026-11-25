@@ -472,6 +472,7 @@ export function play(state, p, ids, type) {
     const cards = resolveCards(state, p, ids);
     if (!cards) return no('手札にない札です');
     const kind = type || (cards.length === 5 ? 'role' : cards.length === 4 ? 'call' : 'normal');
+    if (!['normal', 'role', 'call'].includes(kind)) return no('出し方が正しくありません');
     const res = kind === 'role' ? checkRole(state, p, cards) : kind === 'call' ? checkCall(state, p, cards) : checkNormal(state, p, cards);
     if (!res.ok) return res;
     return commitPlay(state,p,cards,kind,res);
@@ -570,6 +571,7 @@ function commitPlay(state,p,cards,kind,res,ferried=false) {
     if (kind === 'normal') {
         state.field.kind = 'normal';
         state.field.count = cards.length;
+        if (cards.length === 3) awardNamedHan(state, p, 'tripletHan');
     } else {
         state.field.kind = 'role';
         state.field.count = 5;
@@ -578,6 +580,7 @@ function commitPlay(state,p,cards,kind,res,ferried=false) {
     if (!handOf(state, p).length) {
         // Going out comes before any effect of the cards. A role that goes out counts as having held.
         awardRoleHan(state);
+        if (kind === 'role' || kind === 'call') awardNamedHan(state, p, 'fiveCardFinishHan');
         state.phase = 'over';
         state.winner = p;
         state.lastCardHan = finishingBonus;

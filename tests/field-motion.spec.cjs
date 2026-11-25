@@ -102,6 +102,14 @@ window.inspectTemperanceWinner=()=>{
  if(!Rules.play(r,ME,['wand-3'],'normal').ok)throw Error('fixture cannot go out');
  showResult(settleRound(match));
 };
+
+window.inspectPlayAwardWinner=kind=>{
+ const {ids}=window.preparePoseScenario(kind),r=match.round;
+ r.players[ME].hand=r.players[ME].hand.filter(c=>ids.includes(c.id));
+ const ok=Rules.play(r,ME,ids,kind==='triple'?'normal':kind);
+ if(!ok.ok)throw Error(ok.reason);
+ showResult(settleRound(match));
+};
 window.runPoseScenario=(kind,ids)=>{
  const r=match.round;
  playOrigins=new Map(ids.map(id=>[id,rectOf($('ktHand').querySelector('[data-card="'+id+'"]'))]));
@@ -317,5 +325,13 @@ test('Temperance clearing three effects is listed once at one han',async({page})
  await open(page,320,568,true);
  await page.evaluate(()=>window.inspectTemperanceWinner());
  const ledger=page.getByRole('list',{name:'翻の内訳'});
- await expect(ledger.getByRole('listitem').filter({hasText:'清めの杯 1翻'})).toHaveCount(1);
+ await expect(ledger.getByRole('listitem').filter({hasText:'清めの盃 1翻'})).toHaveCount(1);
+});
+
+for(const [kind,label,other] of [['triple','スリーカード 1翻',null],['role','役上がり 1翻','フルハウス 3翻'],['call','役上がり 1翻','フルハウス 2翻']])test('round result itemizes '+kind+' finish',async({page})=>{
+ await open(page,320,568,true);
+ await page.evaluate(k=>window.inspectPlayAwardWinner(k),kind);
+ const ledger=page.getByRole('list',{name:'翻の内訳'});
+ await expect(ledger.getByRole('listitem').filter({hasText:label})).toHaveCount(1);
+ if(other)await expect(ledger.getByRole('listitem').filter({hasText:other})).toHaveCount(1);
 });

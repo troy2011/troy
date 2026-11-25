@@ -1,4 +1,4 @@
-import {roleRank} from './rules.js?v=suit-opposition-v1-named-han-v3';
+import {roleRank} from './rules.js?v=suit-opposition-v1-finish-han-v1';
 // The 15 display names use short, mixed foley. Stored legacy quad is an Elemental alias.
 const keys = Object.freeze(['','straight','flush','fullhouse','four','world','straightflush','five','royal','highElemental']);
 export const roleAccentClips = Object.freeze(['straight','flush','fullhouse','four','cannon','gun','bell','ambience']);

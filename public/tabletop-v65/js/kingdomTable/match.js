@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips are match-local points. Online matches and ratings are authoritative on the server.
-import { localizedLabel, formatScoreHan } from './tableLocale.js?v=2';
-import { openingRoleName } from './roleRecordKey.js?v=piece-of-eight-named-han-v2';
-import { createRound, lastCardHan, roleName } from './rules.js?v=suit-opposition-v1-named-han-v3';
+import { localizedLabel, formatScoreHan } from './tableLocale.js?v=5';
+import { openingRoleName } from './roleRecordKey.js?v=piece-of-eight-finish-han-v1';
+import { createRound, lastCardHan, roleName } from './rules.js?v=suit-opposition-v1-finish-han-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,
@@ -140,8 +140,12 @@ export function settlementHanBreakdown(match, result) {
         const clear = (round.majorClearHan || round.devilHan)?.[w] || 0;
         const justice = round.justiceHan?.[w] || 0;
         const devil = round.devilTransferHan?.[w] || 0;
-        push('正義執行', justice);
-        push('清めの杯', round.temperanceHan?.[w] || 0);
+        push('正義執行', justice, justice);
+        const purification = round.temperanceHan?.[w] || 0;
+        push('清めの盃', purification, purification);
+        const triplets = round.tripletHan?.[w] || 0;
+        push('スリーカード', triplets, triplets);
+        push('役上がり', round.fiveCardFinishHan?.[w] || 0);
         push('大札流し', clear);
         const counted = lines.reduce((sum, item) => sum + item.han, 0);
         push('役の加点', (round.han[w] || 0) - counted - devil);

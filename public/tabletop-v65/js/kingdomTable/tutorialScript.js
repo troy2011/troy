@@ -1,7 +1,7 @@
 // Tarot Kingdom tutorial: fixed deals and a fixed script, played on the real rule engine.
 // Pure logic: no DOM. The page (tutorial.js) and the tests drive the same session.
-import * as Rules from './rules.js?v=suit-opposition-v1-named-han-v3';
-import { createMatch, startRound, settleRound } from './match.js?v=named-han-locale-v2';
+import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { createMatch, startRound, settleRound } from './match.js?v=finish-locale-v1';
 
 export const ME = 0;
 export const SEATS = 3;
@@ -59,7 +59,7 @@ export const CHAPTERS = [
             me('play', ['coin-10'], '「ペンタクルの10」を出してください。', '', ['normal']),
             cpu(1, 'play', ['coin-13'], 'カイが同じスートの1枚場に「ペンタクルの13」を出したので、ペンタクルでロックされました。ロック中はペンタクルでしか返せません。', ['lock']),
             pass(2),
-            me('play', ['major-14'], 'ロックは大札の「節制14」で解除できます。節制はロック中でも出せます。「節制14」を出してください。', 'ロック解除。節制で効果を消すと「清めの杯」で＋1翻です。', ['unlock']),
+            me('play', ['major-14'], 'ロックは大札の「節制14」で解除できます。節制はロック中でも出せます。「節制14」を出してください。', 'ロック解除。節制で効果を消すと「清めの盃」で＋1翻です。', ['unlock']),
             pass(1),
             pass(2),
             me('play', ['coin-8'], '8を1枚だけ出すと「8カット」です。次の人はコールかパスしかできません。「ペンタクルの8」を出してください。', '', ['cut8']),
@@ -114,12 +114,12 @@ export const CHAPTERS = [
             me('play', ['wand-4', 'sword-4', 'cup-9', 'coin-9'], '1枚の場札に手札4枚を合わせて5枚役を作るのが「コール」です。4・4・9・9を選んで「コール」を押してください。場の4と合わせてフルハウスです。', 'コールで作った役は、表より1翻少なくなります。', ['call']),
             pass(1),
             pass(2, 'フルハウスのコールが通り、3−1＝＋2翻です。コールで、ロック・8カット・11バックも解除されます。', ['roleHan', 'clear']),
-            me('play', ['wand-3', 'sword-3', 'cup-3'], '3を3枚まとめて出してください。', '', ['multi']),
+            me('play', ['wand-3', 'sword-3', 'cup-3'], '3を3枚まとめて出してください。', 'スリーカードで＋1翻です。', ['multi']),
             pass(1),
             pass(2, '残りは大札「太陽19」1枚です。', ['clear']),
             me('play', ['major-19'], '19は普段は空の場に出せませんが、最後の1枚なら出して上がれます。大札を最後の1枚として出して上がると「切札」で＋1翻です。「太陽19」を出してください。', '手札を出し切って上がりました！ 最後の1枚が大札なので切札＋1翻です。点数を計算します。', ['win', 'lastCard'])
         ],
-        outro: '上がった人の翻は、上がり1翻＋役や大札流しの翻＋切札＋親の1翻です。負けた人は「残り枚数 × 翻 × 10枚」を払います。残した小札Aは1枚につき1翻、親は1翻多く払います。',
+        outro: '上がった人の翻は、上がり1翻＋役や大札流しの翻＋切札＋親の1翻です。5枚役・コールで上がると「役上がり」でさらに＋1翻。負けた人は「残り枚数 × 翻 × 10枚」を払います。残した小札Aは1枚につき1翻、親は1翻多く払います。',
         settle: true
     }
 ];
@@ -201,7 +201,7 @@ export const performCpu = session => {
 export const RULE_LABELS = {
     normal: '通常出し', multi: '複数枚出し', counter: '同じ数字のスートの反発', majorSame: '大札で同じ数字に返す',
     pass: 'パス', clear: '場流し', ace: '小札Aの強さ', skip: '5のスキップ', back: '11バック', clear8: '8の複数枚で即流し',
-    cut8: '8カット', lock: 'ロック', unlock: 'クリアランス（節制14）', suitMajor: '大札16〜19の対応スート', world21: 'ワールドエンド（世界21）',
+    cut8: '8カット', lock: 'ロック', unlock: '清めの盃（節制14）', suitMajor: '大札16〜19の対応スート', world21: 'ワールドエンド（世界21）',
     majorClear: '大札流しの＋1翻', role: '5枚役', roleOver: '役に強い役で返す', roleHan: '役の翻',
     call: 'コール', win: '上がり', lastCard: '切札の＋1翻'
 };

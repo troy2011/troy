@@ -1,17 +1,17 @@
-import { resolveTableLanguage, getTableLanguage, setTableLanguage, formatScoreHan, localizedLabel } from './tableLocale.js?v=2';
-import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=named-han-locale-v2';
+import { resolveTableLanguage, getTableLanguage, setTableLanguage, formatScoreHan, localizedLabel } from './tableLocale.js?v=5';
+import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=finish-locale-v1';
 import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1';
 import { tableSeatCues } from './turnOrder.js?v=field-owner-v1';
-import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-v1-named-han-v3';
+import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-finish-han-v1-finish-han-v1';
 import { installHandInspect } from './handInspect.js?v=hand-inspect-v1';
 import { choiceFocusState, renderChoiceFocus } from './choiceFocus.js?v=quiet-abilities-v1';
-import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-v1';
+import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-finish-han-v1';
 import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=suit-opposition-v1-named-han-v3';
-import { roleName as ruleRoleName, roleHan } from './rules.js?v=suit-opposition-v1-named-han-v3';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel, settlementHanBreakdown, formatHanEntry } from './match.js?v=named-han-locale-v2';
-import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=suit-opposition-v1-named-han-v3';
+import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { roleName as ruleRoleName, roleHan } from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel, settlementHanBreakdown, formatHanEntry } from './match.js?v=finish-locale-v1';
+import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=suit-opposition-v1-finish-han-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=field-pose-v1';
 import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v4';
@@ -68,7 +68,7 @@ const LEGEND_HAN = 10;
 
 // Pirate Tarot artwork, as served for the rest of the app (same version and delivery revision, so the cache is shared).
 const ART_QUERY = `?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=20261025`;
-import {selectedCardEffect} from './selectedCardEffect.js?v=suit-opposition-v1-named-han-v3';
+import {selectedCardEffect} from './selectedCardEffect.js?v=suit-opposition-v1-finish-han-v1';
 
 const { online, send, sendAction, returnToLobby, waitForCpuPresentation } =
     resolveTableHost(document.documentElement.dataset.tabletopHost, tableHostAdapter);
@@ -141,7 +141,7 @@ const tableLanguage = () => resolveTableLanguage(getTableLanguage(), navigator.l
 const roleName = role => localizedLabel(ruleRoleName(role), tableLanguage());
 const openingRoleName = parity => localizedLabel(ruleOpeningRoleName(parity), tableLanguage());
 const justiceName = () => localizedLabel('正義執行', tableLanguage());
-const temperanceName = () => localizedLabel('清めの杯', tableLanguage());
+const temperanceName = () => localizedLabel('清めの盃', tableLanguage());
 
 const rankText = card => !card.major && card.num === 15 ? 'A' : String(card.num);
 const cardName = (card) => (card.major ? `大札${card.num} ${MAJOR[card.num]}` : `${SUIT_NAME[card.suit]}の${rankText(card)}`);
@@ -228,7 +228,7 @@ function openHandInspector(card, trigger) {
     const rows = el('dl', 'kt-inspect-effects');
     for (const { label, text } of effects) {
         const row = el('div', 'kt-inspect-row');
-        row.append(el('dt', 'kt-inspect-label', label + '：'), el('dd', 'kt-inspect-effect', text));
+        row.append(el('dt', 'kt-inspect-label', localizedLabel(label, tableLanguage()) + '：'), el('dd', 'kt-inspect-effect', text));
         rows.append(row);
     }
     details.replaceChildren(effects.length ? rows : el('p', 'kt-inspect-effect', '固有効果なし'));
@@ -276,6 +276,8 @@ function describe(event) {
     case 'han': return `${who} の${roleName(event.role)}が通って +${event.add}翻`;
     case 'justiceHan': return `${who}：${justiceName()} +${formatScoreHan(event.add, tableLanguage())}`;
     case 'temperanceHan': return `${who}：${temperanceName()} +${formatScoreHan(event.add, tableLanguage())}`;
+    case 'tripletHan': return `${who}：${localizedLabel('スリーカード', tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
+    case 'fiveCardFinishHan': return `${who}：${localizedLabel('役上がり', tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
     case 'majorClear': return `${who} の大札${event.num}が場を流して +${event.add}翻`;
     case 'exchange': return event.by === ME && drawnCard() ? `交換で引いた札：${cardName(drawnCard())}` : `${who} が手札1枚を捨てて交換`;
     case 'devil': return `${who} の悪魔が通って +${event.add}翻`;
@@ -283,7 +285,7 @@ function describe(event) {
     case 'back': return dramatic ? dramatic.label + (event.on ? '：強弱が逆に' : '：強弱を元に戻す') : event.on ? '11バック：強弱が逆に' : '11バック解除';
     case 'lock': return `スートロック：${Rules.lockSuits(event.suit).map(suit => SUIT_NAME[suit]).join('・')}`;
     case 'unlock': return 'ロック解除';
-    case 'reset': return ABILITY.clearance + '：効果をリセット';
+    case 'reset': return temperanceName() + '：効果をリセット';
     case 'cut': return dramatic ? dramatic.label + '：通常出しは世界のみ' : '8カット：コールかパスのみ';
     case 'skip': return `スキップ ${event.count}人`;
     case 'deathSwapStart': return `${who} が${event.devil ? ABILITY.devil : '死神の交換'}を発動`;
@@ -795,7 +797,7 @@ function renderMessage(events, moves) {
         else if (hint) text = hint;
         else if (pick.cards.length && !pick.res.ok) text = pick.res.reason;
         else if (pick.cards.length === 1 && bonus) text = `この大札で上がると、切札 +${bonus}翻`;
-        else if (pick.kind === 'normal' && pick.cards.length) text = selectedCardEffect(round, ME, pick.cards, SUIT_NAME).replace('正義執行', justiceName()).replace('清めの杯', temperanceName()) || text;
+        else if (pick.kind === 'normal' && pick.cards.length) text = selectedCardEffect(round, ME, pick.cards, SUIT_NAME).replace('正義執行', justiceName()).replace('清めの盃', temperanceName()) || text;
         else if (!pick.cards.length && round.phase === 'play' && !arranging) {
             const guide = !turnHints ? '札を選んでください'
                 : moves.some(move => move.cards.length === 1) ? '光っている札を選んで「出す」'
@@ -1187,7 +1189,7 @@ function playEffects(events, fieldBefore, feedback) {
         case 'clear': {
             const named = namedConsequence(events, event);
             if (named?.announce) Fx.after(0, arrived || sweepBefore,
-                () => Fx.stamp(named.label, stampPoint(), 'gold', {ruleCue:true, compact:true}));
+                () => Fx.stamp(localizedLabel(named.label, tableLanguage()), stampPoint(), 'gold', {ruleCue:true, compact:true}));
             const cause = events.slice(0, events.indexOf(event)).findLast(c=>abilityEventBoundary.has(c.type));
             const multiCut = cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8);
             if (multiCut && !events.slice(events.indexOf(cause)+1, events.indexOf(event)).some(entry=>entry.type === 'cut')) {
@@ -1248,9 +1250,11 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'justiceHan':
-        case 'temperanceHan': {
+        case 'temperanceHan':
+        case 'tripletHan':
+        case 'fiveCardFinishHan': {
             const show = () => {
-                Fx.orb((event.type === 'justiceHan' ? justiceName() : temperanceName()) + ' +' + formatScoreHan(event.add, tableLanguage()), Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), 'gold');
+                Fx.orb((event.type === 'justiceHan' ? justiceName() : event.type === 'temperanceHan' ? temperanceName() : localizedLabel(event.type === 'tripletHan' ? 'スリーカード' : '役上がり', tableLanguage())) + ' +' + formatScoreHan(event.add, tableLanguage()), Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), 'gold');
                 Sfx.play('han');
             };
             Fx.after(at, arrived || sweepBefore, show);
@@ -1303,14 +1307,14 @@ function playEffects(events, fieldBefore, feedback) {
         default: {
             const stamp = STAMPS[event.type];
             if (!stamp) break;
-            const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?'11バック解除':event.type==='reset'?ABILITY.clearance:stamp[0];
+            const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?'11バック解除':event.type==='reset'?temperanceName():stamp[0];
             const display=onDone=>{
                 const named = ['cut','back','reset'].includes(event.type) && namedConsequence(events, event);
                 const propKind = ['cut','lock','back'].includes(event.type) ? event.type : null;
                 if (propKind && event.on !== false) propCue(propKind, event.suit);
                 if ((propKind && !named?.announce) || named?.announce === false || (event.type === 'deathSwapStart' && event.devil && round.phase === 'deathSwap')) {
                     if (onDone) Fx.later(380, onDone);
-                } else Fx.stamp(named?.label || label,stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
+                } else Fx.stamp(localizedLabel(named?.label || label, tableLanguage()),stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
                 if (!propKind && event.type !== 'unlock') Sfx.play(stamp[2]);
             };
             const dependencies=arrived&&sweepBefore?Promise.all([arrived,sweepBefore]):arrived||sweepBefore;

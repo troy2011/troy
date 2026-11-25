@@ -1,7 +1,7 @@
-import { settlementHanBreakdown, formatHanEntry } from './match.js?v=named-han-locale-v2';
-import { activeTableLanguage } from './tableLocale.js?v=2';
-import { quickOutcome, quickAction } from './tutorialQuickCopy.js?v=suit-opposition-v1-named-han-v3';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-named-han-v3';
+import { settlementHanBreakdown, formatHanEntry } from './match.js?v=finish-locale-v1';
+import { activeTableLanguage } from './tableLocale.js?v=5';
+import { quickOutcome, quickAction } from './tutorialQuickCopy.js?v=suit-opposition-v1-finish-han-v1';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-finish-han-v1';
 export { CHAPTERS, NAMES };
 const DONE_KEY = 'tarot-kingdom-tutorial:done';
 const $ = id => document.getElementById(id);

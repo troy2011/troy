@@ -1,6 +1,6 @@
-import { ABILITY } from './abilityNames.js?v=pirate-ability-v1';
+import { ABILITY } from './abilityNames.js?v=pirate-ability-finish-han-v1';
 // A private, read-only view of a legal normal play; never predicts opponent choices.
-import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=suit-opposition-v1-named-han-v3';
+import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=suit-opposition-v1-finish-han-v1';
 
 export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false}={}) {
     if (!cards.length || round.players[seat].hand.length === cards.length) return '';
@@ -30,7 +30,7 @@ export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false
     }
     const skip = event('skip');
     if (skip) return (cards.length === 1 && major(5) ? 'Wスキップ' : 'スキップ') + '：次の' + skip.count + '席を飛ばす';
-    if (event('temperanceHan')) return '清めの杯：効果を解除・＋1翻';
+    if (event('temperanceHan')) return '清めの盃：効果を解除・＋1翻';
     if (event('reset')) return ABILITY.clearance + '：続いている効果をリセット';
     const lock = event('lock');
     if (lock) {

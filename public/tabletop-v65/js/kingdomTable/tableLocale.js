@@ -8,7 +8,7 @@ const english = Object.freeze({
     'ハイストレート': 'High Straight', 'ハイフラッシュ': 'High Flush',
     'ハイフルハウス': 'High Full House', 'エレメンタル': 'Elemental',
     'ハイエレメンタル': 'High Elemental', 'ハイファイブカード': 'High Five of a Kind',
-    'ハイワールド': 'High World', '正義執行': 'Justice Served', '清めの杯': 'Clearance',
+    'ハイワールド': 'High World', '正義執行': 'Justice Served', '清めの盃': 'Purification', 'スリーカード': 'Three of a Kind', '役上がり': 'Five-Card Finish',
     'ピース・オブ・エイト': 'Piece of Eight', 'ピース・オブ・エイト（奇数揃い）': 'Piece of Eight (Odd)',
     'ピース・オブ・エイト（偶数揃い）': 'Piece of Eight (Even)',
     '大札流し': 'Major Arcana Clear', '切札': 'Final Trump', '親': 'Dealer',

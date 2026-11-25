@@ -1,6 +1,6 @@
 export const ABILITY = Object.freeze({
     hang: 'ハングドォーバー', resurrection: 'リザレクション', banish: 'バニッシュ',
-    mighty: 'マイティ・カット', justice: 'ライブリバース', clearance: 'クリアランス',
+    mighty: 'マイティ・カット', justice: 'ライブリバース', clearance: '清めの盃',
     world: 'ワールドエンド', death: 'ザ・リーピング', devil: 'デッドマンズ・チェスト'
 });
 export function choiceAbility(round, card) {
