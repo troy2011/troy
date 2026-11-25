@@ -206,20 +206,21 @@
   inset-inline-start: auto;
   inset-inline-end: clamp(74px, 25vw, 104px);
   bottom: -36px;
-}.kt-rule-prop[data-vessel="cup"] { width: calc(var(--kt-bowl-width) * .951); aspect-ratio: 252 / 233; --kt-shadow-scale: calc(318 / 252); }
-.kt-rule-prop[data-vessel="sword"] { width: calc(var(--kt-bowl-width) * .806); aspect-ratio: 231 / 252; --kt-shadow-scale: calc(291 / 231); }
-.kt-rule-prop[data-vessel="wand"] { width: calc(var(--kt-bowl-width) * .955); aspect-ratio: 252 / 232; --kt-shadow-scale: calc(318 / 252); }
+}:is(.kt-rule-prop, .kt-lock-vessel)[data-vessel="cup"] { width: calc(var(--kt-bowl-width) * .951); aspect-ratio: 252 / 233; --kt-shadow-scale: calc(318 / 252); }
+:is(.kt-rule-prop, .kt-lock-vessel)[data-vessel="sword"] { width: calc(var(--kt-bowl-width) * .806); aspect-ratio: 231 / 252; --kt-shadow-scale: calc(291 / 231); }
+:is(.kt-rule-prop, .kt-lock-vessel)[data-vessel="wand"] { width: calc(var(--kt-bowl-width) * .955); aspect-ratio: 252 / 232; --kt-shadow-scale: calc(318 / 252); }
 .kt-rule-prop[data-kind="lock"][data-vessel="mixed"] {
-  inset-inline-start: auto;
-  inset-inline-end: clamp(108px, 35vw, 168px);
-  bottom: -30px;
+  inset-inline-start: 50%;
+  inset-inline-end: auto;
+  inset-block-start: max(38px, calc(50% - 4px));
+  bottom: auto;
+  transform: translateX(-50%);
   display: flex;
   align-items: end;
   gap: 5px;
   width: auto;
   aspect-ratio: auto;
   container-type: normal;
-  --kt-bowl-width: clamp(36px, 12.5vw, 55px);
 }
 .kt-lock-vessel {
   position: relative;
@@ -250,9 +251,8 @@
   background: url("../assets/tarot-kingdom-table/rule-props/whisky-bottle-back.webp") center / contain no-repeat;
 }
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; --kt-shadow-scale: calc(208 / 165); inset-inline-start: calc(50% - 5px); transform: translateX(-40%); z-index: 2; }
-.kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-40%, -87%); }
+.kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-43.5%, -86.5%); }
 .kt-rule-prop.kt-rule-impact { z-index: 3; }
-.kt-rule-prop.kt-rule-impact[data-multiple] { width: calc(var(--kt-knife-width) * .72); }
 .kt-rule-props:has(.kt-rule-impact) .kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact) { visibility: hidden; }
 
 .kt-field-cards {

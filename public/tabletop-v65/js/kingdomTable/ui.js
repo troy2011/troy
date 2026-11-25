@@ -13,7 +13,7 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v2';
+import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v4';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=whisky-v2';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';

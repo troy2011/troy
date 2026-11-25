@@ -26,6 +26,21 @@ function lockArt(suit, assets) {
 }
 
 const find = (host, kind) => host.querySelector('.kt-rule-prop[data-kind="' + kind + '"]:not(.kt-rule-impact)');
+// A full-size knife can overlap the card art; reserve the printed rank windows above it.
+function keepCutRanksReadable(host, knife, rise = 0) {
+  const box = knife.getBoundingClientRect();
+  const ranks = [...host.parentElement.querySelectorAll('.kt-field-top .kt-card-rank')];
+  if (!box.width || !ranks.length) { knife.style.removeProperty('clip-path'); return; }
+  const coord = n => n.toFixed(2);
+  const gaps = ranks.map(rank => {
+    const r = rank.getBoundingClientRect();
+    const x = coord(r.left - box.left - 1), y = coord(r.top - box.top - 1);
+    const w = coord(r.width + 2), h = coord(r.height + 2 + rise);
+    return 'M ' + x + ' ' + y + ' h ' + w + ' v ' + h + ' h -' + w + ' Z';
+  }).join(' ');
+  knife.style.clipPath = 'path(evenodd, "M -4096 -4096 H 4096 V 4096 H -4096 Z ' + gaps + '")';
+}
+
 const cutContactTracks = new WeakMap();
 function trackCutContact(host, knife, anchor) {
   const prior = cutContactTracks.get(host);
@@ -36,21 +51,29 @@ function trackCutContact(host, knife, anchor) {
     if (!anchor.isConnected || !knife.isConnected) return;
     const card = anchor.getBoundingClientRect();
     const stage = host.getBoundingClientRect();
-    const grouped = (anchor.parentElement?.querySelectorAll('.kt-card').length ?? 0) >= 3;
     if (!card.width || !stage.width) return;
     knife.dataset.cutContact = '';
-    knife.style.left = (card.left + card.width * (grouped ? .45 : .53) - stage.left) + 'px';
-    knife.style.top = (card.top + card.height * .85 - stage.top) + 'px';
+    knife.style.left = (card.left + card.width * .5 - stage.left) + 'px';
+    knife.style.top = (card.top + card.height * .5 - stage.top) + 'px';
+    keepCutRanksReadable(host, knife);
   };
   const observer = new ResizeObserver(update);
   observer.observe(host);
   observer.observe(anchor);
   anchor.addEventListener('animationend', update);
+  let frame;
+  const until = performance.now() + 300;
+  const followEntry = now => {
+    update();
+    if (now < until && anchor.isConnected && knife.isConnected) frame = requestAnimationFrame(followEntry);
+  };
   cutContactTracks.set(host, {knife,anchor,update,stop:() => {
     observer.disconnect();
     anchor.removeEventListener('animationend', update);
+    if (frame) cancelAnimationFrame(frame);
   }});
   update();
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) frame = requestAnimationFrame(followEntry);
 }
 function pinSettledKnife(host) {
   const node = find(host, 'cut');
@@ -149,11 +172,12 @@ export function flashRuleProp(host, anchors, onImpact, assets = base) {
     impact.classList.add('kt-rule-impact');
     impact.dataset.cutContact = '';
     impact.toggleAttribute('data-multiple', cards.length > 1);
-    impact.style.left = (card.left + card.width * .45 - rect.left) + 'px';
-    impact.style.top = (card.top + card.height * .85 - rect.top) + 'px';
+    impact.style.left = (card.left + card.width * .5 - rect.left) + 'px';
+    impact.style.top = (card.top + card.height * .5 - rect.top) + 'px';
     return impact;
   });
   host.append(...knives);
+  knives.forEach(knife => keepCutRanksReadable(host, knife, 8));
   return Promise.all(knives.map((impact, index) => {
     const delay = index * multiCutBeatMs;
     const cue = impact.animate([

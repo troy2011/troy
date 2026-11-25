@@ -28,7 +28,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  await page.setViewportSize({width,height});
  await page.emulateMedia({reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route(/\/ui\.js\?v=[^&]+-field-dealt-v1-no-stock-v1$/,r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+ await page.route(/\/ui\.js\?v=[^&]+-field-dealt-v1-no-stock-v1[^&]*$/,r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
  await page.goto('/tarot-kingdom-table.html?fast');
  await page.locator('[data-tavern-mode=practice]').click();
  await page.locator('input[name=ktSeats][value="3"]').check();
@@ -43,7 +43,7 @@ for(const [width,height] of [[320,568],[390,844]])test('projected field preserve
  await expect(page.locator('#ktRuleProps [data-cut-contact]')).toHaveCount(1);
  const contact=await page.locator('#ktRuleProps [data-cut-contact]').evaluate(knife=>{
    const k=knife.getBoundingClientRect(), c=document.querySelector('.kt-field-top .kt-card').getBoundingClientRect();
-   return [Math.abs(k.left+k.width*.40-(c.left+c.width*.53)),Math.abs(k.top+k.height*.87-(c.top+c.height*.85))];
+   return [Math.abs(k.left+k.width*.435-(c.left+c.width*.5)),Math.abs(k.top+k.height*.865-(c.top+c.height*.5))];
  });
  expect(contact.every(d=>d<1)).toBe(true);
  const compression=await projected.evaluate(n=>{
