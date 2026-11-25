@@ -144,23 +144,31 @@ export function revealRuleProp(host, kind, { motion = false } = {}) {
 }
 
 // Multiple eights legally sweep straight away; show a brief, fixed-position cue at the card.
-export function flashRuleProp(host, anchor, onAppear, assets = base) {
-  if (!anchor || document.hidden) return null;
+export function flashRuleProp(host, anchors, onAppear, assets = base) {
+  if (!anchors || document.hidden) return null;
   const rect = host.getBoundingClientRect();
-  const card = anchor.getBoundingClientRect?.() ?? anchor;
-  if (!rect.width || !card.width) return null;
-  const impact = prop('cut', assets);
-  impact.classList.add('kt-rule-impact');
-  impact.dataset.cutContact = '';
-  impact.style.left = (card.left + card.width * .45 - rect.left) + 'px';
-  impact.style.top = (card.top + card.height * .85 - rect.top) + 'px';
-  host.append(impact);
+  if (!rect.width) return null;
+  const cards = (Array.isArray(anchors) ? anchors : [anchors])
+    .filter(Boolean).map(anchor => anchor.getBoundingClientRect?.() ?? anchor).filter(card => card.width);
+  if (!cards.length) return null;
+  const knives = cards.map(card => {
+    const impact = prop('cut', assets);
+    impact.classList.add('kt-rule-impact');
+    impact.dataset.cutContact = '';
+    impact.toggleAttribute('data-multiple', cards.length > 1);
+    impact.style.left = (card.left + card.width * .45 - rect.left) + 'px';
+    impact.style.top = (card.top + card.height * .85 - rect.top) + 'px';
+    return impact;
+  });
+  host.append(...knives);
   onAppear?.();
-  const cue = impact.animate([
-    {opacity:0,offset:0}, {opacity:1,offset:.36},
-    {opacity:1,offset:.68}, {opacity:0,offset:1}
-  ], {duration:500, easing:'linear', fill:'both'});
-  return cue.finished.catch(() => {}).then(() => impact.remove());
+  return Promise.all(knives.map(impact => {
+    const cue = impact.animate([
+      {opacity:0,offset:0}, {opacity:1,offset:.36},
+      {opacity:1,offset:.68}, {opacity:0,offset:1}
+    ], {duration:500, easing:'linear', fill:'both'});
+    return cue.finished.catch(() => {}).then(() => impact.remove());
+  }));
 }
 
 export function cancelRulePropAnimations(host, keep = false) {

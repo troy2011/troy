@@ -76,7 +76,7 @@
 .kt-seat-hand { grid-area: 1 / 2 / 3 / 3; display: inline-flex; align-items: baseline; gap: 1px; color: var(--kt-ink); font-size: 10px; white-space: nowrap; }
 .kt-seat-hand-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .kt-seat-count { font-family: var(--kt-serif); font-size: 22px; line-height: 1; }
-.kt-seat.is-last-card .kt-seat-count { color: #ffe093; text-shadow: 0 0 8px rgb(255 191 68 / 70%); }
+
 .kt-seat-chips { flex: none; gap: 2px; font-size: 11px; font-family: var(--kt-serif); }
 .kt-seat-chips::before { width: 8px; height: 8px; border-width: 1px; }
 .kt-seat .kt-han-pill { padding: 0 3px; font-size: 9px; line-height: 13px; }
@@ -93,6 +93,10 @@
   pointer-events: none;
   transform: translate(-50%, -100%) rotate(var(--kt-grip-angle, 0deg));
   transform-origin: 50% 100%;
+}
+.kt-seat.is-last-card .kt-fan-card:only-child, #ktHand.is-last-card > .kt-card:only-child {
+  outline: 1.5px solid #ff7b6f;
+  box-shadow: 0 0 4px #ff392f, 0 0 10px rgb(230 33 32 / 78%);
 }
 .kt-fan-card {
   position: absolute;
@@ -135,7 +139,7 @@
   --kt-rim-low: #0cffde; --kt-rim-mid: #41ffe9; --kt-rim-high: #f3fffe; --kt-light-near: #00f3d9; --kt-light-far: #00f6d995;
 }
 [data-turn="next"] {
-  --kt-rim-low: #e68628; --kt-rim-mid: #ffa745; --kt-rim-high: #fff5dc; --kt-light-near: #f29c38ae; --kt-light-far: #f38a2b62;
+  --kt-rim-low: #f19c36; --kt-rim-mid: #ffbd62; --kt-rim-high: #fff8e6; --kt-light-near: #ffad4ad4; --kt-light-far: #ff9b367c;
 }
 .kt-seat-panel[data-turn], .kt-me[data-turn] {
   --kt-rim-light: conic-gradient(from 13deg,
@@ -234,6 +238,7 @@
 .kt-rule-suits:has(svg:nth-child(2)) { display: grid; grid-template-columns: repeat(2, auto); }
 .kt-rule-suits:has(svg:nth-child(2)) svg { width: 10px; }
 .kt-rule-prop.kt-rule-impact { z-index: 3; }
+.kt-rule-prop.kt-rule-impact[data-multiple] { width: calc(var(--kt-knife-width) * .72); }
 .kt-rule-props:has(.kt-rule-impact) .kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact) { visibility: hidden; }
 
 .kt-field-cards {

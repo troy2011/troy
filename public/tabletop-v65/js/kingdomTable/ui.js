@@ -13,7 +13,7 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=whisky-v2';
+import { flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v1';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=whisky-v2';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
@@ -422,7 +422,6 @@ function renderSeat(seat, host) {
         seatObserver.observe(host);
     }
     const hand = el('span', 'kt-seat-hand');
-    if (count === 1) hand.classList.add('kt-last-card-flag');
     hand.append(el('span', 'kt-seat-hand-label', count === 1 ? 'あと' : '手札'), el('strong', 'kt-seat-count', String(count)), el('span', '', '枚'));
     const identity = el('div', 'kt-seat-identity');
     const name = el('strong', 'kt-seat-name', NAMES[seat]);
@@ -1077,13 +1076,11 @@ function namedConsequence(events, event) {
     return null;
 }
 
-function ruleImpactAnchor(events, event, floating) {
-    const cause = events.slice(0, events.indexOf(event)).findLastIndex(candidate=>abilityEventBoundary.has(candidate.type));
-    const play = events[cause];
-    if (!['play','start'].includes(play?.type) || !play.cards?.length) return null;
-    const card = play.cards[Math.floor((play.cards.length - 1) / 2)];
-    const settled = $('ktFieldCards').querySelector(`[data-card="${card.id}"]`);
-    return settled || floating.find(({node})=>node.dataset.card === card.id)?.rect || null;
+function ruleImpactAnchors(play, floating) {
+    return play.cards.map(card => {
+        const settled = $('ktFieldCards').querySelector('[data-card="' + card.id + '"]');
+        return settled || floating.find(({node})=>node.dataset.card === card.id)?.rect;
+    }).filter(Boolean);
 }
 
 function playEffects(events, fieldBefore, feedback) {
@@ -1166,11 +1163,11 @@ function playEffects(events, fieldBefore, feedback) {
             const multiCut = cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8);
             if (multiCut && !events.slice(events.indexOf(cause)+1, events.indexOf(event)).some(entry=>entry.type === 'cut')) {
                 if (Fx.moving()) {
-                    const anchor = ruleImpactAnchor(events, event, floating);
+                    const anchors = ruleImpactAnchors(cause, floating);
                     const ready = arrived || sweepBefore;
                     arrived = Fx.untilPresentationReady(done=>Fx.after(0,ready,()=>{
                         propCue('cut');
-                        const finish = flashRuleProp($('ktRuleProps'), anchor);
+                        const finish = flashRuleProp($('ktRuleProps'), anchors);
                         if (finish) finish.then(done); else done();
                     }));
                 } else Fx.after(0, arrived || sweepBefore, () => { propCue('cut'); });
