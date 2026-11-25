@@ -119,7 +119,7 @@
 .kt-badge { padding: 0 4px; border-radius: 9px; color: #1c1608; background: var(--kt-dim); font-size: 10px; font-weight: 700; line-height: 18px; }
 .kt-badge-dealer { color: #fff; background: #7a2f8f; }
 
-.kt-field { --kt-field-lift: 54px; --kt-heading-lift: 13px; position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 0; }
+.kt-field { --kt-field-lift: 54px; --kt-heading-lift: 23px; position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 0; }
 .kt-field-heading { pointer-events: none; translate: 0 calc(-1 * var(--kt-heading-lift)); position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; min-height: 44px; }
 .kt-grave-button { position: absolute; inset-inline-end: 8px; inset-block-start: 0; z-index: 3; min-height: 32px; white-space: nowrap; padding: 3px 9px; border: 1px solid #ba8b4c; border-radius: 5px; color: var(--kt-ink); background: #352014; font: inherit; font-size: 12px; cursor: pointer; }
 .kt-grave-button:disabled { opacity: 0.6; cursor: default; }
@@ -192,7 +192,7 @@
 /* Placed rule props: the shadow is part of each sprite. */
 .kt-rule-stage { position: relative; width: 100%; min-width: 0; translate: 0 calc(-1 * var(--kt-field-lift)); }
 @media (max-height: 680px) {
-  .kt-field { --kt-field-lift: 44px; --kt-heading-lift: 12px; }
+  .kt-field { --kt-field-lift: 44px; --kt-heading-lift: 22px; }
 }
 .kt-rule-props { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .kt-rule-prop { position: absolute; display: block; bottom: clamp(10px, 4.5vw, 18px); }
