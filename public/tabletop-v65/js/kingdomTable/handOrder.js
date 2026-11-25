@@ -1,7 +1,14 @@
 // Hand order is presentation only; never rearrange the round's actual card array.
+// For equal ranks, each suit is followed by the suit that counters it.
+const SUIT_DISPLAY_ORDER = ['wand', 'cup', 'sword', 'coin'];
+const suitDisplayRank = suit => {
+    const rank = SUIT_DISPLAY_ORDER.indexOf(suit);
+    return rank < 0 ? SUIT_DISPLAY_ORDER.length : rank;
+};
+
 export const sortByNumber = cards => [...cards].sort((a, b) => a.num - b.num
     || (a.num === 15 ? Number(b.major) - Number(a.major) : Number(a.major) - Number(b.major))
-    || String(a.suit).localeCompare(String(b.suit)));
+    || suitDisplayRank(a.suit) - suitDisplayRank(b.suit));
 
 export function displayHand(cards, order) {
     const sorted = sortByNumber(cards);

@@ -23,7 +23,7 @@ import * as Sfx from './sfx.js?v=canonical-props-v1';
 import { Music } from './music.js?v=victory-mix-v1';
 import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
-import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=devil-before-ace-v1';
+import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=suit-cycle-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
 import * as tableHostAdapter from './localTable.js?v=table-host-v1';
 import { resolveTableHost } from './tableHost.js?v=table-host-v1';
