@@ -318,6 +318,11 @@
   overflow: hidden;
 }
 .kt-card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.kt-card-rank, .kt-suit-badge {
+  border: 1px solid;
+  border-radius: 3px;
+  background: rgb(12 15 18 / 94%);
+}
 .kt-card-rank {
   position: absolute;
   top: 2px;
@@ -328,12 +333,8 @@
   min-width: 21px;
   height: 24px;
   padding: 1px 3px;
-  border-width: 1px;
-  border-style: solid;
   border-color: var(--kt-frame-top) var(--kt-frame-right) var(--kt-frame-bottom) var(--kt-frame-left);
-  border-radius: 3px;
   color: var(--kt-rank-color, var(--kt-suit-color));
-  background: rgb(12 15 18 / 94%);
   box-shadow: 0 1px 3px rgb(0 0 0 / 65%);
   font-size: 18px;
   font-weight: 800;
@@ -341,10 +342,10 @@
   pointer-events: none;
 }
 .kt-card-major-digit { color: var(--kt-major-color); }
-.kt-card[data-suit="wand"] { --kt-suit-color: var(--kt-wand-color); }
-.kt-card[data-suit="cup"] { --kt-suit-color: var(--kt-cup-color); }
-.kt-card[data-suit="coin"] { --kt-suit-color: var(--kt-coin-color); }
-.kt-card[data-suit="sword"] { --kt-suit-color: var(--kt-sword-color); }
+:is(.kt-card, .kt-suit-badge)[data-suit="wand"] { --kt-suit-color: var(--kt-wand-color); }
+:is(.kt-card, .kt-suit-badge)[data-suit="cup"] { --kt-suit-color: var(--kt-cup-color); }
+:is(.kt-card, .kt-suit-badge)[data-suit="coin"] { --kt-suit-color: var(--kt-coin-color); }
+:is(.kt-card, .kt-suit-badge)[data-suit="sword"] { --kt-suit-color: var(--kt-sword-color); }
 .kt-card[data-suit="major"][data-suits="wand"] { --kt-rank-color: var(--kt-wand-color); --kt-frame-left: var(--kt-wand-color); --kt-frame-right: var(--kt-wand-color); }
 .kt-card[data-suit="major"][data-suits="cup"] { --kt-rank-color: var(--kt-cup-color); --kt-frame-left: var(--kt-cup-color); --kt-frame-right: var(--kt-cup-color); }
 .kt-card[data-suit="major"][data-suits="coin"] { --kt-rank-color: var(--kt-coin-color); --kt-frame-left: var(--kt-coin-color); --kt-frame-right: var(--kt-coin-color); }
@@ -382,6 +383,11 @@
 
 /* Display models are decorative; real cards remain interactive in the hand row below. */
 #ktLocalPlayer { position: relative; min-height: 36px; display: flex; align-items: flex-end; }
+.kt-suit-guide { position: absolute; inset-inline-start: 0; inset-block-end: calc(100% + 4px); z-index: 3; display: flex; align-items: center; gap: 10px; padding: 2px 4px; border-radius: 4px; background: rgb(30 17 13 / 82%); pointer-events: none; }
+.kt-suit-pair { display: flex; align-items: center; gap: 3px; }
+.kt-suit-arrow { color: #f5d48f; font: 700 14px/1 var(--kt-serif); }
+.kt-suit-badge { display: grid; place-items: center; width: 18px; height: 18px; box-sizing: border-box; color: var(--kt-suit-color); }
+.kt-suit-badge svg { width: 13px; height: 13px; }
 #ktLocalPlayer:has(#ktAvatarSeat:not([hidden])) { padding-inline-end: clamp(46px,calc(30vw - 48px),104px); }
 #ktAvatarSeat { position: absolute; z-index: 3; inset-inline-end: 0; inset-block-end: 0; isolation: isolate; pointer-events: none; height: var(--kt-local-art-height); aspect-ratio: 8/7; }
 .kt-avatar-art{position:relative;height:100%;width:100%}
