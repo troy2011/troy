@@ -4,12 +4,6 @@ import { rulePropSuits } from './rulePropMaterials.js';
 const files = { cut:'knife-reference', lock:'tankard', back:'whisky-spill' };
 const vessels = { coin:'tankard-coin', cup:'tankard-cup', sword:'tankard-sword', wand:'tankard-wand' };
 const base = new URL('../../assets/tarot-kingdom-table/rule-props/', import.meta.url);
-const icons = {
-  sword:'M4 16l9-9 4-4-1 5-9 9M4 12l7 7M5 16l-2 2',
-  wand:'M4 18l12-12m-2-2 4 4M14 8l-4-1',
-  cup:'M4 4h12v4a6 6 0 0 1-12 0zM10 14v4m-4 0h8',
-  coin:'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16ZM10 4.5l3.2 10.1-8.4-6.3h10.4l-8.4 6.3Z'
-};
 
 function prop(kind, assets = base, file = files[kind]) {
   const wrapper = document.createElement('span');
@@ -23,15 +17,12 @@ function prop(kind, assets = base, file = files[kind]) {
   return wrapper;
 }
 
-function makeSuit(suit) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.dataset.suit = suit;
-  svg.setAttribute('viewBox','0 0 20 20');
-  const path = document.createElementNS(ns, 'path');
-  path.setAttribute('d',icons[suit]);
-  svg.append(path);
-  return svg;
+function lockArt(suit, assets) {
+  const art = document.createElement('img');
+  art.alt = '';
+  art.draggable = false;
+  art.src = new URL(vessels[suit] + '-shadow.webp', assets).href;
+  return art;
 }
 
 const find = (host, kind) => host.querySelector('.kt-rule-prop[data-kind="' + kind + '"]:not(.kt-rule-impact)');
@@ -87,7 +78,7 @@ export function renderRuleProps(host, round, { assets = base, motion = false, ar
   fieldSize ??= host.parentElement.querySelector('.kt-field-top')?.childElementCount || 0;
   const suits = rulePropSuits(round.lock);
   const vessel = suits.length === 1 ? suits[0] : '';
-  const lockFile = vessels[vessel] || files.lock;
+  const lockFile = vessels[suits[0]] || files.lock;
   const active = !['over','waiting'].includes(round.phase);
   const targets = { cut:active && !!round.cut, lock:active && suits.length > 0, back:active && !!round.back };
   for (const [kind,on] of Object.entries(targets)) {
@@ -119,14 +110,14 @@ export function renderRuleProps(host, round, { assets = base, motion = false, ar
     if (kind === 'lock' && node.dataset.suits !== suits.join(',')) {
       node.dataset.suits = suits.join(',');
       node.dataset.vessel = vessel || 'mixed';
-      node.toggleAttribute('data-exact-emblem', !!vessel);
-      const cup = new URL(lockFile + '-shadow.webp', assets).href;
-      if (node.firstElementChild.src !== cup) node.firstElementChild.src = cup;
-      const plaque = document.createElement('span');
-      plaque.className = 'kt-rule-suits';
-      plaque.append(...suits.map(makeSuit));
-      node.querySelector('.kt-rule-suits')?.remove();
-      node.append(plaque);
+      if (vessel) node.replaceChildren(lockArt(vessel, assets));
+      else node.replaceChildren(...suits.map(suit => {
+        const holder = document.createElement('span');
+        holder.className = 'kt-lock-vessel';
+        holder.dataset.vessel = suit;
+        holder.append(lockArt(suit, assets));
+        return holder;
+      }));
     }
   }
   pinSettledKnife(host);
@@ -144,7 +135,9 @@ export function revealRuleProp(host, kind, { motion = false } = {}) {
 }
 
 // Multiple eights legally sweep straight away; show a brief, fixed-position cue at the card.
-export function flashRuleProp(host, anchors, onAppear, assets = base) {
+export const multiCutBeatMs = 72;
+
+export function flashRuleProp(host, anchors, onImpact, assets = base) {
   if (!anchors || document.hidden) return null;
   const rect = host.getBoundingClientRect();
   if (!rect.width) return null;
@@ -161,13 +154,18 @@ export function flashRuleProp(host, anchors, onAppear, assets = base) {
     return impact;
   });
   host.append(...knives);
-  onAppear?.();
-  return Promise.all(knives.map(impact => {
+  return Promise.all(knives.map((impact, index) => {
+    const delay = index * multiCutBeatMs;
     const cue = impact.animate([
-      {opacity:0,offset:0}, {opacity:1,offset:.36},
-      {opacity:1,offset:.68}, {opacity:0,offset:1}
-    ], {duration:500, easing:'linear', fill:'both'});
-    return cue.finished.catch(() => {}).then(() => impact.remove());
+      {opacity:0, translate:'0 -8px', offset:0},
+      {opacity:1, translate:'0 0', offset:.21},
+      {opacity:1, translate:'0 0', offset:.72},
+      {opacity:0, translate:'0 0', offset:1}
+    ], {delay, duration:112, easing:'linear', fill:'both'});
+    const contact = setTimeout(() => {
+      if (impact.isConnected && cue.playState !== 'idle') onImpact?.();
+    }, delay + 24);
+    return cue.finished.catch(() => {}).then(() => { clearTimeout(contact); impact.remove(); });
   }));
 }
 

@@ -54,7 +54,7 @@ window.rulePropFixture = (kind) => {
 for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props retain true flags and do not intercept controls ('+motion+')', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await page.emulateMedia({ reducedMotion: motion });
-    await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1-suit-cycle-v1-table-cues-v1', route => route.fulfill({
+    await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1-suit-cycle-v1-table-cues-v2', route => route.fulfill({
         contentType: 'text/javascript',
         body: fs.readFileSync('public/tabletop-v65/js/kingdomTable/ui.js', 'utf8') + fixture
     }));
@@ -106,7 +106,7 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
             await expect(layer.locator('img')).toHaveCount(2);
             await expect(page.locator('#ktFieldState')).toContainText('11バック');
             await expect(page.locator('#ktFieldState')).toContainText('ペンタクル');
-            await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(1);
+            await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(0);
             if (process.env.TROY_RULE_PREVIEW && motion==='reduce') await page.screenshot({ path: process.env.TEMP+'/TROY-rule-lock-back.png' });
         }
     }
@@ -116,8 +116,8 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     expect(await layer.evaluate(n=>['lock','cut'].map(kind=>getComputedStyle(n.querySelector('[data-kind='+kind+']:not(.kt-rule-impact)')).zIndex))).toEqual(['1','2']);
     const exactMug=layer.locator('[data-kind="lock"]');
     await expect(exactMug.locator('img')).toHaveAttribute('src', /tankard-coin/);
-    await expect(exactMug.locator('.kt-rule-suits')).toBeHidden();
-    await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(1);
+    await expect(exactMug.locator('.kt-rule-suits')).toHaveCount(0);
+    await expect(layer.locator('svg[data-suit="coin"]')).toHaveCount(0);
     await expect(page.locator('#ktSeatRight .kt-seat-panel')).toHaveAttribute('data-turn','current');
     await expect(page.locator('#ktSeatLeft .kt-seat-panel')).toHaveAttribute('data-turn','next');
     await expect(page.locator('#ktFieldCards .kt-field-top [data-card="coin-8"]')).toBeVisible();
@@ -135,8 +135,8 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
         await expect(mug.locator('img')).toHaveAttribute('src',new RegExp('tankard-'+suit+'-shadow[.]webp'));
         await expect.poll(()=>mug.locator('img').evaluate(n=>n.complete && n.naturalWidth>0)).toBe(true);
         expect(await mug.locator('img').evaluate(n=>n.naturalWidth>n.parentNode.offsetWidth && getComputedStyle(n).filter==='none')).toBe(true);
-        await expect(mug.locator('svg[data-suit="'+suit+'"]')).toHaveCount(1);
-        await expect(mug.locator('.kt-rule-suits')).toBeHidden();
+        await expect(mug.locator('svg[data-suit="'+suit+'"]')).toHaveCount(0);
+        await expect(mug.locator('.kt-rule-suits')).toHaveCount(0);
         if (process.env.TROY_MUG_CAPTURE && motion==='reduce') {
             await page.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled([...document.images].filter(n=>n.getClientRects().length).map(n=>n.decode()));});
             await page.screenshot({path:process.env.TEMP+'/TROY-live-vessel-'+suit+'-DPR3.png'});
@@ -146,12 +146,12 @@ for (const motion of ['reduce', 'no-preference']) test('TROY tabletop rule props
     const beforePair = await page.evaluate(() => window.propCueLog?.filter(([k])=>k==='cut').length ?? 0);
     await page.evaluate(() => window.rulePropFixture('pair'));
     if (motion==='no-preference') {
-        await expect(layer.locator('.kt-rule-impact')).toHaveCount(1);
-        expect(await layer.locator('.kt-rule-impact').evaluate(n=>getComputedStyle(n).zIndex)).toBe('3');
+        await expect(layer.locator('.kt-rule-impact')).toHaveCount(2);
+        expect(await layer.locator('.kt-rule-impact').evaluateAll(nodes=>nodes.every(n=>getComputedStyle(n).zIndex==='3'))).toBe(true);
     }
     else await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
     await expect(layer.locator('.kt-rule-impact')).toHaveCount(0);
-    await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(([k])=>k==='cut').length ?? 0)).toBe(beforePair+1);
+    await expect.poll(()=>page.evaluate(()=>window.propCueLog?.filter(([k])=>k==='cut').length ?? 0)).toBe(beforePair+2);
     const audioCount = await page.evaluate(() => window.propCueLog?.length ?? 0);
     await page.evaluate(() => window.rulePropFixture('back-off'));
     await expect(layer.locator('[data-kind="back"]')).toHaveCount(0);

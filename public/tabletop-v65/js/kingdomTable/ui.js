@@ -13,7 +13,7 @@ import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } fr
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
-import { flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v1';
+import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v2';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
 import {animateRole} from './roleJuice.js?v=whisky-v2';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
@@ -1166,11 +1166,10 @@ function playEffects(events, fieldBefore, feedback) {
                     const anchors = ruleImpactAnchors(cause, floating);
                     const ready = arrived || sweepBefore;
                     arrived = Fx.untilPresentationReady(done=>Fx.after(0,ready,()=>{
-                        propCue('cut');
-                        const finish = flashRuleProp($('ktRuleProps'), anchors);
+                        const finish = flashRuleProp($('ktRuleProps'), anchors, () => propCue('cut'));
                         if (finish) finish.then(done); else done();
                     }));
-                } else Fx.after(0, arrived || sweepBefore, () => { propCue('cut'); });
+                } else for (let i = 0; i < cause.cards.length; i++) Fx.after(i * multiCutBeatMs, arrived || sweepBefore, () => propCue('cut'));
             }
             const leaving = [...fieldBefore.filter(({ node }) => !floating.some((f) => f.node.dataset.card === node.dataset.card)), ...floating];
             fieldBefore = [];

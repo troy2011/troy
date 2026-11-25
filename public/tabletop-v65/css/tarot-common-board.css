@@ -209,7 +209,26 @@
 }.kt-rule-prop[data-vessel="cup"] { width: calc(var(--kt-bowl-width) * .951); aspect-ratio: 252 / 233; --kt-shadow-scale: calc(318 / 252); }
 .kt-rule-prop[data-vessel="sword"] { width: calc(var(--kt-bowl-width) * .806); aspect-ratio: 231 / 252; --kt-shadow-scale: calc(291 / 231); }
 .kt-rule-prop[data-vessel="wand"] { width: calc(var(--kt-bowl-width) * .955); aspect-ratio: 252 / 232; --kt-shadow-scale: calc(318 / 252); }
-.kt-rule-prop[data-vessel="mixed"] { width: calc(var(--kt-bowl-width) * .93); aspect-ratio: 260 / 246; --kt-shadow-scale: calc(328 / 260); }
+.kt-rule-prop[data-kind="lock"][data-vessel="mixed"] {
+  inset-inline-start: auto;
+  inset-inline-end: clamp(108px, 35vw, 168px);
+  bottom: -30px;
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  width: auto;
+  aspect-ratio: auto;
+  container-type: normal;
+  --kt-bowl-width: clamp(36px, 12.5vw, 55px);
+}
+.kt-lock-vessel {
+  position: relative;
+  display: block;
+  flex: none;
+  width: var(--kt-bowl-width);
+  aspect-ratio: 206 / 181;
+  --kt-shadow-scale: calc(260 / 206);
+}
 .kt-rule-prop[data-kind="back"] {
   inset-inline-start: calc(50% - 1.5px);
   inset-block-start: calc(50% - clamp(8px, calc(9.1vw - 21.1px), 13px));
@@ -232,11 +251,6 @@
 }
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; --kt-shadow-scale: calc(208 / 165); inset-inline-start: calc(50% - 5px); transform: translateX(-40%); z-index: 2; }
 .kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-40%, -87%); }
-.kt-rule-suits { position: absolute; display: flex; justify-content: center; align-items: center; gap: 1px; inset-inline-start: 40%; top: 55%; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 1px #17101a); }
-.kt-rule-prop[data-exact-emblem] .kt-rule-suits { visibility: hidden; }
-.kt-rule-suits svg { width: clamp(12px, 3.8vw, 18px); max-width: 35cqi; aspect-ratio: 1; fill: none; stroke: #ffe3a3; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.kt-rule-suits:has(svg:nth-child(2)) { display: grid; grid-template-columns: repeat(2, auto); }
-.kt-rule-suits:has(svg:nth-child(2)) svg { width: 10px; }
 .kt-rule-prop.kt-rule-impact { z-index: 3; }
 .kt-rule-prop.kt-rule-impact[data-multiple] { width: calc(var(--kt-knife-width) * .72); }
 .kt-rule-props:has(.kt-rule-impact) .kt-rule-prop[data-kind="cut"]:not(.kt-rule-impact) { visibility: hidden; }
