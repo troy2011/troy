@@ -697,7 +697,7 @@ async function loadCatalogCache() {
     let tokenHttp = {};
     console.log('[カタログ] PlayFab Economy V2 カタログの読み込みを開始します...');
     try {
-        const tokenTarget = authenticationTokenTarget(PlayFab.GetServerUrl());
+        const tokenTarget = authenticationTokenTarget(PlayFab);
         await observeHttpResponse(tokenTarget, tokenHttp, () => ensureTitleEntityToken());
         diagnosticStage = 'GetEntityToken';
         tokenHttp = {};
@@ -709,7 +709,7 @@ async function loadCatalogCache() {
         }
 
         diagnosticStage = 'SearchItems';
-        const searchTarget = catalogSearchTarget(PlayFab.GetServerUrl());
+        const searchTarget = catalogSearchTarget(PlayFab);
         const itemIds = [];
         let token = null;
         do {

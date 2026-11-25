@@ -44,7 +44,7 @@ async function observeHttpResponse(target, out, run) {
     const owned = new WeakSet();
     const context = {};
     function started({ request }) {
-        if (captureContext.getStore() !== context || request.method !== 'POST' || request.path !== target.path) return;
+        if (captureContext.getStore() !== context || request.method !== 'POST' || request.path?.split('?', 1)[0] !== target.path) return;
         const host = request.getHeader('host');
         if (typeof host === 'string' && host.toLowerCase() === target.host) owned.add(request);
     }
@@ -63,9 +63,10 @@ async function observeHttpResponse(target, out, run) {
     finally { START.unsubscribe(started); FINISH.unsubscribe(finished); }
 }
 
-function playFabTarget(url, path) {
+function playFabTarget(sdk, path) {
     try {
-        const parsed = new URL(url);
+        // The pinned package exposes the transport under the nested PlayFab export.
+        const parsed = new URL(sdk.PlayFab.GetServerUrl());
         if (parsed.protocol === 'https:' && /^[a-z0-9]+\.playfabapi\.com$/i.test(parsed.hostname) && !parsed.port && parsed.pathname === '/') {
             return { host: parsed.host.toLowerCase(), path };
         }
@@ -73,7 +74,7 @@ function playFabTarget(url, path) {
     return null;
 }
 
-const catalogSearchTarget = url => playFabTarget(url, '/Catalog/SearchItems');
-const authenticationTokenTarget = url => playFabTarget(url, '/Authentication/GetEntityToken');
+const catalogSearchTarget = sdk => playFabTarget(sdk, '/Catalog/SearchItems');
+const authenticationTokenTarget = sdk => playFabTarget(sdk, '/Authentication/GetEntityToken');
 
 module.exports = { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget, authenticationTokenTarget };
