@@ -20879,7 +20879,7 @@ function validatePlay(play, mode) {
     if (areKingdomTableRulesEnabled()) {
       if (playHasMajor) return { ok: true };
       const compatible = trickCards.some(field => playCards.some(card => KINGDOM_CARD_COUNTER_SUIT[field.suit] === card.suit));
-      return compatible ? { ok: true } : { ok: false, reason: '同じ数字は火↔水、風↔大地の反発で返せます。' };
+      return compatible ? { ok: true } : { ok: false, reason: '同じ数字は火↔水、風↔地の反発で返せます。' };
     }
     const playMask = getPlaySuitMask(play);
     const trickMask = getPlaySuitMask(s.trick);
@@ -30615,7 +30615,7 @@ function ensureKingdomRulebookUi() {
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p data-table-rules-copy="同じ数字の小札はワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（大地）で互いに返せます。複数枚は1組でも相性が合えば返せます。大アルカナ入りなら同数字のすべてに返せます。小札だけでは同数字の大札に返せません。">同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
+                <p data-table-rules-copy="同じ数字の小札はワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（地）で互いに返せます。複数枚は1組でも相性が合えば返せます。大アルカナ入りなら同数字のすべてに返せます。小札だけでは同数字の大札に返せません。">同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>
