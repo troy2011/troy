@@ -1,7 +1,7 @@
 import { rulePropSuits } from './rulePropMaterials.js';
 
 // Ornamental witnesses to rule state, never a source of gameplay truth.
-const files = { cut:'knife-reference', lock:'tankard', back:'hourglass-reference' };
+const files = { cut:'knife-reference', lock:'tankard', back:'whisky-spill' };
 const vessels = { coin:'tankard-coin', cup:'tankard-cup', sword:'tankard-sword', wand:'tankard-wand' };
 const base = new URL('../../assets/tarot-kingdom-table/rule-props/', import.meta.url);
 const icons = {

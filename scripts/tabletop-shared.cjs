@@ -15,7 +15,7 @@ const names = [
 ];
 const js = names.map(name => 'js/kingdomTable/' + name + '.js');
 const props = [
-    'hourglass-reference-shadow', 'knife-reference-shadow', 'tankard-coin-shadow',
+    'hourglass-reference-shadow', 'whisky-spill-shadow', 'knife-reference-shadow', 'tankard-coin-shadow',
     'tankard-cup-shadow', 'tankard-shadow', 'tankard-sword-shadow', 'tankard-wand-shadow',
 ];
 const foley = ['hourglass.mp3', 'knife.mp3', 'mug-coin.mp3', 'mug-cup.mp3', 'mug-sword.mp3', 'mug-wand.mp3', 'CREDITS.txt', 'tracks.json'];
