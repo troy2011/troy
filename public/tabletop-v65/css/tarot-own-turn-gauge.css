@@ -1,0 +1,19 @@
+/* Sites timed rooms only; the shared board geometry is unchanged. */
+.kt-own-turn-gauge:not([hidden]) {
+  position: absolute;
+  z-index: 3;
+  inset-inline-start: 3px;
+  inset-block-start: calc(100% + 20px);
+  display: block;
+  width: clamp(98px, 33vw, 132px);
+  height: 8px;
+  pointer-events: none;
+  background: url("../assets/tarot-kingdom-table/own-turn-brass-v1.webp") center / 100% 100% no-repeat;
+}
+.kt-own-turn-fill {
+  position: absolute;
+  inset: 23% 3.6%;
+  border-radius: 1px;
+  transform-origin: left center;
+  background: linear-gradient(#fff0b5, #ffb73a 45%, #c16814);
+}

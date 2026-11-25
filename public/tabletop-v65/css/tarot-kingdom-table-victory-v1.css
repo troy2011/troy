@@ -43,8 +43,12 @@ body {
   padding: 0 8px calc(8px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  background: var(--kt-wood-dark) url("../assets/tarot-kingdom-table/tavern-v1/tavern-room.webp") center / cover;
+  background: var(--kt-tavern-table-repair, none) center / cover no-repeat, var(--kt-wood-dark) url("../assets/tarot-kingdom-table/tavern-v1/tavern-room.webp") center / cover;
   box-shadow: 0 0 70px #000;
+}
+
+.kt-app:has(> #ktTable:not([hidden])) {
+  --kt-tavern-table-repair: url("../assets/tarot-kingdom-table/tavern-v1/table-no-lantern-repair.webp");
 }
 
 /* A chip count: a small gold coin before the number. */

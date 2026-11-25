@@ -439,7 +439,6 @@ function renderSeat(seat, host) {
     identity.append(name, fullName);
     const details = el('div', 'kt-seat-details');
     details.append(el('span', 'kt-seat-chips kt-chip', String(match.chips[seat])), hanPill(seat));
-    if (match.opponentRatings) details.append(el('span', 'kt-seat-rating', `レート${match.opponentRatings[seat - 1]}`));
     host.querySelector('.kt-seat-panel').replaceChildren(identity, details, hand, badges(seat));
     fitOpponentName(host);
     renderOpponentHand(host, count);
@@ -545,8 +544,6 @@ function renderField() {
     fieldState.hidden = !state.length;
     fieldState.classList.toggle('kt-prop-state-only', state.length > 0 && round.direction !== -1);
     renderRuleProps($('ktRuleProps'), round, { motion: Fx.moving(), animateNew: true });
-    const graveCount = round.players.reduce((sum, player) => sum + player.grave.length + player.exiled.length, round.aside.length);
-    $('ktGrave').textContent = `墓地・除外 ${graveCount}枚`;
     $('ktGrave').disabled = round.phase === 'over';
 }
 

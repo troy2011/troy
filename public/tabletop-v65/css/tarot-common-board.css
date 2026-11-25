@@ -119,12 +119,12 @@
 .kt-badge { padding: 0 4px; border-radius: 9px; color: #1c1608; background: var(--kt-dim); font-size: 10px; font-weight: 700; line-height: 18px; }
 .kt-badge-dealer { color: #fff; background: #7a2f8f; }
 
-.kt-field { position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 0; }
-.kt-field-heading { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; min-height: 44px; }
+.kt-field { --kt-field-lift: 54px; --kt-heading-lift: 13px; position: relative; grid-area: field; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 0; }
+.kt-field-heading { pointer-events: none; translate: 0 calc(-1 * var(--kt-heading-lift)); position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; min-height: 44px; }
 .kt-grave-button { position: absolute; inset-inline-end: 8px; inset-block-start: 0; z-index: 3; min-height: 32px; white-space: nowrap; padding: 3px 9px; border: 1px solid #ba8b4c; border-radius: 5px; color: var(--kt-ink); background: #352014; font: inherit; font-size: 12px; cursor: pointer; }
 .kt-grave-button:disabled { opacity: 0.6; cursor: default; }
 .kt-field-owner { position: relative; margin: 0; min-width: 0; min-height: 18px; font-size: 12px; text-align: center; padding: 1px 10px; line-height: 20px; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; border: 1px solid #ba8b4c; border-radius: 3px; color: #35200e; background: linear-gradient(#f1d9a5, #d3ad70); font-family: var(--kt-serif); font-weight: 700; }
-.kt-navigation { position: relative; z-index: 2; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
+.kt-navigation { position: relative; z-index: 4; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
 .kt-navigation:not(:has(> :not([hidden]))) { display: none; }
 .kt-turn-order { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Lighting only: keep the original carved nameplate frame and its dimensions. */
@@ -190,14 +190,18 @@
 }
 /* Use the five-card role width for every pile, and reserve a slot even while it is empty. */
 /* Placed rule props: the shadow is part of each sprite. */
-.kt-rule-stage { position: relative; width: 100%; min-width: 0; }
+.kt-rule-stage { position: relative; width: 100%; min-width: 0; translate: 0 calc(-1 * var(--kt-field-lift)); }
+@media (max-height: 680px) {
+  .kt-field { --kt-field-lift: 44px; --kt-heading-lift: 12px; }
+}
 .kt-rule-props { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .kt-rule-prop { position: absolute; display: block; bottom: clamp(10px, 4.5vw, 18px); }
 .kt-rule-prop img { position: absolute; display: block; inset-inline-start: 0; inset-block-start: 0; width: calc(100% * var(--kt-shadow-scale)); max-width: none; height: auto; }
 .kt-rule-prop[data-kind="lock"] { inset-inline-start: calc(50% + clamp(21px, 6.6vw, 40px)); --kt-bowl-width: clamp(59px, 22vw, 91px); width: var(--kt-bowl-width); aspect-ratio: 206 / 181; --kt-shadow-scale: calc(260 / 206); container-type: inline-size; z-index: 1; }
 .kt-rule-prop[data-wide-field][data-kind="lock"] {
   inset-inline-start: auto;
-  inset-inline-end: clamp(17px, 5.3vw, 32px);
+  inset-inline-end: clamp(74px, 25vw, 104px);
+  bottom: -36px;
 }.kt-rule-prop[data-vessel="cup"] { width: calc(var(--kt-bowl-width) * .951); aspect-ratio: 252 / 233; --kt-shadow-scale: calc(318 / 252); }
 .kt-rule-prop[data-vessel="sword"] { width: calc(var(--kt-bowl-width) * .806); aspect-ratio: 231 / 252; --kt-shadow-scale: calc(291 / 231); }
 .kt-rule-prop[data-vessel="wand"] { width: calc(var(--kt-bowl-width) * .955); aspect-ratio: 252 / 232; --kt-shadow-scale: calc(318 / 252); }
@@ -205,6 +209,7 @@
 .kt-rule-prop[data-kind="back"] { inset-inline-start: calc(50% - clamp(78px, 28vw, 121px)); width: clamp(28px, 10.2vw, 52px); aspect-ratio: 96 / 172; --kt-shadow-scale: calc(121 / 96); }
 .kt-rule-prop[data-wide-field][data-kind="back"] {
   inset-inline-start: clamp(8px, 6vw, 35px);
+  bottom: -37px;
 }
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; --kt-shadow-scale: calc(208 / 165); inset-inline-start: calc(50% - 5px); transform: translateX(-40%); z-index: 2; }
 .kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-40%, -87%); }
@@ -336,7 +341,7 @@
 }
 .kt-message { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0; max-height: 32px; font-size: 12px; line-height: 16px; text-align: center; overflow-wrap: anywhere; }
 .kt-message-more { position: absolute; inset-inline-end: 3px; inset-block: 3px; width: 23px; border: 1px solid #9a784b; border-radius: 4px; background: #302016; color: var(--kt-ink); cursor: pointer; }
-.kt-me { position: relative; z-index: 2; display: flex; align-items: center; gap: 4px 5px; width: fit-content; min-width: 0; max-width: 100%; min-height: 32px; padding: 2px 6px; border: 3px double #b88a47; border-radius: 6px; background: linear-gradient(#42271c, #24120e); font-size: 14px; box-shadow: 0 3px 8px rgb(0 0 0 / 50%); }
+.kt-me { position: relative; z-index: 4; display: flex; align-items: center; gap: 4px 5px; width: fit-content; min-width: 0; max-width: 100%; min-height: 32px; padding: 2px 6px; border: 3px double #b88a47; border-radius: 6px; background: linear-gradient(#42271c, #24120e); font-size: 14px; box-shadow: 0 3px 8px rgb(0 0 0 / 50%); }
 .kt-me > :not(strong) { flex: none; white-space: nowrap; }
 .kt-player-rating { color: var(--kt-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
 .kt-me strong { flex: none; min-width: 3em; white-space: nowrap; font-family: var(--kt-serif); font-size: 16px; }
@@ -344,7 +349,7 @@
 /* Display models are decorative; real cards remain interactive in the hand row below. */
 #ktLocalPlayer { position: relative; min-height: 36px; display: flex; align-items: flex-end; }
 #ktLocalPlayer:has(#ktAvatarSeat:not([hidden])) { padding-inline-end: clamp(46px,calc(30vw - 48px),104px); }
-#ktAvatarSeat { position: absolute; z-index: 1; inset-inline-end: 0; inset-block-end: 0; isolation: isolate; pointer-events: none; height: var(--kt-local-art-height); aspect-ratio: 8/7; }
+#ktAvatarSeat { position: absolute; z-index: 3; inset-inline-end: 0; inset-block-end: 0; isolation: isolate; pointer-events: none; height: var(--kt-local-art-height); aspect-ratio: 8/7; }
 .kt-avatar-art{position:relative;height:100%;width:100%}
 .kt-avatar-portrait,.kt-avatar-fingers{position:absolute;inset:0;width:100%;height:100%}
 .kt-avatar-fingers{z-index:2;clip-path:var(--kt-avatar-clip)}
