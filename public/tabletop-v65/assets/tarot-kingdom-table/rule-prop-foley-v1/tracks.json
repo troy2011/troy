@@ -70,5 +70,16 @@
     "credit": "AHTu20 — Medieval Tavern SFX Pack (with Stable Audio, edited)",
     "source": "WAV/drinks/tavern_mug_clink_01.wav",
     "sha256": "adc41fae4e8841983061a0bc8a9d747ea789da45837445af382aeb7cb98ef56b"
+  },
+  "whisky-bottle": {
+    "file": "whisky-bottle.mp3",
+    "bytes": 10074,
+    "durationSec": 0.58,
+    "startSec": 0,
+    "encoding": "MP3 mono 44.1 kHz /128k",
+    "peakDbFS": -4.2,
+    "credit": "loganzsound and ventousawins (Freesound, CC0; edited)",
+    "source": "https://freesound.org/people/loganzsound/sounds/774231/ + https://freesound.org/people/ventousawins/sounds/681410/",
+    "sha256": "63cd464cc0d1357bac21d2c1ac90eb09ee8ca4b7907e3af722825bc9805918c8"
   }
 }

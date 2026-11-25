@@ -9,3 +9,7 @@ https://leohpaz.itch.io/minifantasy-weapons-sfx-pack
 Included Licensing.txt: personal/commercial project use permitted. Do not sell or distribute the asset pack; attribution not mandatory.
 
 Exact individual source paths and hashes: tracks.json. Mug sound assignments are material-inspired proxies, not four certified live material recordings.
+
+whisky-bottle.mp3 (CC0, trimmed, filtered and mixed):
+loganzsound: https://freesound.org/people/loganzsound/sounds/774231/
+ventousawins: https://freesound.org/people/ventousawins/sounds/681410/

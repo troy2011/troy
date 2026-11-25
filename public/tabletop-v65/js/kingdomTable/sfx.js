@@ -1,4 +1,4 @@
-import { rulePropSoundBase as propSoundBase, rulePropSounds, rulePropSoundKey } from './rulePropMaterials.js';
+import { rulePropSoundBase as propSoundBase, rulePropSounds, rulePropSoundKey } from './rulePropMaterials.js?v=whisky-v2';
 import * as Real from './sfxReal.js?v=seat-feedback-v1';
 import {roleAccent, roleAccentClips} from './roleAccents.js?v=role-foley-v1';
 import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdVoices, selectRoundVoice, roundOutTier } from './roleCrowdPreview.js?v=round-score-v1';

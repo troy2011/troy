@@ -6,7 +6,7 @@ test('shared prop audio resolves settled material stems from the module', async 
     const { rulePropSoundKey, rulePropSoundBase, rulePropSounds, rulePropSuits } =
         await import('../public/tabletop-v65/js/kingdomTable/rulePropMaterials.js');
     assert.equal(rulePropSoundKey('cut'), 'knife');
-    assert.equal(rulePropSoundKey('back'), 'hourglass');
+    assert.equal(rulePropSoundKey('back'), 'whisky-bottle');
     for (const suit of ['coin','cup','sword','wand']) {
         assert.equal(rulePropSoundKey('lock', suit), 'mug-' + suit);
         assert.equal(rulePropSoundKey('lock', [suit]), 'mug-' + suit);

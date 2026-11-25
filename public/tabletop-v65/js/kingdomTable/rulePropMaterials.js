@@ -1,5 +1,5 @@
 export const rulePropSoundBase = new URL('../../assets/tarot-kingdom-table/rule-prop-foley-v1/', import.meta.url);
-export const rulePropSounds = Object.freeze(['knife','hourglass','mug-coin','mug-sword','mug-wand','mug-cup']);
+export const rulePropSounds = Object.freeze(['knife','whisky-bottle','mug-coin','mug-sword','mug-wand','mug-cup']);
 const ruleSuits = new Set(['coin','sword','wand','cup']);
 
 export function rulePropSuits(value) {
@@ -8,7 +8,7 @@ export function rulePropSuits(value) {
 
 export function rulePropSoundKey(kind, suits) {
   if (kind === 'cut') return 'knife';
-  if (kind === 'back') return 'hourglass';
+  if (kind === 'back') return 'whisky-bottle';
   const [suit] = rulePropSuits(suits);
   return kind === 'lock' && suit ? 'mug-' + suit : '';
 }

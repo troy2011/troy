@@ -216,6 +216,16 @@
   --kt-shadow-scale: 1;
   z-index: 0;
 }
+.kt-rule-prop[data-kind="back"]::after {
+  content: "";
+  position: absolute;
+  display: block;
+  inset-inline-start: -9px;
+  inset-block-start: 1px;
+  width: min(78px, 21vw);
+  aspect-ratio: 2 / 1;
+  background: url("../assets/tarot-kingdom-table/rule-props/whisky-bottle-back.webp") center / contain no-repeat;
+}
 .kt-rule-prop[data-kind="cut"] { --kt-knife-width: clamp(48px, 17.5vw, 78px); width: var(--kt-knife-width); aspect-ratio: 165 / 230; --kt-shadow-scale: calc(208 / 165); inset-inline-start: calc(50% - 5px); transform: translateX(-40%); z-index: 2; }
 .kt-rule-prop[data-cut-contact] { bottom: auto; transform: translate(-40%, -87%); }
 .kt-rule-suits { position: absolute; display: flex; justify-content: center; align-items: center; gap: 1px; inset-inline-start: 40%; top: 55%; transform: translate(-50%, -50%); filter: drop-shadow(0 1px 1px #17101a); }
