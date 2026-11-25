@@ -400,7 +400,7 @@ function fitOpponentName(host) {
 function renderSeat(seat, host) {
     const round = match.round;
     const count = round.players[seat].hand.length;
-    host.hidden = false;
+    if (host.hidden) host.hidden = false;
     host.classList.toggle('is-turn', round.phase !== 'deathSwap' && round.phase !== 'over' && round.turn === seat);
     host.dataset.seat = String(seat);
     const avatar = seatAvatar(seat);
@@ -840,6 +840,10 @@ function render() {
     $('ktRound').textContent = match.over ? `全${match.rounds}局` : `${roundLabel(match)} / ${match.rounds}`;
     $('ktDeck').textContent = String(round.deck.length);
     $('ktDeck').setAttribute('aria-label', `山札 残り${round.deck.length}枚`);
+    // Hiding a live seat restarts the card-back fade on each room snapshot.
+    const top = $('ktSeatTop');
+    const hideTop = match.seats !== 4;
+    if (top.hidden !== hideTop) top.hidden = hideTop;
     for (const [seat, host] of seatSlots()) renderSeat(seat, host);
     if(round.phase!=='over')for(const node of $('ktTable').querySelectorAll('.is-thrown'))node.classList.remove('is-thrown');
     renderField();
@@ -1911,7 +1915,6 @@ function begin(seats) {
         match.opponentRatings = makeOpponents(playerRating, seats, match.cpuRandom);
         match.ratingResult = null;
     }
-    for (const id of ['ktSeatTop', 'ktSeatLeft', 'ktSeatRight']) $(id).hidden = true;
     $('ktSetup').hidden = true;
     $('ktTable').hidden = false;
     $('ktFelt').dataset.seats = String(seats);
@@ -2123,7 +2126,6 @@ online.onView = view => {
         cancelResultPresentation();
         selected.clear(); manualHandOrder = null; seenEvents = resumed ? match.round.events.length : 0; fieldKey = ''; if (!cpuExitPrompt) closeDialog();
     }
-    for (const id of ['ktSeatTop', 'ktSeatLeft', 'ktSeatRight']) $(id).hidden = true;
     $('ktSetup').hidden = true; $('ktTable').hidden = false;
     $('ktFelt').dataset.seats = String(match.seats);
     after();
@@ -2151,7 +2153,6 @@ if (tutorialChapter !== null) {
             $('ktTable').hidden = false;
             $('ktTable').classList.add('kt-live-tutorial');
             $('ktFelt').dataset.seats = String(match.seats);
-            $('ktSeatTop').hidden = true;
             $('ktTutorialHeader').hidden = false;
             $('ktTutorialCoach').hidden = false;
             $('ktArrange').hidden = true;

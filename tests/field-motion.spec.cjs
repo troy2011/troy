@@ -23,6 +23,42 @@ window.preparePoseScenario=(kind)=>{
   field:{kind:pile.length?'normal':null,count:pile.length,role:null,plays:pile.length?[{by:2,cards:pile.map(card)}]:[]}});
  seenEvents=0; fieldKey=''; selected=new Set(); render(); return {ids,pile};
 };
+
+window.prepareOpponentHands=async()=>{
+ clearTimeout(timer); timer=0; Fx.cancelAll();
+ const members=[{name:'Viewer'},{name:'Kai'},{name:'Mina'}];
+ const round=match.round;
+ Object.assign(round,{phase:'play',turn:ME,events:[],drew:false,passed:[],field:{kind:null,count:0,role:null,plays:[]}});
+ for(const p of round.players.slice(1))p.hand=p.hand.slice(0,3);
+ const view={code:'flash-test',status:'playing',members,match};
+ if(!Object.getOwnPropertyDescriptor(online,'view')?.get)online.view=view;
+ online.onView(view);
+ await Promise.all(document.getAnimations().filter(a=>a.animationName==='kt-fan-in').map(a=>a.finished));
+ return view;
+};
+window.measureOpponentHands=async view=>{
+ const seats=[$('ktSeatRight'),$('ktSeatLeft')];
+ const fans=seats.map(seat=>seat.querySelector('.kt-opponent-hand'));
+ const backs=fans.map(fan=>[...fan.children]);
+ const initial=backs.map(back=>back.length);
+ const hiddenChanges=[];
+ const observer=new MutationObserver(entries=>hiddenChanges.push(...entries.map(e=>e.target.id)));
+ for(const s of seats)observer.observe(s,{attributes:true,attributeFilter:['hidden']});
+ for(let i=0;i<3;i++){
+   online.onView(view);
+   await new Promise(requestAnimationFrame);
+ }
+ const restarts=fans.map(fan=>fan.getAnimations({subtree:true}).filter(a=>a.animationName==='kt-fan-in').length);
+ const opacity=backs.map(back=>Number(getComputedStyle(back[0]).opacity));
+ observer.disconnect();
+ const sameBacks=fans.every((fan,i)=>fan.children.length===backs[i].length&&[...fan.children].every((node,j)=>node===backs[i][j]));
+ view.match.round.players[1].hand.length=1;
+ online.onView(view);
+ const lastCard={count:fans[0].children.length,outline:getComputedStyle(fans[0].firstElementChild).outlineStyle,visible:!fans[0].hidden};
+ view.match.round.players[1].hand.length=0;
+ online.onView(view);
+ return {initial,restarts,opacity,hiddenChanges,sameBacks,lastCard,empty:fans[0].hidden};
+};
 window.runPoseScenario=(kind,ids)=>{
  const r=match.round;
  playOrigins=new Map(ids.map(id=>[id,rectOf($('ktHand').querySelector('[data-card="'+id+'"]'))]));
@@ -168,4 +204,18 @@ if(!isTroy)test('rated CPU own pair starts at the actual two hand cards',async({
  for(const id of ids)expect(origin[id].map((n,i)=>Math.abs(n-handCentres[id][i]))).toEqual([expect.closeTo(0,0),expect.closeTo(0,0)]);
  await centresAgree(page); await finish(page);
  await expect(page.locator('.kt-fx-card[data-card]')).toHaveCount(0);
+});
+test('opponent card backs do not flash when an unchanged room update arrives',async({page})=>{
+ await open(page,390,844,false);
+ const result=await page.evaluate(async()=>{
+   const before=await window.prepareOpponentHands();
+   return await window.measureOpponentHands(before);
+ });
+ expect(result.initial).toEqual([3,3]);
+ expect(result.restarts).toEqual([0,0]);
+ expect(result.opacity).toEqual([1,1]);
+ expect(result.hiddenChanges).toEqual([]);
+ expect(result.sameBacks).toBe(true);
+ expect(result.lastCard).toEqual({count:1,outline:'solid',visible:true});
+ expect(result.empty).toBe(true);
 });
