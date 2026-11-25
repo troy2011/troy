@@ -29,7 +29,11 @@ function describePlayFabCatalogFailure(operation, error, searchPage, http) {
     }
     if (Number.isInteger(http?.httpStatus) && http.httpStatus >= 100 && http.httpStatus <= 599) info.httpStatus = http.httpStatus;
     // Only typed UUID-format request identifiers, never raw headers, response text, tokens, entity or title IDs.
-    for (const value of [http?.requestId, error?.requestId, error?.RequestId, error?.correlationId, error?.CorrelationId]) {
+    const requestIds = [http?.requestId];
+    if (stage !== 'GetEntityToken' && stage !== 'ensureTitleEntityToken') {
+        requestIds.push(error?.requestId, error?.RequestId, error?.correlationId, error?.CorrelationId);
+    }
+    for (const value of requestIds) {
         if (typeof value === 'string' && REQUEST_ID.test(value)) { info.requestId = value; break; }
     }
     return info;
@@ -59,14 +63,17 @@ async function observeHttpResponse(target, out, run) {
     finally { START.unsubscribe(started); FINISH.unsubscribe(finished); }
 }
 
-function catalogSearchTarget(url) {
+function playFabTarget(url, path) {
     try {
         const parsed = new URL(url);
         if (parsed.protocol === 'https:' && /^[a-z0-9]+\.playfabapi\.com$/i.test(parsed.hostname) && !parsed.port && parsed.pathname === '/') {
-            return { host: parsed.host.toLowerCase(), path: '/Catalog/SearchItems' };
+            return { host: parsed.host.toLowerCase(), path };
         }
     } catch { /* Preserve the existing SDK behavior for invalid configuration. */ }
     return null;
 }
 
-module.exports = { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget };
+const catalogSearchTarget = url => playFabTarget(url, '/Catalog/SearchItems');
+const authenticationTokenTarget = url => playFabTarget(url, '/Authentication/GetEntityToken');
+
+module.exports = { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget, authenticationTokenTarget };

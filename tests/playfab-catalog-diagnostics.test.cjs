@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const http=require('node:http');
 const { once }=require('node:events');
 const { channel }=require('node:diagnostics_channel');
-const { describePlayFabCatalogFailure: describe, observeHttpResponse, catalogSearchTarget }=require('../server/playfabCatalogDiagnostics');
+const { describePlayFabCatalogFailure: describe, observeHttpResponse, catalogSearchTarget, authenticationTokenTarget }=require('../server/playfabCatalogDiagnostics');
 const id='11111111-2222-3333-4444-555555555555';
 test('SDK envelope classification redacts all raw upstream text and token-like values',()=>{
  const bad={code:503,errorCode:2,error:'Connection error',errorMessage:'Request blocked due to incorrect formatting; fake-secret',requestId:'opaque-secret'};
@@ -63,7 +63,7 @@ test('startup catalog success still loads the cache; failure retains exit and em
     return {Items:[]};
    },
    console:{log:()=>{},warn:()=>{},error:(_label,details)=>messages.push(JSON.parse(details))},
-   process:{exit:code=>exits.push(code)},describePlayFabCatalogFailure:describe,catalogSearchTarget,
+   process:{exit:code=>exits.push(code)},describePlayFabCatalogFailure:describe,catalogSearchTarget,authenticationTokenTarget,
    catalogCache:null,catalogAliasMap:null,catalogCurrencyMap:null,
   };
   await require('node:vm').runInNewContext(source.slice(start,end)+'; loadCatalogCache()', context);
@@ -72,4 +72,40 @@ test('startup catalog success still loads the cache; failure retains exit and em
   if(fails)assert.deepEqual(messages,[{stage:'SearchItems',kind:'sdk_non_json_or_transport',page:1,signal:'upstream_request_blocked',httpStatus:403}]);
   else {assert.deepEqual(Object.keys(context.catalogCache),[]); assert.deepEqual(messages,[]);}
  }
+});
+
+test('token endpoint non-JSON response captures only safe headers for the exact observed request', async t => {
+ const tokenPath='/Authentication/GetEntityToken';
+ assert.deepEqual(authenticationTokenTarget('https://A123.playfabapi.com'), {host:'a123.playfabapi.com',path:tokenPath});
+ assert.equal(authenticationTokenTarget('https://a123.playfabapi.com.example.com'),null);
+ const server=http.createServer((req,res)=>{
+  req.resume();
+  res.writeHead(418,{'x-playfab-request-id':'fake-secret', 'x-ms-correlation-request-id':id, 'authorization':'fixture-secret'});
+  res.end('non-JSON; secret body');
+ });
+ server.listen(0,'127.0.0.1');
+ await once(server,'listening');
+ t.after(()=>server.close());
+ const host='127.0.0.1:'+server.address().port;
+ const sdkError={code:503,errorCode:2,error:'Connection error',errorMessage:'non-JSON; secret body',requestId:'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'};
+ const run=(path,method='POST')=>new Promise((resolve,reject)=>{
+  const req=http.request({host:'127.0.0.1',port:server.address().port,path,method,headers:{'x-secretkey':'fixture-request-secret'}},res=>{
+   res.resume();
+   res.on('end',()=>reject(sdkError));
+  });
+  req.on('error',reject);
+  req.end();
+ });
+ for (const stage of ['ensureTitleEntityToken','GetEntityToken']) {
+  const observed={};
+  await assert.rejects(observeHttpResponse({host,path:tokenPath},observed,()=>run(tokenPath)), e=>e===sdkError);
+  assert.deepEqual(describe(stage,sdkError,0,observed),{stage,kind:'sdk_non_json_or_transport',httpStatus:418,requestId:id});
+  assert.deepEqual(describe(stage,sdkError,0,{}),{stage,kind:'sdk_non_json_or_transport'});
+ }
+ const excluded={};
+ await Promise.allSettled([
+  observeHttpResponse({host,path:tokenPath},excluded,()=>Promise.allSettled([run('/other'),run(tokenPath,'GET')])),
+  run(tokenPath),
+ ]);
+ assert.deepEqual(excluded,{});
 });

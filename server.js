@@ -36,7 +36,7 @@ const {
 
 // 分割モジュール
 const economy = require('./server/economy');
-const { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget } = require('./server/playfabCatalogDiagnostics');
+const { describePlayFabCatalogFailure, observeHttpResponse, catalogSearchTarget, authenticationTokenTarget } = require('./server/playfabCatalogDiagnostics');
 const building = require('./server/building');
 const nation = require('./server/nation');
 const island = require('./server/island');
@@ -694,11 +694,15 @@ async function loadCatalogCache() {
     let diagnosticStage = 'ensureTitleEntityToken';
     let searchPage = 0;
     let searchHttp;
+    let tokenHttp = {};
     console.log('[カタログ] PlayFab Economy V2 カタログの読み込みを開始します...');
     try {
-        await ensureTitleEntityToken();
+        const tokenTarget = authenticationTokenTarget(PlayFab.GetServerUrl());
+        await observeHttpResponse(tokenTarget, tokenHttp, () => ensureTitleEntityToken());
         diagnosticStage = 'GetEntityToken';
-        const tokenResult = await promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {});
+        tokenHttp = {};
+        const tokenResult = await observeHttpResponse(tokenTarget, tokenHttp,
+            () => promisifyPlayFab(PlayFabAuthentication.GetEntityToken, {}));
         const titleEntity = tokenResult?.Entity;
         if (!titleEntity?.Id || !titleEntity?.Type) {
             throw new Error('Title entity token is missing Entity.');
@@ -919,7 +923,7 @@ async function loadCatalogCache() {
         console.log(`[カタログ] 内訳確認: Ship = ${shipCount} 件`);
         console.log(`[カタログ] 内訳確認: Currency = ${Object.keys(catalogCurrencyMap).length} 件`);
     } catch (error) {
-        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', JSON.stringify(describePlayFabCatalogFailure(diagnosticStage, error, searchPage, diagnosticStage === 'SearchItems' ? searchHttp : null)));
+        console.error('[カタログ] エラー: カタログの読み込みに失敗しました。', JSON.stringify(describePlayFabCatalogFailure(diagnosticStage, error, searchPage, diagnosticStage === 'SearchItems' ? searchHttp : diagnosticStage === 'GetEntityToken' || diagnosticStage === 'ensureTitleEntityToken' ? tokenHttp : null)));
         process.exit(1);
     }
 }
