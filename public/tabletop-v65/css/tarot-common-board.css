@@ -130,6 +130,8 @@
 .kt-field-owner { position: relative; margin: 0; min-width: 0; min-height: 18px; font-size: 12px; text-align: center; padding: 1px 10px; line-height: 20px; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; border: 1px solid #ba8b4c; border-radius: 3px; color: #35200e; background: linear-gradient(#f1d9a5, #d3ad70); font-family: var(--kt-serif); font-weight: 700; }
 .kt-navigation { position: relative; z-index: 4; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
 .kt-navigation:not(:has(> :not([hidden]))) { display: none; }
+.kt-han-breakdown { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; list-style: none; padding: 0; }
+.kt-han-breakdown li { max-inline-size: 100%; }
 .kt-turn-order { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* Lighting only: keep the original carved nameplate frame and its dimensions. */
 .kt-seat.is-turn .kt-seat-panel:not([data-turn]), .kt-me.is-turn:not([data-turn]) {
@@ -138,7 +140,7 @@
 [data-turn="current"] {
   --kt-rim-low: #0cffde; --kt-rim-mid: #41ffe9; --kt-rim-high: #f3fffe; --kt-light-near: #00f3d9; --kt-light-far: #00f6d995;
 }
-[data-turn="next"] {
+[data-turn="owner"] {
   --kt-rim-low: #f19c36; --kt-rim-mid: #ffbd62; --kt-rim-high: #fff8e6; --kt-light-near: #ffad4ad4; --kt-light-far: #ff9b367c;
 }
 .kt-seat-panel[data-turn], .kt-me[data-turn] {

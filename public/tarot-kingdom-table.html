@@ -8,7 +8,7 @@
 <title>タロットキングダム 卓上戦</title>
 <link rel="preload" as="image" href="assets/tarot-kingdom-table/nassau-preview/reference-a-panel.png">
 <link rel="stylesheet" href="css/tarot-kingdom-table-victory-v1.css?v=canonical-board-v1-no-stock-v1-table-lantern-repair-v1">
-<link rel="stylesheet" href="css/tarot-common-board.css?v=field-dealt-v1-no-stock-v1-prop-stack-v1-field-raised-v3-owner-gap-v1-table-cues-v4-prop-size-v1-suit-guide-v1-field-pose-v1">
+<link rel="stylesheet" href="css/tarot-common-board.css?v=field-dealt-v1-no-stock-v1-prop-stack-v1-field-raised-v3-owner-gap-v1-table-cues-v4-prop-size-v1-suit-guide-v1-field-pose-v1-field-owner-v1-han-ledger-v1">
 <link rel="stylesheet" href="css/tarot-choice-focus.css?v=canonical-board-v1">
 <link rel="stylesheet" href="css/tarot-tavern-preview.css?v=canonical-board-v1">
 <link rel="stylesheet" href="css/tarot-round-ledger-v1.css">
@@ -173,6 +173,7 @@
       <span><strong>出せる札のヒント</strong><small>5枚役やコールに使える札にも金枠を付けます。設定はこの端末に保存されます。</small></span>
       <input id="ktTurnHints" type="checkbox" role="switch">
     </label>
+    <label class="kt-settings-option"><span><strong>役名の言語 / Role language</strong></span><select id="ktTableLanguage"><option value="auto">自動 / Automatic</option><option value="ja">日本語</option><option value="en">English</option></select></label>
 
     <nav class="kt-settings-match" aria-label="対戦メニュー">
       <a class="kt-bar-link" href="tarot-kingdom-table-rules.html" target="_blank" rel="noopener">ルール</a>
@@ -199,6 +200,6 @@
     <p id="ktMessageFull"></p>
   </form>
 </dialog>
-<script type="module" src="js/kingdomTable/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1-suit-cycle-v1-table-cues-v4-suit-opposition-v1-field-pose-v1-stable-opponent-hand-v1"></script>
+<script type="module" src="js/kingdomTable/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1-suit-cycle-v1-table-cues-v4-suit-opposition-v1-field-pose-v1-stable-opponent-hand-v1-justice-han-v2-han-ledger-v1-named-han-v3"></script>
 </body>
 </html>

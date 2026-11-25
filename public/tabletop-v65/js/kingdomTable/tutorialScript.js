@@ -1,7 +1,7 @@
 // Tarot Kingdom tutorial: fixed deals and a fixed script, played on the real rule engine.
 // Pure logic: no DOM. The page (tutorial.js) and the tests drive the same session.
-import * as Rules from './rules.js?v=suit-opposition-v1';
-import { createMatch, startRound, settleRound } from './match.js?v=suit-opposition-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1-named-han-v3';
+import { createMatch, startRound, settleRound } from './match.js?v=named-han-locale-v2';
 
 export const ME = 0;
 export const SEATS = 3;
@@ -59,7 +59,7 @@ export const CHAPTERS = [
             me('play', ['coin-10'], '「ペンタクルの10」を出してください。', '', ['normal']),
             cpu(1, 'play', ['coin-13'], 'カイが同じスートの1枚場に「ペンタクルの13」を出したので、ペンタクルでロックされました。ロック中はペンタクルでしか返せません。', ['lock']),
             pass(2),
-            me('play', ['major-14'], 'ロックは大札の「節制14」で解除できます。節制はロック中でも出せます。「節制14」を出してください。', 'ロックが解除されました。コールや場流しでも解除されます。節制14は、11バック・逆回り・審判の効果も解除できます。', ['unlock']),
+            me('play', ['major-14'], 'ロックは大札の「節制14」で解除できます。節制はロック中でも出せます。「節制14」を出してください。', 'ロック解除。節制で効果を消すと「清めの杯」で＋1翻です。', ['unlock']),
             pass(1),
             pass(2),
             me('play', ['coin-8'], '8を1枚だけ出すと「8カット」です。次の人はコールかパスしかできません。「ペンタクルの8」を出してください。', '', ['cut8']),
@@ -78,12 +78,12 @@ export const CHAPTERS = [
         steps: [
             cpu(2, 'play', ['major-16'], 'ミナは大札「塔16」を出しました。16はソード、17はカップ、18はペンタクル、19はワンドの1枚場にだけ出せます。', ['suitMajor']),
             me('play', ['major-21'], '大札「世界21」のワールドエンドは、大札1枚の場に出すと即座に場を流します。「世界21」を出してください。', '大札16〜21を1枚で出して自分で場を流すと、＋1翻です。', ['world21', 'majorClear']),
-            me('play', ['major-11'], '大札16〜19と21は、最後の1枚でない限り空の場には出せません。ここでは大札「正義11」を出してください。', '正義11のライブリバースは、数字の強弱を反転し、この局の手番を逆回りにします。逆回りは場が流れても続きますが、節制14を出すか局が終わると元に戻ります。次はミナの番です。', ['reverse', 'back']),
+            me('play', ['major-11'], '大札16〜19と21は、最後の1枚でない限り空の場には出せません。ここでは大札「正義11」を出してください。', '正義11で札の強弱が逆に。すでに11バック中なら解除し、正義執行で＋1翻です。', ['back']),
+            pass(1, '先にカイがパスしました。'),
             cpu(2, 'play', ['cup-6'], '11バック中なので、ミナは小さい6で返しました。', ['back']),
-            pass(1, '逆回りなので、ミナの次はカイ、その次があなたです。'),
             me('pass', [], 'パスしてください。', '場が流れ、ミナが親になりました。', ['pass', 'clear'])
         ],
-        outro: '対応スートの大札16〜19、世界21の即流し、大札流しの＋1翻、正義11の逆回りを体験しました。ほかの大札の効果はルールページで確認できます。'
+        outro: '対応スートの大札16〜19、世界21の即流し、大札流しの＋1翻、正義11の11バックを体験しました。ほかの大札の効果はルールページで確認できます。'
     },
     {
         id: 'roles',
@@ -202,6 +202,6 @@ export const RULE_LABELS = {
     normal: '通常出し', multi: '複数枚出し', counter: '同じ数字のスートの反発', majorSame: '大札で同じ数字に返す',
     pass: 'パス', clear: '場流し', ace: '小札Aの強さ', skip: '5のスキップ', back: '11バック', clear8: '8の複数枚で即流し',
     cut8: '8カット', lock: 'ロック', unlock: 'クリアランス（節制14）', suitMajor: '大札16〜19の対応スート', world21: 'ワールドエンド（世界21）',
-    majorClear: '大札流しの＋1翻', reverse: '正義11の逆回り', role: '5枚役', roleOver: '役に強い役で返す', roleHan: '役の翻',
+    majorClear: '大札流しの＋1翻', role: '5枚役', roleOver: '役に強い役で返す', roleHan: '役の翻',
     call: 'コール', win: '上がり', lastCard: '切札の＋1翻'
 };

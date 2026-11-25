@@ -10,7 +10,7 @@ const names = [
     'abilityNames', 'ai', 'cardAbility', 'cheerPlan', 'choiceFocus', 'effects',
     'handInspect', 'handOrder', 'match', 'rating', 'roleAccents', 'roleCinematic',
     'roleJuicePlan', 'roleJuiceSound', 'roleRecordKey', 'rules', 'rulesBook',
-    'ruleProps', 'rulePropMaterials', 'selectedCardEffect', 'sfxReal', 'tableFeedback', 'tableHost', 'tavernTutorial', 'turnOrder',
+    'ruleProps', 'rulePropMaterials', 'selectedCardEffect', 'sfxReal', 'tableFeedback', 'tableHost', 'tableLocale', 'tavernTutorial', 'turnOrder',
     'tutorialMode', 'tutorialPicker', 'tutorialQuickCopy', 'tutorialScript',
 ];
 const js = names.map(name => 'js/kingdomTable/' + name + '.js');

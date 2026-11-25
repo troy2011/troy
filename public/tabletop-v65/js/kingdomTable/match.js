@@ -1,6 +1,8 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips are match-local points. Online matches and ratings are authoritative on the server.
-import { createRound, lastCardHan } from './rules.js?v=suit-opposition-v1';
+import { localizedLabel, formatScoreHan } from './tableLocale.js?v=2';
+import { openingRoleName } from './roleRecordKey.js?v=piece-of-eight-named-han-v2';
+import { createRound, lastCardHan, roleName } from './rules.js?v=suit-opposition-v1-named-han-v3';
 
 export const CHIP_RULES = {
     startChips: 1000,
@@ -111,4 +113,46 @@ export function settleRound(match) {
 // Seats from first place to last. Equal chips keep seat order.
 export function ranking(match) {
     return match.chips.map((chips, seat) => ({ seat, chips })).sort((a, b) => b.chips - a.chips || a.seat - b.seat);
+}
+
+
+// Use actual awarded events, not the last visible cards: a round can score several different roles.
+export function settlementHanBreakdown(match, result) {
+    const w = result?.winner;
+    if (!Number.isInteger(w)) return [];
+    const { round, rules } = match;
+    const lines = [];
+    const push = (label, han, count = 1) => { if (han) lines.push({ label, han, count }); };
+    const parent = round.dealer === w ? rules.dealerHan : 0;
+    if (round.openingWin) {
+        push(openingRoleName(round.openingWin), result.winnerHan - parent);
+    } else {
+        const roles = new Map();
+        for (const event of (round.events || [])) {
+            if (event.type !== 'han' || event.by !== w || !Array.isArray(event.role?.tb) || event.add <= 0) continue;
+            const label = roleName(event.role);
+            const entry = roles.get(label) || { label, han: 0, count: 0 };
+            entry.han += event.add;
+            entry.count++;
+            roles.set(label, entry);
+        }
+        lines.push(...roles.values());
+        const clear = (round.majorClearHan || round.devilHan)?.[w] || 0;
+        const justice = round.justiceHan?.[w] || 0;
+        const devil = round.devilTransferHan?.[w] || 0;
+        push('正義執行', justice);
+        push('清めの杯', round.temperanceHan?.[w] || 0);
+        push('大札流し', clear);
+        const counted = lines.reduce((sum, item) => sum + item.han, 0);
+        push('役の加点', (round.han[w] || 0) - counted - devil);
+        push('切札', result.lastCardHan || 0);
+        push('上がり', rules.baseHan);
+        push('悪魔', devil);
+    }
+    push('親', parent);
+    return lines;
+}
+
+export function formatHanEntry({ label, han, count }, language = 'ja') {
+    return localizedLabel(label, language) + (count > 1 ? ' ×' + count : '') + ' ' + (han < 0 ? '−' : '') + formatScoreHan(Math.abs(han), language);
 }

@@ -300,7 +300,7 @@ function awardRoleHan(state) {
     state.han[top.by] += add;
     note(state, { type: 'han', by: top.by, add, total: state.han[top.by], role: state.field.role, call: !!top.call });
 }
-const nextSeat = (state, seat) => (seat + (state.direction === -1 ? -1 : 1) + state.players.length) % state.players.length;
+const nextSeat = (state, seat) => (seat + 1) % state.players.length;
 
 function startLead(state, p) {
     state.turn = p;
@@ -413,24 +413,31 @@ function advance(state, from, skip) {
     state.turn = seat;
 }
 
+function awardNamedHan(state, p, key) {
+    state.han[p] += 1;
+    state[key] ??= state.players.map(() => 0);
+    state[key][p] += 1;
+    note(state, { type: key, by: p, add: 1, total: state.han[p] });
+}
+
 // Number effects of a normal play. `laidOn` is true when the cards answered a field or were turned at the deal.
 function applyNormalEffects(state, p, cards, prevTop, laidOn) {
     const key = numberKey(cards[0]);
     if (isMajor(cards[0], 21) && laidOn) { clearField(state, false); return; }
-    if (cards.some(card => isMajor(card, 11)) && state.direction !== -1) {
-        state.direction = -1;
-        note(state, { type: 'reverse', by: p, num: 11 });
+    if (key === 11) {
+        state.back = !state.back;
+        note(state, { type: 'back', on: state.back });
+        if (!state.back && cards.some(card => isMajor(card, 11))) awardNamedHan(state, p, 'justiceHan');
     }
-    if (key === 11) { state.back = !state.back; note(state, { type: 'back', on: state.back }); }
     if (isMajor(cards[0], 20)) { state.back = !state.back; state.judgement = true; state.judgementTriggerCard = cards[0]; note(state, { type: 'back', on: state.back }); }
     if (cards.some(card => isMajor(card, 14))
-        && (state.lock || state.back || state.direction === -1 || state.judgement)) {
+        && (state.lock || state.back || state.judgement)) {
         state.lock = null;
         state.back = false;
-        state.direction = 1;
         state.judgement = false;
         delete state.judgementTriggerCard;
         note(state, { type: 'reset', by: p });
+        awardNamedHan(state, p, 'temperanceHan');
     }
     if (prevTop && cards.length === 1 && (isMinor(cards[0], 13) || isMinor(cards[0], 14))
         && prevTop.length === 1 && suitsOf(prevTop[0]).includes(cards[0].suit) && !state.lock) {

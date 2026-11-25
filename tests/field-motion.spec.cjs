@@ -1,4 +1,5 @@
 const {test,expect}=require('@playwright/test');
+test.use({locale:'ja-JP'});
 const fs=require('node:fs'),p=require('node:path');
 const isTroy=fs.existsSync(p.resolve(__dirname,'../public/tabletop-v65'));
 const fixture=String.raw`
@@ -59,6 +60,48 @@ window.measureOpponentHands=async view=>{
  online.onView(view);
  return {initial,restarts,opacity,hiddenChanges,sameBacks,lastCard,empty:fans[0].hidden};
 };
+
+window.measureJusticeAndOwner=(back=false)=>{
+ clearTimeout(timer); timer=0; Fx.cancelAll();
+ const r=match.round, all=Rules.buildDeck(), card=id=>all.find(c=>c.id===id);
+ const me=$('ktMe'), right=seatPlate(1), second=seatPlate(2);
+ r.players[ME].hand=['major-11','wand-3'].map(card);
+ Object.assign(r,{phase:'play',turn:ME,direction:-1,last:2,events:[],winner:null,openingWin:null,back,lock:null,cut:false,
+  passed:[],field:{kind:'normal',count:1,role:null,plays:[{by:2,cards:[card(back?'cup-12':'sword-9')]}]}});
+ seenEvents=0; fieldKey=''; render();
+ const initial=[me.dataset.turn,second.dataset.turn];
+ const colors=[me,second].map(node=>getComputedStyle(node,'::before').backgroundImage);
+ const ok=result=>{if(!result.ok)throw Error(result.reason);};
+ ok(Rules.play(r,ME,['major-11'],'normal')); render();
+ const notice=$('ktMessage').textContent;
+ const play=[me.dataset.turn,right.dataset.turn,r.back,r.turn,r.events.map(e=>e.type),r.justiceHan?.[0]||0];
+ ok(Rules.pass(r,1)); render();
+ const pass=[me.dataset.turn,second.dataset.turn,r.turn];
+ for(let seat=2;seat<match.seats;seat++)ok(Rules.pass(r,seat)); render();
+ const clear=[me.dataset.turn,r.turn,r.back,document.querySelectorAll('[data-turn=owner]').length];
+ return {initial,play,pass,clear,colors,notice};
+};
+
+window.inspectNamedWinner=()=>{
+ window.measureJusticeAndOwner(true);
+ if(!Rules.play(match.round,ME,['wand-3'],'normal').ok)throw Error('cannot win from fixture');
+ showResult(settleRound(match));
+};
+
+window.inspectTemperanceWinner=()=>{
+ clearTimeout(timer); timer=0; Fx.cancelAll();
+ const r=match.round, all=Rules.buildDeck(), card=id=>all.find(c=>c.id===id);
+ r.players[ME].hand=['major-14','wand-3'].map(card);
+ Object.assign(r,{phase:'play',turn:ME,last:2,events:[],winner:null,openingWin:null,back:true,lock:'cup',cut:false,judgement:true,
+  passed:[],field:{kind:'normal',count:1,role:null,plays:[{by:2,cards:[card('major-20')]}]}});
+ seenEvents=0; fieldKey=''; render();
+ if(!Rules.play(r,ME,['major-14'],'normal').ok)throw Error('fixture cannot play Temperance');
+ if(r.back||r.lock||r.judgement||r.temperanceHan[ME]!==1)throw Error('fixture did not award exactly 1 han');
+ render();
+ for(let seat=1;seat<match.seats;seat++)if(!Rules.pass(r,seat).ok)throw Error('fixture cannot pass');
+ if(!Rules.play(r,ME,['wand-3'],'normal').ok)throw Error('fixture cannot go out');
+ showResult(settleRound(match));
+};
 window.runPoseScenario=(kind,ids)=>{
  const r=match.round;
  playOrigins=new Map(ids.map(id=>[id,rectOf($('ktHand').querySelector('[data-card="'+id+'"]'))]));
@@ -69,7 +112,7 @@ window.runPoseScenario=(kind,ids)=>{
 };
 `;
 
-async function open(page,width,height,reduced,roomApi=null) {
+async function open(page,width,height,reduced,roomApi=null,seats=3) {
  const root=p.resolve(__dirname,'../public');
  await page.route('**/*',r=>{
    const u=new URL(r.request().url());
@@ -97,7 +140,7 @@ async function open(page,width,height,reduced,roomApi=null) {
  await page.goto('/tarot-kingdom-table.html'+(roomApi?'?room=123456':''));
  if(!roomApi){
   await page.locator('[data-tavern-mode=practice]').click();
-  await page.locator('input[name=ktSeats][value="3"]').check();
+  await page.locator('input[name=ktSeats][value="'+seats+'"]').check();
   await page.locator('#ktStart').click();
  }
  await expect(page.locator('#ktTable')).toBeVisible();
@@ -218,4 +261,61 @@ test('opponent card backs do not flash when an unchanged room update arrives',as
  expect(result.sameBacks).toBe(true);
  expect(result.lastCard).toEqual({count:1,outline:'solid',visible:true});
  expect(result.empty).toBe(true);
+});
+
+for(const [seats,width,height] of [[3,390,844],[4,320,568]])test('Justice flips only rank; field owner cue persists through a pass ('+seats+' seats)',async({page})=>{
+ await open(page,width,height,true,null,seats);
+ const state=await page.evaluate(()=>window.measureJusticeAndOwner());
+ expect(state.initial).toEqual(['current','owner']);
+ expect(state.play).toEqual(['owner','current',true,1,['play','back'],0]);
+ expect(state.pass).toEqual(['owner','current',2]);
+ expect(state.clear).toEqual(['current',0,false,0]);
+ expect(state.colors.every(color=>color.includes('conic-gradient'))).toBe(true);
+ expect(state.colors[0]).not.toBe(state.colors[1]);
+});
+
+test('removing 11-back with Justice shows and stores 正義執行 +1翻',async({page})=>{
+ await open(page,390,844,true);
+ const state=await page.evaluate(()=>window.measureJusticeAndOwner(true));
+ expect(state.play).toEqual(['owner','current',false,1,['play','back','justiceHan'],1]);
+ expect(state.notice).toContain('正義執行 +1翻');
+ expect(state.clear).toEqual(['current',0,false,0]);
+});
+
+test('winning result lists the earned role by its name and han',async({page})=>{
+ await open(page,320,568,true);
+ await page.evaluate(()=>window.inspectNamedWinner());
+ const ledger=page.getByRole('list',{name:'翻の内訳'});
+ await expect(ledger).toBeVisible();
+ await expect(ledger.getByRole('listitem').filter({hasText:'正義執行 1翻'})).toHaveCount(1);
+ await expect(ledger.getByRole('listitem').filter({hasText:'上がり 1翻'})).toHaveCount(1);
+});
+
+test('device language automatically selects English role names',async({page})=>{
+ await page.addInitScript(()=>Object.defineProperty(Navigator.prototype,'languages',{get:()=>['fr-FR','ja-JP']}));
+ await open(page,390,844,true);
+ await page.evaluate(()=>window.inspectNamedWinner());
+ const ledger=page.getByRole('list',{name:'Han breakdown'});
+ await expect(ledger).toHaveAttribute('lang','en');
+ await expect(ledger.getByRole('listitem').filter({hasText:'Justice Served 1 han'})).toHaveCount(1);
+});
+
+test('setting a language overrides the device and survives reload',async({page})=>{
+ await open(page,390,844,true);
+ await page.locator('#ktSettings').click();
+ await page.locator('#ktTableLanguage').selectOption('en');
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tarot-kingdom:language'))).toBe('en');
+ await page.goto('/tarot-kingdom-table.html');
+ await page.locator('[data-tavern-mode=practice]').click();
+ await page.locator('#ktStart').click();
+ await page.evaluate(()=>window.inspectNamedWinner());
+ const ledger=page.getByRole('list',{name:'Han breakdown'});
+ await expect(ledger.getByRole('listitem').filter({hasText:'Justice Served 1 han'})).toHaveCount(1);
+});
+
+test('Temperance clearing three effects is listed once at one han',async({page})=>{
+ await open(page,320,568,true);
+ await page.evaluate(()=>window.inspectTemperanceWinner());
+ const ledger=page.getByRole('list',{name:'翻の内訳'});
+ await expect(ledger.getByRole('listitem').filter({hasText:'清めの杯 1翻'})).toHaveCount(1);
 });

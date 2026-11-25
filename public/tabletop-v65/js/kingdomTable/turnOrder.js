@@ -1,13 +1,9 @@
-// A snapshot of the current seat order, not a prediction of card effects.
-export function turnOrder(round) {
-    const count = round?.players?.length;
-    const current = round?.turn;
-    if (round?.phase !== 'play' || !Number.isInteger(current) || current < 0 || current >= count || count < 2) return null;
-    const direction = round.direction === -1 ? -1 : 1;
-    const passed = new Set(round.passed);
-    for (let step = 1; step < count; step += 1) {
-        const seat = (current + direction * step + count) % count;
-        if (!passed.has(seat)) return { current, next: seat };
-    }
-    return { current, next: null };
+// Only actual plays have a field owner; the first flipped lead card does not.
+export function tableSeatCues(round) {
+    const count = round?.players?.length ?? 0;
+    const valid = (seat) => Number.isInteger(seat) && seat >= 0 && seat < count;
+    const current = round?.phase === 'play' && valid(round.turn) ? round.turn : null;
+    const top = round?.field?.plays?.at(-1);
+    const owner = !top?.start && top?.cards?.length && valid(top.by) ? top.by : null;
+    return { current, owner };
 }

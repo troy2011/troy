@@ -36,7 +36,7 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
   await page.setViewportSize({width,height});
   await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1',route=>route.fulfill({contentType:'text/javascript',
+  await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1*',route=>route.fulfill({contentType:'text/javascript',
     body:fs.readFileSync(root+'ui.js','utf8').replace('const ratingPreview = false;','const ratingPreview = true;')+fixture,
   }));
   await page.goto('/tarot-kingdom-table.html?v=65');
@@ -57,7 +57,7 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
     const read=()=>{const style=getComputedStyle(panel);const {width,height}=panel.getBoundingClientRect();return {width,height,border:style.borderColor,radius:style.borderRadius,background:style.backgroundImage};};
     const on=read();
     const glow=getComputedStyle(panel,'::before').backgroundImage;
-    const next=panel.closest('#ktTable').querySelector('.kt-seat-panel[data-turn="next"]');
+    const next=panel.closest('#ktTable').querySelector('.kt-seat-panel[data-turn="owner"]');
     const amber=getComputedStyle(next,'::before').backgroundImage;
     panel.dataset.turn='test-no-overlay';
     const unchanged=read();
@@ -69,16 +69,17 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
   expect(lighting.amber).toContain('conic-gradient');
   await expect(page.locator('.kt-turn-marker, .kt-turn-ornament')).toHaveCount(0);
   await page.evaluate(()=>window.turnLayoutFixture('reverse'));
-  await expect(mark(2)).toHaveAttribute('data-turn','next');
+  await expect(mark(2)).toHaveAttribute('data-turn','owner');
   await page.evaluate(()=>window.turnLayoutFixture('skip'));
-  await expect(mark(1)).toHaveAttribute('data-turn','next');
-  await expect(mark(2)).not.toHaveAttribute('data-turn', /./);
+  await expect(mark(1)).not.toHaveAttribute('data-turn', /./);
+  await expect(mark(2)).toHaveAttribute('data-turn','owner');
   await page.evaluate(()=>window.turnLayoutFixture('pass'));
   await expect(mark(0)).not.toHaveAttribute('data-turn', /./);
   await expect(mark(1)).toHaveAttribute('data-turn','current');
-  await expect(mark(2)).toHaveAttribute('data-turn','next');
+  await expect(mark(2)).toHaveAttribute('data-turn','owner');
   await page.evaluate(()=>window.turnLayoutFixture('over'));
-  await expect(page.locator('.kt-seat-panel[data-turn], #ktMe[data-turn]')).toHaveCount(0);
+  await expect(page.locator('.kt-seat-panel[data-turn], #ktMe[data-turn]')).toHaveCount(1);
+  await expect(mark(2)).toHaveAttribute('data-turn','owner');
   await page.evaluate(()=>window.turnLayoutFixture('reason'));
   const selfName=page.locator('#ktMe strong').first();
   await expect(selfName).toHaveText('あなた');
@@ -125,10 +126,10 @@ for(const [width,height] of [[320,500],[320,568],[360,640],[390,844]])test('embe
 });
 
 
-test('both turns light the whole unchanged frame without moving or intercepting taps',async({page})=>{
+test('the current player and field owner light the whole unchanged frame without moving or intercepting taps',async({page})=>{
   await page.setViewportSize({width:320,height:568});
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
+  await page.route('**/ui.js?v=canonical-props-v1-field-dealt-v1-no-stock-v1-grave-label-v1*',route=>route.fulfill({contentType:'text/javascript', body:fs.readFileSync(root+'ui.js','utf8')+fixture}));
   await page.goto('/tarot-kingdom-table.html');
   await page.getByRole('button',{name:'CPU練習'}).click();
   await page.locator('input[name=ktSeats][value="3"]').check();
@@ -139,7 +140,7 @@ test('both turns light the whole unchanged frame without moving or intercepting 
     return {turn:p.dataset.turn, gradient:rim.backgroundImage, mask:rim.maskComposite, pointer:rim.pointerEvents, animation:rim.animationName, haloMotion:getComputedStyle(p,'::after').animationName};
   }));
   const normal=await measure();
-  expect(normal.map(v=>v.turn).sort()).toEqual(['current','next']);
+  expect(normal.map(v=>v.turn).sort()).toEqual(['current','owner']);
   for(const ring of normal) {
     expect(ring.gradient.startsWith("conic-gradient(")).toBe(true);
     expect(ring.gradient).not.toContain('transparent');

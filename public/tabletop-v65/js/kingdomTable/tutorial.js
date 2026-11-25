@@ -1,9 +1,10 @@
 // Tarot Kingdom tutorial page. The script and the rules live in tutorialScript.js and rules.js.
-import * as Rules from './rules.js?v=suit-opposition-v1';
-import { roleName } from './rules.js?v=suit-opposition-v1';
-import { seatHan } from './match.js?v=suit-opposition-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1-named-han-v3';
+import { roleName } from './rules.js?v=suit-opposition-v1-named-han-v3';
+import { seatHan, settlementHanBreakdown, formatHanEntry } from './match.js?v=named-han-locale-v2';
+import { activeTableLanguage } from './tableLocale.js?v=2';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-named-han-v3';
 
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命の輪', '正義',
@@ -188,7 +189,6 @@ function renderField() {
     $('ttFieldOwner').textContent = !top ? (round.phase === 'over' ? `${NAMES[round.winner]} の上がり` : `${NAMES[round.turn]} が親（初手）`)
         : `${top.start ? '最初の場札' : round.phase === 'over' && round.winner === top.by ? `${NAMES[top.by]} の上がり札` : `${NAMES[top.by]} の札`}${round.field.kind === 'role' ? `：${roleName(round.field.role)}` : ''}`;
     const state = [];
-    if (round.direction === -1) state.push('逆回り（この局）');
     if (round.back) state.push('11バック');
     if (round.lock) state.push(`ロック ${Rules.lockSuits(round.lock).map(s => SUIT_NAME[s]).join('・')}`);
     if (round.cut) state.push('8カット');
@@ -297,15 +297,14 @@ function finishChapter() {
 
 function resultBody(result) {
     const match = session.match, round = match.round, rules = match.rules, w = result.winner;
-    const parts = [`上がり${rules.baseHan}`];
-    const clear = round.majorClearHan?.[w] || 0;
-    if (round.han[w] - clear) parts.push(`役${round.han[w] - clear}`);
-    if (clear) parts.push(`大札流し${clear}`);
-    if (result.lastCardHan) parts.push(`切札${result.lastCardHan}`);
-    if (round.dealer === w) parts.push(`親${rules.dealerHan}`);
+    const notes = el('ul', 'kt-result-note kt-han-breakdown');
+    const language = activeTableLanguage();
+    notes.lang = language;
+    notes.setAttribute('aria-label', language === 'en' ? 'Han breakdown' : '翻の内訳');
+    notes.append(...settlementHanBreakdown(match, result).map(entry => el('li', '', formatHanEntry(entry, language))));
     const head = el('p', 'kt-result-head');
     head.append(el('strong', '', `${NAMES[w]} の上がり`), el('span', 'kt-han-pill kt-han-pill-big', `${result.winnerHan}翻`));
-    const out = [head, el('p', 'kt-result-note', parts.join(' ＋ '))];
+    const out = [head, notes];
     for (const pay of result.payments) {
         const extra = [];
         if (pay.aces) extra.push(`A${pay.aces}枚 +${pay.aces * rules.aceHan}`);

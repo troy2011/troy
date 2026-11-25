@@ -1,6 +1,6 @@
 import { ABILITY } from './abilityNames.js?v=pirate-ability-v1';
 // A private, read-only view of a legal normal play; never predicts opponent choices.
-import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=suit-opposition-v1';
+import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=suit-opposition-v1-named-han-v3';
 
 export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false}={}) {
     if (!cards.length || round.players[seat].hand.length === cards.length) return '';
@@ -17,7 +17,8 @@ export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false
     const clear = event('clear');
     const majorHan = event('majorClear');
     if (major(21) && clear) return ABILITY.world + '：すぐに場を流す' + (majorHan ? '・大札流し +' + majorHan.add + '翻' : '');
-    if(cards.some(card => card.major && card.num === 11) && back)return ABILITY.justice + (event('reverse') ? '：手番が逆回り・' : '：') + (back.on?'札の強弱を逆転':'札の強弱を元に戻す');
+    if (event('justiceHan')) return '正義執行：11バック解除・＋1翻';
+    if (cards.some(card => card.major && card.num === 11) && back) return ABILITY.justice + '：札の強弱を逆転';
     if (major(20) && back) {
         const retrieve = next.players[seat].hand.length < HAND_LIMIT ? '・' + ABILITY.resurrection + '：流した人は他人の墓地から小札1枚回収可' : '';
         return '審判：強弱を' + (back.on ? '逆転' : '元に戻す') + retrieve;
@@ -29,6 +30,7 @@ export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false
     }
     const skip = event('skip');
     if (skip) return (cards.length === 1 && major(5) ? 'Wスキップ' : 'スキップ') + '：次の' + skip.count + '席を飛ばす';
+    if (event('temperanceHan')) return '清めの杯：効果を解除・＋1翻';
     if (event('reset')) return ABILITY.clearance + '：続いている効果をリセット';
     const lock = event('lock');
     if (lock) {

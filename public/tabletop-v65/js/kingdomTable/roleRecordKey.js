@@ -1,4 +1,14 @@
-import { roleRank } from './rules.js?v=suit-opposition-v1';
+import { roleRank } from './rules.js?v=suit-opposition-v1-named-han-v3';
+
+export const JUSTICE_EXECUTION_KEY = 'justice-execution';
+export const JUSTICE_EXECUTION_NAME = '正義執行';
+export const TEMPERANCE_CLEAR_KEY = 'temperance-clear';
+export const TEMPERANCE_CLEAR_NAME = '清めの杯';
+export function namedHanRoleKey(event) {
+    if (event?.type === 'justiceHan') return JUSTICE_EXECUTION_KEY;
+    if (event?.type === 'temperanceHan') return TEMPERANCE_CLEAR_KEY;
+    return null;
+}
 
 export const PIECE_OF_EIGHT_KEY = 'piece-of-eight';
 export const PIECE_OF_EIGHT_NAME = 'ピース・オブ・エイト';

@@ -16,6 +16,7 @@ module.exports = defineConfig({
   },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
+    locale: 'ja-JP',
     baseURL: `http://127.0.0.1:${port}`,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

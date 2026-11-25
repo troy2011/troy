@@ -1,5 +1,7 @@
-import { quickOutcome, quickAction } from './tutorialQuickCopy.js?v=suit-opposition-v1';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1';
+import { settlementHanBreakdown, formatHanEntry } from './match.js?v=named-han-locale-v2';
+import { activeTableLanguage } from './tableLocale.js?v=2';
+import { quickOutcome, quickAction } from './tutorialQuickCopy.js?v=suit-opposition-v1-named-han-v3';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-named-han-v3';
 export { CHAPTERS, NAMES };
 const DONE_KEY = 'tarot-kingdom-tutorial:done';
 const $ = id => document.getElementById(id);
@@ -165,15 +167,14 @@ export function createTutorialMode({ loadMatch, render, openDialog, closeDialog,
 function resultBody(session) {
     const result = session.result;
     const match = session.match, round = match.round, rules = match.rules, w = result.winner;
-    const parts = [`上がり${rules.baseHan}`];
-    const clear = round.majorClearHan?.[w] || 0;
-    if (round.han[w] - clear) parts.push(`役${round.han[w] - clear}`);
-    if (clear) parts.push(`大札流し${clear}`);
-    if (result.lastCardHan) parts.push(`切札${result.lastCardHan}`);
-    if (round.dealer === w) parts.push(`親${rules.dealerHan}`);
+    const notes = el('ul', 'kt-result-note kt-han-breakdown');
+    const language = activeTableLanguage();
+    notes.lang = language;
+    notes.setAttribute('aria-label', language === 'en' ? 'Han breakdown' : '翻の内訳');
+    notes.append(...settlementHanBreakdown(match, result).map(entry => el('li', '', formatHanEntry(entry, language))));
     const head = el('p', 'kt-result-head');
     head.append(el('strong', '', `${NAMES[w]} の上がり`), el('span', 'kt-han-pill kt-han-pill-big', `${result.winnerHan}翻`));
-    const out = [head, el('p', 'kt-result-note', parts.join(' ＋ '))];
+    const out = [head, notes];
     for (const pay of result.payments) {
         const extra = [];
         if (pay.aces) extra.push(`A${pay.aces}枚 +${pay.aces * rules.aceHan}`);
