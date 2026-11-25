@@ -1,4 +1,4 @@
-import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=quick-tutorial-v1-no-stock-v1';
+import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=suit-opposition-v1';
 import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1';
 import { turnOrder } from './turnOrder.js?v=sites-turn-order-v1';
 import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-v1';
@@ -7,10 +7,10 @@ import { choiceFocusState, renderChoiceFocus } from './choiceFocus.js?v=quiet-ab
 import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-v1';
 import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=table-shared-core-v1';
-import { roleName, roleHan } from './rules.js?v=table-shared-core-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=sites-death-devil-v1-no-stock-v1';
-import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=sites-death-devil-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1';
+import { roleName, roleHan } from './rules.js?v=suit-opposition-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=suit-opposition-v1';
+import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=suit-opposition-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=role-cutin-v1';
 import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v4';
@@ -67,7 +67,7 @@ const LEGEND_HAN = 10;
 
 // Pirate Tarot artwork, as served for the rest of the app (same version and delivery revision, so the cache is shared).
 const ART_QUERY = `?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=20261025`;
-import {selectedCardEffect} from './selectedCardEffect.js?v=pirate-ability-v1';
+import {selectedCardEffect} from './selectedCardEffect.js?v=suit-opposition-v1';
 
 const { online, send, sendAction, returnToLobby, waitForCpuPresentation } =
     resolveTableHost(document.documentElement.dataset.tabletopHost, tableHostAdapter);

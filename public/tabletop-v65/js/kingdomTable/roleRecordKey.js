@@ -1,4 +1,4 @@
-import { roleRank } from './rules.js?v=sites-elemental-v1';
+import { roleRank } from './rules.js?v=suit-opposition-v1';
 
 export const PIECE_OF_EIGHT_KEY = 'piece-of-eight';
 export const PIECE_OF_EIGHT_NAME = 'ピース・オブ・エイト';

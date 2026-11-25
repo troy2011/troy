@@ -1,7 +1,7 @@
 // Tarot Kingdom tutorial: fixed deals and a fixed script, played on the real rule engine.
 // Pure logic: no DOM. The page (tutorial.js) and the tests drive the same session.
-import * as Rules from './rules.js?v=sites-death-devil-v1';
-import { createMatch, startRound, settleRound } from './match.js?v=sites-death-devil-v1-no-stock-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1';
+import { createMatch, startRound, settleRound } from './match.js?v=suit-opposition-v1';
 
 export const ME = 0;
 export const SEATS = 3;
@@ -19,12 +19,15 @@ export const CHAPTERS = [
         intro: '先に手札を出し切った人の勝ちです。場の札より強い札を、場と同じ枚数で出していきます。親のミナが最初の場札「ワンドの6」をめくりました。',
         dealer: 2,
         start: 'wand-6',
-        hands: { 0: ['cup-9', 'coin-9', 'sword-7', 'coin-7', 'coin-15', 'wand-2', 'cup-3', 'sword-10'], 1: ['sword-9'], 2: ['major-9', 'wand-4', 'cup-4'] },
+        hands: { 0: ['cup-9', 'coin-9', 'sword-7', 'coin-7', 'coin-15', 'wand-2', 'cup-3', 'sword-10'], 1: ['wand-9', 'sword-9'], 2: ['major-9', 'wand-4', 'cup-4'] },
         steps: [
             me('play', ['cup-9'], '場は「ワンドの6」の1枚です。光っている「カップの9」を選んで「出す」を押してください。', '6より大きい9で返しました。これが通常出しです。', ['normal']),
-            cpu(1, 'play', ['sword-9'], 'カイは同じ数字の「ソードの9」で返しました。同じ数字は、相性の良いスートなら返せます。ワンド←カップ←ソード←ペンタクル←ワンド。カップにはソードで返せます。', ['counter']),
+            cpu(1, 'play', ['wand-9'], '同じ9。赤（火）で青（水）に返せました。火と水は互いに返せます。', ['counter']),
             pass(2),
-            me('play', ['coin-9'], 'ソードにはペンタクルで返せます。「ペンタクルの9」を出してください。', '同じ9でも、相性の向きどおりなら返せます。', ['counter']),
+            me('pass', [], '次の組み合わせを見るため、ここではパスします。', '場が流れ、カイが親です。', ['pass', 'clear']),
+            cpu(1, 'play', ['sword-9'], 'カイが黄色（風）の9を出しました。', ['counter']),
+            pass(2),
+            me('play', ['coin-9'], '黄色（風）の9に、緑（大地）の9を出してください。', '緑の9で返せた！ 風と大地も互いに返せます。', ['counter']),
             pass(1),
             cpu(2, 'play', ['major-9'], 'ミナは大札の「隠者9」を出しました。大札入りの組は、スートに関係なく同じ数字へ返せます。逆に、大札の9へ小札の9だけでは返せません。', ['majorSame']),
             me('pass', [], '返せる札がありません。出せる札があってもパスできます。「パス」を押してください。', '', ['pass']),
@@ -37,7 +40,7 @@ export const CHAPTERS = [
             pass(1),
             pass(2, 'Aは誰も返せませんでした。通常時、Aに返せる大札は同じスート色の16〜19です（ペンタクルのAには月18）。', ['clear'])
         ],
-        outro: '通常出し、同じ数字の相性、大札の同数字返し、パスと場流しを体験しました。'
+        outro: '通常出し、火↔水と風↔大地の反発、大札の同数字返し、パスと場流しを体験しました。'
     },
     {
         id: 'numbers',
@@ -196,7 +199,7 @@ export const performCpu = session => {
 };
 
 export const RULE_LABELS = {
-    normal: '通常出し', multi: '複数枚出し', counter: '同じ数字のスートの相性', majorSame: '大札で同じ数字に返す',
+    normal: '通常出し', multi: '複数枚出し', counter: '同じ数字のスートの反発', majorSame: '大札で同じ数字に返す',
     pass: 'パス', clear: '場流し', ace: '小札Aの強さ', skip: '5のスキップ', back: '11バック', clear8: '8の複数枚で即流し',
     cut8: '8カット', lock: 'ロック', unlock: 'クリアランス（節制14）', suitMajor: '大札16〜19の対応スート', world21: 'ワールドエンド（世界21）',
     majorClear: '大札流しの＋1翻', reverse: '正義11の逆回り', role: '5枚役', roleOver: '役に強い役で返す', roleHan: '役の翻',

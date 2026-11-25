@@ -1,4 +1,4 @@
-import { numberKey, roleRank, SUITS, suitsOf } from './rules.js?v=20261117-death-justice-trial-v1';
+import { numberKey, roleRank, SUITS, suitsOf } from './rules.js?v=suit-opposition-v1';
 
 export const ROLE_JUICE_KIND=Object.freeze({1:'straight',2:'flush',3:'fullhouse',4:'four',6:'straightflush'});
 export const ROLE_SLAM_MS=380;

@@ -1,4 +1,4 @@
-import { CHAPTERS, ME } from './tutorialScript.js?v=actual-table-v1';
+import { CHAPTERS, ME } from './tutorialScript.js?v=suit-opposition-v1';
 
 const DONE_KEY = 'tarot-kingdom-tutorial:done';
 const $ = id => document.getElementById(id);

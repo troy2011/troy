@@ -1,6 +1,6 @@
 import { ABILITY } from './abilityNames.js?v=pirate-ability-v1';
 // A private, read-only view of a legal normal play; never predicts opponent choices.
-import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=sites-death-devil-v1';
+import { HAND_LIMIT, MAJOR_CLEAR_HAN, aceCounterMajor, lockSuits, numberKey, play, ferry } from './rules.js?v=suit-opposition-v1';
 
 export function selectedCardEffect(round, seat, cards, suitNames, {ferried=false}={}) {
     if (!cards.length || round.players[seat].hand.length === cards.length) return '';

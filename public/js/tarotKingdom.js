@@ -226,7 +226,7 @@ const SUIT_HARMONY = Object.freeze({
 });
 const SUIT_HARMONY_LABEL = 'ワンド↔ソード / カップ↔ペンタクル';
 // Ordinary card matches use field suit -> answering suit; combat keeps its own harmony effects.
-const KINGDOM_CARD_COUNTER_SUIT = Object.freeze({ Wand: 'Cup', Cup: 'Sword', Sword: 'Pentacle', Pentacle: 'Wand' });
+const KINGDOM_CARD_COUNTER_SUIT = Object.freeze({ Wand: 'Cup', Cup: 'Wand', Sword: 'Pentacle', Pentacle: 'Sword' });
 const KINGDOM_HARMONY_DAMAGE_MULTIPLIER = 1.15;
 const SUIT_COLOR = { Wand: '#b11818', Sword: '#9b72e6', Cup: '#1e63c6', Pentacle: '#1e8f3c' };
 const SPECIAL_SUIT = {
@@ -20879,7 +20879,7 @@ function validatePlay(play, mode) {
     if (areKingdomTableRulesEnabled()) {
       if (playHasMajor) return { ok: true };
       const compatible = trickCards.some(field => playCards.some(card => KINGDOM_CARD_COUNTER_SUIT[field.suit] === card.suit));
-      return compatible ? { ok: true } : { ok: false, reason: '同数字はワンド←カップ←ソード←ペンタクル←ワンドの相性で返します。' };
+      return compatible ? { ok: true } : { ok: false, reason: '同じ数字は火↔水、風↔大地の反発で返せます。' };
     }
     const playMask = getPlaySuitMask(play);
     const trickMask = getPlaySuitMask(s.trick);
@@ -30606,7 +30606,7 @@ function ensureKingdomRulebookUi() {
               <li><span>1</span><div><strong>枚数</strong><small>場と同じ1〜3枚</small></div></li>
               <li><span>2</span><div><strong>数字</strong><small>複数枚ならすべて同じ</small></div></li>
               <li><span>3</span><div><strong>強さ</strong><small>場より大きい数字</small></div></li>
-              <li><span>4</span><div><strong>同値</strong><small data-table-rules-copy="大アルカナか弱点スート">大アルカナか調和スート</small></div></li>
+              <li><span>4</span><div><strong>同値</strong><small data-table-rules-copy="大アルカナか反発スート">大アルカナか調和スート</small></div></li>
             </ol>
             <div class="tarot-kingdom-rulebook-copy-grid">
               <div>
@@ -30615,7 +30615,7 @@ function ensureKingdomRulebookUi() {
               </div>
               <div>
                 <h4>同じ強さで返す</h4>
-                <p data-table-rules-copy="同数字はワンド←カップ←ソード←ペンタクル←ワンド。矢印の右の札で左の札に返します。複数枚は1組でも相性が合えば返せます。大アルカナ入りなら同数字のすべてに返せます。小札だけでは同数字の大札に返せません。">同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
+                <p data-table-rules-copy="同じ数字の小札はワンド（火）↔カップ（水）、ソード（風）↔ペンタクル（大地）で互いに返せます。複数枚は1組でも相性が合えば返せます。大アルカナ入りなら同数字のすべてに返せます。小札だけでは同数字の大札に返せません。">同値は、ワンド↔ソード、カップ↔ペンタクルの調和スートで互いに返せます。大アルカナと小アルカナが同値なら大アルカナが優先。調和で返すと「HARMONY」が発動し、攻撃が×1.15になります。</p>
               </div>
               <div>
                 <h4>場が流れる</h4>

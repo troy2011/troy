@@ -1,6 +1,6 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips are match-local points. Online matches and ratings are authoritative on the server.
-import { createRound, lastCardHan } from './rules.js?v=sites-death-devil-v1';
+import { createRound, lastCardHan } from './rules.js?v=suit-opposition-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,

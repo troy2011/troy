@@ -4,8 +4,8 @@
 
 export const SUITS = ['wand', 'sword', 'cup', 'coin'];
 export const HAND_LIMIT = 8;
-// Each field suit is answered by the suit to its right in the displayed left-arrow cycle.
-export const EQUAL_NUMBER_COUNTER = Object.freeze({ wand: 'cup', cup: 'sword', sword: 'coin', coin: 'wand' });
+// Same-rank minors can answer only across the two reciprocal element pairs.
+export const EQUAL_NUMBER_COUNTER = Object.freeze({ wand: 'cup', cup: 'wand', sword: 'coin', coin: 'sword' });
 const MAJOR_SUITS = { 1: SUITS, 16: ['sword'], 17: ['cup'], 18: ['coin'], 19: ['wand'] };
 export const aceCounterMajor = suit => [16, 17, 18, 19].find(num => MAJOR_SUITS[num].includes(suit));
 const ACE_SUIT_NAME = { sword: 'ソード', cup: 'カップ', coin: 'ペンタクル', wand: 'ワンド' };
@@ -203,7 +203,7 @@ export function checkNormal(state, p, cards) {
     if (playHasMajor) return YES;
     if (fieldHasMajor) return no('大札入りの同値には小札だけで返せません');
     const counters = new Set(top.map(c => EQUAL_NUMBER_COUNTER[c.suit]));
-    return cards.some(c => counters.has(c.suit)) ? YES : no('同じ数字は、弱点のスートか大札で返します');
+    return cards.some(c => counters.has(c.suit)) ? YES : no('同じ数字は、反発するスートか大札で返せます');
 }
 
 // Five hand cards as a role: led, or laid on a weaker role.
