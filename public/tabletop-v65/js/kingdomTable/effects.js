@@ -70,6 +70,57 @@ function el(tag, className, text) {
 
 const centre = (rect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
 
+// Measure the four corners, not the axis-aligned box of a perspective card.
+export function fieldCardPose(node) {
+    if (!node) return null;
+    const box = node.getBoundingClientRect();
+    const width = node.offsetWidth, height = node.offsetHeight;
+    if (!width || !height) return box;
+    const style = getComputedStyle(node);
+    const probes = [[false,false],[true,false],[true,true],[false,true]].map(([right,bottom])=>{
+        const point = document.createElement('span');
+        point.setAttribute('aria-hidden','true');
+        Object.assign(point.style, {position:'absolute', pointerEvents:'none', width:'0', height:'0',
+            left:right ? `calc(100% + ${style.borderRightWidth})` : '-' + style.borderLeftWidth,
+            top:bottom ? `calc(100% + ${style.borderBottomWidth})` : '-' + style.borderTopWidth});
+        return point;
+    });
+    node.append(...probes);
+    const x0 = box.left + (box.width-width)/2, y0 = box.top + (box.height-height)/2;
+    const [p,q,r,s] = probes.map(probe=>{const v=probe.getBoundingClientRect();return [v.left-x0,v.top-y0];});
+    probes.forEach(probe=>probe.remove());
+    const dx1=q[0]-r[0], dx2=s[0]-r[0], dx3=p[0]-q[0]+r[0]-s[0];
+    const dy1=q[1]-r[1], dy2=s[1]-r[1], dy3=p[1]-q[1]+r[1]-s[1];
+    const den=dx1*dy2-dx2*dy1;
+    if (Math.abs(den)<1e-6) return box;
+    const g=(dx3*dy2-dx2*dy3)/den, h=(dx1*dy3-dx3*dy1)/den;
+    const matrix=[(q[0]-p[0]+g*q[0])/width,(q[1]-p[1]+g*q[1])/width,0,g/width,
+        (s[0]-p[0]+h*s[0])/height,(s[1]-p[1]+h*s[1])/height,0,h/height,0,0,1,0,p[0],p[1],0,1];
+    return {left:box.left,top:box.top,right:box.right,bottom:box.bottom,width:box.width,height:box.height,
+        pose:{left:x0,top:y0,width,height,matrix:'matrix3d('+matrix.join(',')+')'}};
+}
+
+const poseTransform = rect => rect.pose?.matrix || '';
+function cardTransform(rect,x,y,scale=1,spin=0) {
+    const c=rect.pose && {x:rect.pose.width/2,y:rect.pose.height/2};
+    const shift=c ? ` translate(${c.x}px, ${c.y}px)` : '';
+    const unshift=c ? ` translate(${-c.x}px, ${-c.y}px)` : '';
+    const zoom=`scale(${scale})`;
+    return `translate(${x}px, ${y}px)${shift} ${zoom} rotate(${spin}deg)${unshift}`;
+}
+function sourceTransform(from,to,dx,dy,scale,spin) {
+    if (from.pose && to.pose)
+        return `translate(${from.pose.left-to.pose.left}px,${from.pose.top-to.pose.top}px) ${from.pose.matrix} scale(${from.pose.width/to.pose.width},${from.pose.height/to.pose.height})`;
+    return cardTransform(to,dx,dy,scale,spin);
+}
+function fieldPlace(node, rect) {
+    if (rect.pose) {
+        node.style.transformOrigin='0 0';
+        node.style.transform=poseTransform(rect);
+    }
+    return place(node,rect.pose || rect);
+}
+
 function place(node, rect) {
     node.style.left = `${rect.left}px`;
     node.style.top = `${rect.top}px`;
@@ -93,17 +144,18 @@ export function boxAt(point, width, height) {
 export function fly(node, from, to, { duration = 300, delay = 0, keep = false, spin = 0 } = {}) {
     if (!moving() || !from || !to) return Promise.resolve(node);
     node.classList.add('kt-fx-card');
-    place(node, to);
+    fieldPlace(node, to);
     const a = centre(from);
     const b = centre(to);
     const dx = a.x - b.x;
     const dy = a.y - b.y;
-    const scale = from.width && to.width ? from.width / to.width : 1;
+    const width = to.pose?.width || to.width;
+    const scale = from.width && width ? from.width / width : 1;
     const lift = Math.min(70, 18 + Math.hypot(dx, dy) * 0.14);
     const animation = node.animate([
-        { transform: `translate(${dx}px, ${dy}px) scale(${scale}) rotate(${spin}deg)`, opacity: 0.7 },
-        { transform: `translate(${dx / 2}px, ${dy / 2 - lift}px) scale(${((scale + 1) / 2) * 1.1}) rotate(${spin / 2}deg)`, opacity: 1, offset: 0.55 },
-        { transform: 'none', opacity: 1 }
+        { transform: sourceTransform(from,to,dx,dy,scale,spin), opacity: delay ? 0 : 0.7 },
+        { transform: cardTransform(to,dx/2,dy/2-lift,((scale+1)/2)*1.1,spin/2), opacity: 1, offset: 0.55 },
+        { transform: poseTransform(to) || 'none', opacity: 1 }
     ], { duration, delay, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' });
     return animation.finished.catch(() => {}).then(() => {
         if (!keep) node.remove();
@@ -118,6 +170,14 @@ export const sweepDuration = count => moving() && count > 0 ? SWEEP_MS + (count 
 // The CPU waits for the final outgoing card, not for adjoining sounds, chips, or banners.
 export function queueSweep(items, at, ready = null) {
     if (!sweepDuration(items.length)) return null;
+    // Keep previously visible cards on the table while the new play lands.
+    // Transient plays are mounted by their own flight, not by this hold.
+    const held = [];
+    for (const {node,rect,pending} of items) if (!pending && !node.isConnected) {
+        node.classList.add('kt-fx-card');
+        held.push(fieldPlace(node,rect));
+    }
+    layer.prepend(...held);
     return new Promise(resolve => {
         const finish = () => {
             pendingSweeps.delete(finish);
@@ -133,11 +193,13 @@ function sweep(items) {
     if (!moving()) return Promise.resolve();
     return Promise.all(items.map(({ node, rect }, index) => {
         node.classList.add('kt-fx-card');
-        if (!node.isConnected) place(node, rect);
+        if (!node.isConnected) fieldPlace(node, rect);
+        const pose = poseTransform(rect);
+        node.dataset.fieldSweep = 'true';
         const animation = node.animate([
-            { transform: 'none', opacity: 1 },
-            { transform: `translate(${-rect.width * 0.4}px, -8px) rotate(-6deg)`, opacity: 1, offset: 0.25 },
-            { transform: `translate(${-window.innerWidth * 0.75}px, 18px) rotate(-24deg)`, opacity: 0 }
+            { transform: pose || 'none', opacity: 1 },
+            { transform: `translate(${-rect.width * 0.4}px, -8px) rotate(-6deg) ${pose}`, opacity: 1, offset: 0.25 },
+            { transform: `translate(${-window.innerWidth * 0.75}px, 18px) rotate(-24deg) ${pose}`, opacity: 0 }
         ], { duration: SWEEP_MS, delay: index * SWEEP_STAGGER_MS, easing: 'cubic-bezier(.5,0,.75,.4)', fill: 'both' });
         return settle(animation, node);
     }));
@@ -365,24 +427,26 @@ export function confetti(count = 54) {
 export function slam(node, from, to, { duration = 380, delay = 0, keep = false, spin = 0, endSpin = 0, thrown = false, peak = 1.6, rise = 46 } = {}) {
     if (!moving() || !from || !to) return Promise.resolve(node);
     node.classList.add('kt-fx-card');
-    place(node, to);
+    fieldPlace(node, to);
     const a = centre(from);
     const b = centre(to);
     const dx = a.x - b.x;
     const dy = a.y - b.y;
-    const scale = from.width && to.width ? from.width / to.width : 1;
+    const width = to.pose?.width || to.width;
+    const scale = from.width && width ? from.width / width : 1;
+    const finish = poseTransform(to) || cardTransform(to,0,0,1,endSpin);
     const skid = 10 / Math.max(10, Math.hypot(dx, dy));
     const frames = thrown
         ? [
-            { transform: `translate(${dx}px, ${dy}px) scale(${scale}) rotate(${spin}deg)`, opacity: 0.6, easing: 'cubic-bezier(.3,.6,.5,1)' },
-            { transform: `translate(${dx * 0.35}px, ${dy * 0.35 - rise * 0.6}px) scale(${peak * 0.82}) rotate(${spin * 0.4}deg)`, opacity: 1, offset: 0.55, easing: 'cubic-bezier(.6,0,.9,.5)' },
-            { transform: `translate(${-dx * skid}px, ${-dy * skid}px) scale(1.03) rotate(${endSpin + (spin > 0 ? 8 : -8)}deg)`, opacity: 1, offset: 0.84, easing: 'ease-out' },
-            { transform: `translate(0, 0) scale(1) rotate(${endSpin}deg)`, opacity: 1 }
+            { transform: sourceTransform(from,to,dx,dy,scale,spin), opacity: delay ? 0 : 0.6, easing: 'cubic-bezier(.3,.6,.5,1)' },
+            { transform: cardTransform(to,dx*.35,dy*.35-rise*.6,peak*.82,spin*.4), opacity: 1, offset: 0.55, easing: 'cubic-bezier(.6,0,.9,.5)' },
+            { transform: poseTransform(to) ? `translate(${-dx*skid}px,${-dy*skid}px) ${finish}` : cardTransform(to,-dx*skid,-dy*skid,1.03,endSpin+(spin>0?8:-8)), opacity: 1, offset: 0.84, easing: 'ease-out' },
+            { transform: finish, opacity: 1 }
         ]
         : [
-            { transform: `translate(${dx}px, ${dy}px) scale(${scale}) rotate(${spin}deg)`, opacity: 0.85, easing: 'cubic-bezier(.2,.7,.4,1)' },
-            { transform: `translate(${dx * 0.22}px, ${dy * 0.22 - rise}px) scale(${peak}) rotate(${endSpin - 12}deg)`, opacity: 1, offset: 0.64, easing: 'cubic-bezier(.8,0,1,.6)' },
-            { transform: `translate(0, 0) scale(1) rotate(${endSpin}deg)`, opacity: 1 }
+            { transform: sourceTransform(from,to,dx,dy,scale,spin), opacity: delay ? 0 : 0.85, easing: 'cubic-bezier(.2,.7,.4,1)' },
+            { transform: cardTransform(to,dx*.22,dy*.22-rise,peak,endSpin-12), opacity: 1, offset: 0.64, easing: 'cubic-bezier(.8,0,1,.6)' },
+            { transform: finish, opacity: 1 }
         ];
     const animation = node.animate(frames, { duration, delay, fill: 'both' });
     return animation.finished.catch(() => {}).then(() => {
@@ -421,7 +485,7 @@ export function burst(point, count, colours, distance = 150) {
 export function take(node, from, to, { liftAt = 0, hold = 400, duration = 220, endSpin = 0 } = {}) {
     if (!moving() || !from || !to) return Promise.resolve(node);
     node.classList.add('kt-fx-card', 'is-taken');
-    place(node, to);
+    fieldPlace(node, to);
     const a = centre(from);
     const b = centre(to);
     const dx = a.x - b.x;
@@ -431,11 +495,11 @@ export function take(node, from, to, { liftAt = 0, hold = 400, duration = 220, e
     const up = Math.max(0.02, Math.min(slide - 0.02, (liftAt + 150) / total));
     const start = Math.max(0.01, Math.min(up - 0.01, liftAt / total));
     const animation = node.animate([
-        { transform: `translate(${dx}px, ${dy}px) scale(1) rotate(0deg)`, offset: 0 },
-        { transform: `translate(${dx}px, ${dy}px) scale(1) rotate(0deg)`, offset: start, easing: 'cubic-bezier(.2,.9,.3,1.3)' },
-        { transform: `translate(${dx}px, ${dy - 20}px) scale(1.24) rotate(-8deg)`, offset: up, easing: 'ease-in-out' },
-        { transform: `translate(${dx + 4}px, ${dy - 26}px) scale(1.24) rotate(-5deg)`, offset: slide, easing: 'cubic-bezier(.7,0,.25,1)' },
-        { transform: `translate(0, 0) scale(1) rotate(${endSpin}deg)` }
+        { transform: sourceTransform(from,to,dx,dy,1,0), offset: 0 },
+        { transform: sourceTransform(from,to,dx,dy,1,0), offset: start, easing: 'cubic-bezier(.2,.9,.3,1.3)' },
+        { transform: cardTransform(to,dx,dy-20,1.24,-8), offset: up, easing: 'ease-in-out' },
+        { transform: cardTransform(to,dx+4,dy-26,1.24,-5), offset: slide, easing: 'cubic-bezier(.7,0,.25,1)' },
+        { transform: poseTransform(to) || cardTransform(to,0,0,1,endSpin) }
     ], { duration: total, fill: 'both' });
     return animation.finished.catch(() => {}).then(() => {
         node.remove();

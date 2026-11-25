@@ -1,5 +1,5 @@
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Fx from './effects.js?v=role-cutin-v1';
+import * as Fx from './effects.js?v=field-pose-v1';
 import * as Sfx from './sfx.js?v=whisky-v2';
 import {ROLE_SETTLE_MS,ROLE_SLAM_MS,ROLE_TAKE_MS} from './roleJuicePlan.js?v=role-cutin-v1';
 
@@ -38,7 +38,7 @@ export function animateRole(plan,{nodes,table,cardNode,source,origin,mine,borrow
         return {span:at,ready:null};
     }
     targets.forEach(node=>node.classList.add('is-arriving'));
-    const slots=new Map(targets.map(node=>[node.dataset.card,rect(node)]));
+    const slots=new Map(targets.map(node=>[node.dataset.card,Fx.fieldCardPose(node)]));
     const reveal=node=>{
         if(node?.isConnected){
             node.classList.remove('is-arriving');

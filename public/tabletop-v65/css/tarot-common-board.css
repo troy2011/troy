@@ -284,13 +284,8 @@
 .kt-field-top .kt-card:nth-child(4) { translate: 0 -1.5px; rotate: .8deg; }
 .kt-field-top .kt-card:nth-child(5) { translate: 0 2px; rotate: -.65deg; }
 .kt-field-past { pointer-events: none; transform: translate(var(--kt-pile-x), var(--kt-pile-y)) rotate(var(--kt-pile-angle)); }
-.kt-field-top .kt-card { animation: kt-drop 200ms ease-out both; }
 .kt-field-cards .kt-card.is-arriving { visibility: hidden; }
-.kt-field-cards .kt-card.is-landed { animation: kt-land 300ms cubic-bezier(.2,.9,.3,1.4) both; }
-@media (prefers-reduced-motion: reduce) {
-  .kt-field-top .kt-card { animation: none; }
-  .kt-field-cards .kt-card.is-landed { animation: none; }
-}
+.kt-field-measure { visibility: hidden; pointer-events: none; }
 .kt-field-empty { grid-area: 1 / 1; padding: 28px 18px; border: 1px dashed rgb(88 43 16 / 55%); border-radius: 6px; color: #40230f; background: rgb(248 214 157 / 75%); font-size: 13px; text-align: center; }
 
 
@@ -317,6 +312,8 @@
   line-height: 1;
   overflow: hidden;
 }
+/* Card ghosts must not inherit the in-flow position of a hand or field card. */
+.kt-fx > .kt-fx-card { position: fixed; }
 .kt-card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .kt-card-rank, .kt-suit-badge {
   border: 1px solid;

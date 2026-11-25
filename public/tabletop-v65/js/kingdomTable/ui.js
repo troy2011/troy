@@ -12,10 +12,10 @@ import { roleName, roleHan } from './rules.js?v=suit-opposition-v1';
 import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel } from './match.js?v=suit-opposition-v1';
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=suit-opposition-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
-import * as Fx from './effects.js?v=role-cutin-v1';
+import * as Fx from './effects.js?v=field-pose-v1';
 import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v4';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=whisky-v2';
+import {animateRole} from './roleJuice.js?v=whisky-v2-field-pose-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
@@ -835,7 +835,7 @@ function render() {
     const feedback = updateTurns(turnFeedback, round, ME, events);
     turnFeedback = feedback.state;
     seenEvents = round.events.length;
-    const fieldBefore = events.length ? captureField() : [];
+    const fieldBefore = events.some(e => e.type === 'clear' || (e.type === 'play' && e.kind === 'call')) ? captureField() : [];
     // Once the last round is settled the label stays on it.
     $('ktRound').textContent = match.over ? `全${match.rounds}局` : `${roundLabel(match)} / ${match.rounds}`;
     $('ktDeck').textContent = String(round.deck.length);
@@ -888,7 +888,12 @@ function handBox(seat) {
 }
 
 function captureField() {
-    return [...$('ktFieldCards').querySelectorAll('.kt-card')].map((node) => ({ node: node.cloneNode(true), rect: node.getBoundingClientRect() }));
+    if (!Fx.moving()) return [];
+    return [...$('ktFieldCards').querySelectorAll('.kt-card')].map(node => {
+        const ghost = node.cloneNode(true);
+        ghost.classList.remove('is-arriving','is-landed');
+        return {node:ghost,rect:Fx.fieldCardPose(node)};
+    });
 }
 
 const fieldCentre = () => {
@@ -916,11 +921,25 @@ function backCard() {
 
 // Cards of one play fly from the hand or seat to the field. When the field was cleared by the same play
 // (two eights, the World) they land on screen only and are swept away with the rest.
+function measureTransientPlay(cards, fan) {
+    const field = $('ktFieldCards');
+    const group = el('div', 'kt-field-play kt-field-top kt-field-measure');
+    group.setAttribute('aria-hidden', 'true');
+    if (fan) group.dataset.fieldFan = 'true';
+    group.append(...cards.map(card=>cardNode(card)));
+    field.append(group);
+    const slots = [...group.children].map(Fx.fieldCardPose);
+    group.remove();
+    return slots;
+}
+
 function flyPlay(event, at, floating, sweepBefore, finishing=false, accent = false) {
     const nodes = event.cards.map((card) => $('ktFieldCards').querySelector(`[data-card="${card.id}"]`));
-    const source = event.by === ME ? null : handBox(event.by);
-    const fieldWidth = rectOf($('ktFieldCards').querySelector('.kt-field-top .kt-card'))?.width || 72;
+    const fan = event.by === ME ? null : handBox(event.by);
+    const source = fan ? Fx.boxAt({x:fan.left+fan.width/2,y:fan.top+fan.height/2},30,45) : null;
     const centre = fieldCentre();
+    const transient = Fx.moving() && nodes.some(node=>!node) ? measureTransientPlay(event.cards,event.cards.length===5) : [];
+    const fieldWidth = rectOf($('ktFieldCards').querySelector('.kt-field-top .kt-card'))?.width || 56;
     const arrivals=[];
     const last=finishing&&Fx.moving()?event.cards.length-1:-1;
     let impactUntil=null;
@@ -928,7 +947,7 @@ function flyPlay(event, at, floating, sweepBefore, finishing=false, accent = fal
     event.cards.forEach((card, index) => {
         const node = nodes[index];
         const offset = (index - (event.cards.length - 1) / 2) * (fieldWidth * 0.75);
-        const to = node ? rectOf(node) : Fx.boxAt({ x: centre.x + offset, y: centre.y }, fieldWidth, fieldWidth * 1.5);
+        const to = (node && Fx.moving() ? Fx.fieldCardPose(node) : rectOf(node)) || transient[index] || Fx.boxAt({ x: centre.x + offset, y: centre.y }, fieldWidth, fieldWidth * 1.5);
         const from = (event.by === ME && playOrigins.get(card.id)) || source || to;
         if (node) node.classList.add('is-arriving');
         const ghost = cardNode(card);
@@ -946,7 +965,7 @@ function flyPlay(event, at, floating, sweepBefore, finishing=false, accent = fal
                 node.classList.remove('is-arriving');
                 node.classList.add('is-landed');
             }
-            if(agari&&node?.isConnected){
+            if(agari&&(node?.isConnected||ghost.isConnected)){
                 Fx.agariStrike(to,$('ktFelt'),$('ktApp'),event.by===ME);
                 if (accent) impactUntil = Sfx.playTableImpact('role');
                 else if (!singleWin) Sfx.roleSound('finish');
@@ -955,8 +974,8 @@ function flyPlay(event, at, floating, sweepBefore, finishing=false, accent = fal
         };
         const delay = at + index * 20 + (agari?Fx.AGARI_PAUSE_MS:0);
         arrivals.push(sweepBefore
-            ? new Promise(resolve=>Fx.after(delay,sweepBefore,()=>launch(0).then(finish).then(resolve))) : launch(delay).then(finish));
-        if (!node) floating.push({ node: ghost, rect: to });
+            ? Fx.untilPresentationReady(resolve=>Fx.after(delay,sweepBefore,()=>launch(0).then(finish).then(resolve))) : launch(delay).then(finish));
+        if (!node) floating.push({ node: ghost, rect: to, pending: true });
     });
     const landing = at + (last<0?240:Fx.AGARI_PAUSE_MS+Fx.AGARI_SLAM_MS) + (event.cards.length - 1) * 20;
     const strong = event.kind !== 'normal' || event.cards.length >= 2 || event.cards.some((card) => card.major && card.num === 21);
@@ -1116,7 +1135,7 @@ function playEffects(events, fieldBefore, feedback) {
             const first = $('ktFieldCards').querySelector('.kt-field-top .kt-card');
             if (first) {
                 first.classList.add('is-arriving');
-                arrived=Fx.fly(backCard(), deckBox(), rectOf(first), { duration: 320, delay: dealt }).then(() => {
+                arrived=Fx.fly(backCard(), deckBox(), Fx.fieldCardPose(first), { duration: 320, delay: dealt }).then(() => {
                     first.classList.remove('is-arriving');
                     first.classList.add('is-landed');
                 });
@@ -1175,9 +1194,10 @@ function playEffects(events, fieldBefore, feedback) {
             fieldBefore = [];
             floating.length = 0;
             if (leaving.length) {
-                gateFieldSweep(Fx.queueSweep(leaving,at,arrived||sweepBefore));
+                const ready = arrived || sweepBefore;
+                gateFieldSweep(Fx.queueSweep(leaving, at, ready));
                 sweepBefore = fieldSweep;
-                Sfx.play('clear', at / 1000);
+                if (!multiCut) Fx.after(at, ready, () => Sfx.play('clear'));
                 at += Fx.sweepDuration(leaving.length);
             }
             break;
