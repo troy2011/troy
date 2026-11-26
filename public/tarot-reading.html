@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#151315">
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/css/tarot-reading.css">
+    <link rel="stylesheet" href="/css/tarot-reading.css?v=four-elements-v1">
     <title>TROY タロット鑑定</title>
     <link rel="stylesheet" href="/css/pirate-tarot-artwork.css">
 </head>
@@ -24,12 +24,12 @@
             <div id="tarotReadingStatus" class="tarot-reading-status" role="status" aria-live="polite">待機中</div>
         </header>
 
-        <div id="readingModeSwitch" class="tarot-reading-mode-switch" role="tablist" aria-label="店舗メニュー" hidden>
+        <div id="readingModeSwitch" class="tarot-reading-mode-switch" role="tablist" aria-label="店舗メニュー">
             <button type="button" role="tab" aria-selected="true" data-reading-mode="tarot">タロット鑑定</button>
-            <button type="button" role="tab" aria-selected="false" data-reading-mode="personality">前世動物診断</button>
+            <button type="button" role="tab" aria-selected="false" data-reading-mode="elements" aria-controls="fourElementsBoard">四元素診断</button>
         </div>
 
-        <section class="tarot-reading-panel tarot-reading-customer">
+        <section id="tarotReadingCustomerPanel" class="tarot-reading-panel tarot-reading-customer">
             <div class="tarot-reading-section-head">
                 <div>
                     <div id="tarotCustomerSectionTitle" class="tarot-reading-section-title">送信先</div>
@@ -138,6 +138,11 @@
             </section>
         </section>
 
+        <section id="fourElementsBoard" role="tabpanel" aria-label="四元素診断" hidden>
+            <iframe id="fourElementsFrame" title="TROY 四元素診断" data-src="/four-elements/index.html"></iframe>
+            <noscript><a href="/four-elements/index.html">四元素診断を開く</a></noscript>
+        </section>
+
         <section id="personalityBoard" class="personality-board" aria-label="前世動物診断" hidden>
             <div id="personalityIntro" class="tarot-reading-panel personality-intro">
                 <div class="personality-emblem" aria-hidden="true"></div>
@@ -192,7 +197,7 @@
         </section>
     </main>
 
-    <script type="module" src="/js/tarotReading.js?v=20261018-reading-polish-v3"></script>
+    <script type="module" src="/js/tarotReading.js?v=four-elements-v1"></script>
     <script type="module" src="/js/pirateTarotStaffArtwork.js?v=20261025-pirate-delivery-v2"></script>
 </body>
 </html>

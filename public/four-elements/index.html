@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="表の武器と、裏の支え。TROYの四元素診断。">
+<title>四元素診断 | TROY</title>
+<style>:root {
+  color-scheme: dark;
+  --night: #0d1a26;
+  --paper: #f3e8d3;
+  --gold: #d9ba80;
+  --dim: #c9bca2;
+  --line: #92754d;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", serif;
+  background: #080f17;
+  color: var(--paper);
+}
+* { box-sizing:border-box; }
+body { margin:0; }
+.sheet {
+  position:relative; isolation:isolate;
+  width:min(100%, 570px); min-height:100dvh; margin:auto; padding:clamp(23px,5vh,44px) clamp(20px,5.4vw,42px) 26px;
+  background: radial-gradient(ellipse at 50% 36%, #142534, transparent 61%), var(--night);
+  border-inline:1px solid #92754d5c;
+}
+.sheet::before {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  opacity:.36;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 470 760' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cg id='r' stroke-width='.6'%3E%3Ccircle r='50'/%3E%3Ccircle r='100'/%3E%3Ccircle r='150'/%3E%3Cpath d='M-330 0H330M0-330V330M-235-235l470 470M235-235l-470 470M-300-125l600 250M-300 125l600-250M-125-300l250 600M125-300l-250 600'/%3E%3C/g%3E%3C/defs%3E%3Cg fill='none' stroke='%23896739' opacity='.64'%3E%3Cuse href='%23r' transform='translate(10 213)'/%3E%3Cuse href='%23r' transform='translate(447 589)'/%3E%3Cpath d='M0 95l12-5 9-18 40-5 21-18 19-2 5-17L134 0M0 101l17-4 12-18 35-6 21-17 20-2 7-20L143 0M470 658l-18 14-11 5 1 11-28 9-24 24-31 3-20 15-26 21M470 651l-21 13-14 10v9l-23 8-26 23-30 5-22 16-29 25' stroke-width='1.1'/%3E%3C/g%3E%3C/svg%3E");
+}
+.brand { text-align:center; width:min(225px,100%); margin:0 auto 24px; display:grid; gap:3px; color:var(--gold); font-size:.78rem; letter-spacing:.21em; align-items:center; }
+.brand-name { font-family:Georgia,serif; font-size:1.02rem; letter-spacing:.53em; text-indent:.53em; display:flex; align-items:center; gap:10px; }
+.brand-name::before,.brand-name::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--line)); }
+.brand-name::after { transform:scaleX(-1); }
+.brand.compact { margin-bottom:11px; }
+main { text-align:center; }
+h1,h2,h3,p { margin:0; }
+h1:focus,h2:focus { outline:none; }
+.intro-title { color:#f7e2b1; font-size:clamp(2.45rem,10.5vw,4rem); font-weight:600; letter-spacing:.1em; margin:0 0 10px; }
+.intro-copy { font-size:1.13rem; margin-bottom:7px; }
+.intro-sub { text-wrap:balance; font-size:.91rem; color:var(--dim); line-height:1.65; }
+.rose { width:clamp(139px,39vw,210px); margin:11px auto 4px; line-height:0; color:var(--gold); }
+.rose svg { width:100%; height:auto; }
+.rose-small { width:71px; margin:6px auto 1px; }
+.suits { display:flex; justify-content:center; gap:clamp(19px,6vw,35px); padding:4px 0 5px; margin:1px 0 20px; list-style:none; }
+.suits li { border:1px solid var(--gold); width:34px; height:34px; transform:rotate(45deg); display:grid; place-items:center; }
+.suit-letter { transform:rotate(-45deg); color:#f3ddae; font-size:1.1rem; }
+.button { color:inherit; font:inherit; font-weight:650; cursor:pointer; }
+.button:focus-visible { outline:2px solid #ffda8c; outline-offset:3px; }
+.primary { display:block; margin:7px auto 0; width:min(100%,340px); min-height:53px; padding:8px 23px; border:1px solid #f8dca5; border-radius:3px;
+  color:#182130; background:linear-gradient(118deg,#ae894b,#efd49a 46%,#bd9652); box-shadow:inset 0 0 0 3px #67491f55, 0 7px 15px #0004; letter-spacing:.07em; }
+.primary:hover { background:#ecd099; }
+.note { color:var(--dim); font: .77rem/1.7 system-ui,sans-serif; margin-top:12px; }
+.minor-title { color:#f7e2b1; font-size:1.42rem; letter-spacing:.1em; }
+.progress { display:flex; gap:11px; align-items:center; margin:24px auto 16px; width:min(84%,330px); }
+.bars { display:grid; grid-template-columns:repeat(12,1fr); flex:1; gap:3px; }
+.bars span { height:4px; border-radius:3px; background:#5a626c; }
+.bars span.done { background:#a98a54; }
+.bars span.current { background:#edc985; box-shadow:0 0 7px #edc9857a; }
+.progress-number { color:var(--gold); font: .85rem Georgia,serif; white-space:nowrap; }
+.ruled { display:flex; justify-content:center; align-items:center; gap:12px; color:var(--gold); font-size:.88rem; letter-spacing:.1em; }
+.ruled::after,.ruled::before { content:""; width:25px; height:1px; background:var(--line); }
+.screen-heading { min-height:60px; display:grid; place-items:center; margin:12px 0 15px; font-size:clamp(1.2rem,5.1vw,1.63rem); line-height:1.55; }
+.options { display:grid; gap:9px; text-align:left; }
+.choice { display:grid; align-items:center; grid-template-columns:27px minmax(0,1fr); gap:12px; min-height:52px; width:100%; text-align:left; line-height:1.5; padding:9px 11px; background:#101d2be8; border:1px solid #ac8f60; border-radius:5px; font-size:.95rem; }
+.choice:hover { border-color:#efce8e; background:#1c2b3b; }
+.option-index { display:grid; place-items:center; color:#152030; background:#d2ac65; border-radius:3px; width:26px; min-height:26px; font:700 1.05rem/1 Georgia,serif; }
+.text-action { border:0; background:transparent; color:var(--gold); min-height:44px; margin-top:8px; padding:0 18px; font-size:.9rem; }
+.text-action:hover { text-decoration:underline; text-underline-offset:4px; }
+.tie-note { margin:-8px 0 12px; }
+.result-title { color:#f8dfaa; font-size:clamp(3.75rem,15.2vw,6rem); line-height:1.1; font-weight:700; text-shadow:0 0 25px #b2834c50; margin:8px 0 2px; }
+.result-image { color:var(--gold); letter-spacing:.11em; font-size:.81rem; }
+.pair { margin:.36em 0 .45em; color:#f5e2b3; font-size:1.49rem; }
+.result-lead { font-size:1.06rem; font-weight:750; line-height:1.65; }
+.result-copy { font-size:.86rem; color:var(--dim); line-height:1.65; margin:5px 0 14px; }
+.aspects { display:grid; margin:8px 0 16px; text-align:left; }
+.aspect { display:grid; grid-template-columns:minmax(7.5em,auto) 1fr; gap:3px 8px; align-items:center; border-top:1px solid #92754d98; padding:7px 0; }
+.aspect:last-child { border-bottom:1px solid #92754d98; }
+.aspect-label { color:#16222d; background:#caa768; width:fit-content; padding:2px 6px; border-radius:3px; white-space:nowrap; font-size:.72rem; }
+.aspect-name { color:#f5e2b3; font-size:1rem; }
+.aspect-copy { grid-column:2; font-size:.78rem; color:#ead7ba; line-height:1.55; }
+@media (max-width:360px) { .aspect {grid-template-columns:minmax(6.5em,auto) 1fr;} }
+@media (min-width:700px) { .sheet { box-shadow:0 0 80px #090b0f; } }
+
+.image-options {
+  width: min(100%, 31rem); margin-inline:auto;
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap: .5rem;
+}
+.button.image-choice {
+  padding:0; border:1px solid #8c694b; border-radius: .68rem;
+  aspect-ratio:1; min-height:0; overflow:hidden; background:#11181f;
+}
+.image-choice img {display:block; width:100%;height:100%;object-fit:cover;}
+.image-choice:focus-visible {outline:3px solid #ffe2a2;outline-offset:2px;}
+.image-choice:hover {border-color:#ffdc96;}
+.arcana-result {display:block; width: min(8.8rem,38%); height:auto; border-radius:.45rem; margin:.6rem auto;}
+#screen:is([data-screen=question],[data-screen=tie],[data-screen=arcana]) .screen-heading {
+  margin-block:.55rem 1rem; font-size:clamp(1.05rem,4.7vw,1.5rem); line-height:1.45;
+}
+#screen:is([data-screen=question],[data-screen=tie],[data-screen=arcana]) .text-action {margin-top:.4rem;}
+@media (max-height: 590px) and (max-width: 480px) {
+  html:not(.embedded) .image-options { width:min(100%, 42svh); }
+}
+
+.embedded .sheet { min-height:0; padding-block:1.25rem; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header id="brand" class="brand"><span class="brand-name">TROY</span><span>海賊酒場</span></header>
+  <main id="screen"></main>
+</div>
+<noscript>この診断には JavaScript が必要です。</noscript>
+<script>const ELEMENTS = {
+  fire: {name:'火', suit:'ワンド', main:'まず動いて、可能性を開く', sub:'内側から湧いてくる「やりたい」が背中を押す'},
+  water: {name:'水', suit:'カップ', main:'気持ちを受け止め、人をつなぐ', sub:'大切な人の気持ちや言葉が力になる'},
+  wind: {name:'風', suit:'ソード', main:'筋道を立てて、本質を見つける', sub:'自分で納得できる理由が道を示す'},
+  earth: {name:'地', suit:'ペンタクル', main:'足元を整え、できることを積み上げる', sub:'積み重ねた経験や手応えが支えになる'},
+};
+const TYPES = {
+  'fire:fire':['火','烈火','迷うより先に、一歩を踏み出す開拓者。','自分の熱をそのまま行動に変え、周りにも火を灯す。大きく進む前に一度だけ、仲間の準備を確かめて。'],
+  'water:water':['水','深海','言葉にならない気持ちまで、深く受け止める。','感じ取ることと寄り添うことが自然につながる。人の心に潜る日ほど、自分の呼吸に戻れる時間も大切に。'],
+  'wind:wind':['風','疾風','余計なものをそぎ落とし、本質へ最短で向かう。','考えることが判断と行動の両方を支える。結論を早く出せるときこそ、誰かが追いつく間をつくると伝わる。'],
+  'earth:earth':['地','岩盤','何があっても足元を見失わず、土台を築く。','目の前の確かな手応えを積み重ね、簡単には崩れないものを作る。ときには未完成のまま人に見せてもいい。'],
+  'fire:wind':['雷','稲妻','ひらめきで走り出し、理屈で一気に答えへ届く。','第一歩は直感。速さを支えるのは、筋の通る道を素早く選ぶ頭の切れ。仲間には、途中の考えも一言添えると伝わる。'],
+  'fire:earth':['溶岩','マグマ','その場の情熱を、動かせる現実に焼き固める。','先に火がつき、経験と粘りが形になるまで支える。まず小さく完成させると、次に向けて熱を保ちやすい。'],
+  'fire:water':['蒸気','スチーム','自分の熱と仲間の気持ちで、場を動かす。','動き出すのは好奇心や情熱から。人への思いが、その勢いを仲間に伝わる力に変える。熱がこもったら一息つこう。'],
+  'water:wind':['氷','アイス','豊かな感情を、澄んだ美意識へ結晶させる。','最初に感じ取り、あとから冷静に輪郭を与える。繊細な感覚があるぶん、出来上がる前の気持ちも言葉にすると楽になる。'],
+  'water:earth':['木','森','人と居場所を、少しずつ育てて守る。','人を大事にする心が先に立ち、実際に続けられる工夫が支えになる。世話を焼きすぎたら、相手に任せる余白を。'],
+  'water:fire':['温泉','熱泉','穏やかに癒やしながら、内側に熱い芯を持つ。','まず相手の温度に合わせる。でも大切なもののためなら、自分の熱を頼りに動ける。自分が温まり直す時間も忘れずに。'],
+  'wind:fire':['閃光','光','筋道を見極めてから、熱量で迷いを断ち切る。','まず状況を分析する。最後の一歩は「こうしたい」という火が決める。雷がひらめきから始まるなら、あなたは見極めてから一気に進む。'],
+  'wind:water':['霧','雨','冷静に観察し、言葉の奥の空気まで読む。','状況を見る目に、相手の気持ちを感じる力が加わる。見えていることを短い言葉にすると、観察が人の役に立つ。'],
+  'wind:earth':['砂','砂嵐','歯車を一つずつ見抜き、現実に回る仕組みを組む。','切り分けて考える力が先に立ち、現場の手応えを確かめながら精度を上げる。ときには仮の仕組みでも動かしてみて。'],
+  'earth:fire':['鉄','鋼','地道な努力を、内側の熱で揺るがない強さに変える。','確実に進めることが得意で、仕上げに火を入れるのは譲れないこだわり。頑張りどころは、自分で選んでいい。'],
+  'earth:water':['粘土','陶土','確かな足場を持ちながら、人に合わせて形を変える。','目に見える現実から考えて、人の温もりでやり方を柔らかくする。受け止めるばかりの日は、自分の希望も一つ伝えて。'],
+  'earth:wind':['水晶','鉱石','確かな素材を、筋の通った工夫で磨き上げる。','まず現実の状態をつかみ、理屈で余分を削る。最後の磨き込みが得意だからこそ、まず使ってもらう時期も決めておくといい。'],
+};
+const ORDER = Object.keys(ELEMENTS);
+const ART_NAMES = {"r01-a": "光潮リボン獣", "r01-b": "星冠オーロラ翼獣", "r01-c": "月耳ケルン獣", "r01-d": "煙晶コアフィン", "r02-a": "鍛甲根掘り獣", "r02-b": "苔庭ナーチャーホーン", "r02-c": "星図フラクタル鳶", "r02-d": "雲心スカイリヴァイアサン", "r03-a": "時環スパインセンチネル", "r03-b": "水銀ロジックグライダー", "r03-c": "炉花シェルワーデン", "r03-d": "潮囁きネストフィン", "r04-a": "旗冠ストライダー", "r04-b": "門折りウォッチャー", "r04-c": "火花流ホッパー", "r04-d": "霧尾ドリフター", "r05-a": "水晶信号群体", "r05-b": "果灯レヴェラー", "r05-c": "氷格子プロウラー", "r05-d": "夢茸リスナー", "r06-a": "瓦鱗コイルバック", "r06-b": "川石スリップフィン", "r06-c": "迷宮殻ノーチロイド", "r06-d": "星雲リボンリング", "r07-a": "稜光パルスビートル", "r07-b": "黒曜演算リンクス", "r07-c": "灯樹ホストビースト", "r07-d": "月泉キーパー", "r08-a": "蜂巣冠クラウンウォーカー", "r08-b": "階段折りスフィンクス", "r08-c": "飛沫翼デルフィン", "r08-d": "矢流クラゲ", "r09-a": "雷列プロセッションドレイク", "r09-b": "彗彩コンフェッティモス", "r09-c": "象牙記録甲獣", "r09-d": "静界スティルトレッカー", "r10-a": "根市ミミックビースト", "r10-b": "白磁バロウキン", "r10-c": "軌道歌キメラ", "r10-d": "無限輪ドリームワーム", "r11-a": "青格子アイスバック", "r11-b": "黄金螺旋シェルウィング", "r11-c": "陽綿パフホーン", "r11-d": "薔薇潮ヴェイルフィン", "r12-a": "門枠アーチガーディアン", "r12-b": "円環炉ハースワーデン", "r12-c": "水銀変相スパイダー", "r12-d": "曙気オーロラフォーン"};
+const SEQUENCES = ["badc", "cbda", "bdac", "cbda", "bdca", "dbca", "adbc", "cdba", "bdac", "cadb", "cdba", "bcda"];
+const PROMPT = 'いちばん心が引かれる絵を、直感で選んでください。';
+const QUESTIONS = SEQUENCES.map((sequence,i) => ({
+  phase: i < 6 ? 'main' : 'sub',
+  images: Object.fromEntries(ORDER.map((s,index)=>[s,'r'+String(i+1).padStart(2,'0')+'-'+sequence[index]])),
+}));
+// Different visual metaphors on each card: open freedom, versatility, integrated harmony,
+// and a focused alternative. Do not force an Arcana if these choices disagree.
+const ARCANA_IMAGES = [
+  { fool:'r09-d', magician:'r03-a', world:'r10-c', suit:'r08-b' },
+  { fool:'r04-c', magician:'r08-c', world:'r07-c', suit:'r12-b' },
+];
+const ARCANA = {
+  fool: ['0','愚者','まだない道に、自然と目が向く。','決まった型に当てはめるより、未知の可能性を残しておく。何者でもないからこそ、何にでもなれる。'],
+  magician: ['I','魔術師','その場に必要な力を、手札から選ぶ。','ひらめき、人の気持ち、筋道、経験。その中から今使えるものを選び、状況を動かす。'],
+  world: ['XXI','世界','異なるものが、一つにつながる姿に惹かれる。','何か一つで押し切るより、違う力が互いを支える形を見つける。全体を見渡し、まとまりをつくる。'],
+};
+function counts(answers, phase) {
+  const tally = Object.fromEntries(ORDER.map(s=>[s,0]));
+  QUESTIONS.forEach((q,index)=>{ if(q.phase===phase && Object.hasOwn(tally,answers[index])) tally[answers[index]]++; });
+  return tally;
+}
+function balanced(tally) {
+  const v = Object.values(tally);
+  return v.filter(n=>n>0).length>=3 && Math.max(...v)-Math.min(...v)<=2;
+}
+function assess(answers, arcana=[], ties={}) {
+  if (QUESTIONS.some((_,i)=>!Object.hasOwn(ELEMENTS,answers[i]))) return {status:'incomplete'};
+  const all = {main:counts(answers,'main'),sub:counts(answers,'sub')};
+  if (balanced(all.main) && balanced(all.sub)) {
+    if (arcana.length<ARCANA_IMAGES.length) return {status:'arcana',index:arcana.length,images:ARCANA_IMAGES[arcana.length]};
+    if (arcana[0]===arcana[1] && Object.hasOwn(ARCANA,arcana[0])) return {status:'major',type:ARCANA[arcana[0]],key:arcana[0]};
+  }
+  const picked = {};
+  for (const phase of ['main','sub']) {
+    const tally=all[phase], max=Math.max(...Object.values(tally));
+    const best=ORDER.filter(s=>tally[s]===max);
+    if (best.length>1 && !best.includes(ties[phase])) {
+      const images=Object.fromEntries(best.map(key=>{
+        const index=QUESTIONS.findLastIndex((q,i)=>q.phase===phase && answers[i]===key);
+        return [key,QUESTIONS[index].images[key]];
+      }));
+      return {status:'tie',phase,images};
+    }
+    picked[phase]=best.length===1?best[0]:ties[phase];
+  }
+  const key=picked.main+':'+picked.sub;
+  return {status:'result',...picked,key,type:TYPES[key],pure:picked.main===picked.sub};
+}
+if (typeof module!=='undefined') module.exports={ELEMENTS,QUESTIONS,TYPES,ORDER,ARCANA,ARCANA_IMAGES,balanced,assess};
+</script>
+<script>(() => {
+  if (window.parent !== window) document.documentElement.classList.add('embedded');
+  const root=document.getElementById('screen');
+  const stages={main:['メイン','表の武器'],sub:['サブ','裏の支え']};
+  let trail=[], seed=0;
+  function el(tag, cls='', content='') {
+    const node=document.createElement(tag);
+    if(cls) node.className=cls;
+    if(content) node.textContent=content;
+    return node;
+  }
+  function action(label, cls, fn) {
+    const item=el('button',cls,label);
+    item.type='button'; item.addEventListener('click',fn);
+    return item;
+  }
+  function compass(small=false) {
+    const wrapper=el('div','rose'+(small?' rose-small':''));
+    wrapper.setAttribute('aria-hidden','true');
+    wrapper.innerHTML='<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><g fill="none" stroke="currentColor"><circle cx="100" cy="100" r="77"/><circle cx="100" cy="100" r="69" stroke-dasharray="1 4"/><circle cx="100" cy="100" r="55" opacity=".35"/><path d="M23 100h154M100 23v154M46 46l108 108m0-108L46 154" opacity=".35"/></g><path fill="#8c6b3b" d="M58 58l42 27 42-27-27 42 27 42-42-27-42 27 27-42z"/><path fill="#dfbc72" d="M100 19l13 68 69 13-69 13-13 68-13-68-69-13 69-13z"/><path fill="#a77943" d="M100 19v81l82 0-69 13-13 68V100H18l69-13z"/><circle cx="100" cy="100" r="4" fill="#fbe8b7"/></svg>';
+    return wrapper;
+  }
+  function title(text, cls='screen-heading', tag='h1') {
+    const heading=el(tag,cls,text);
+    heading.tabIndex=-1;
+    return heading;
+  }
+  function show(nodes, heading, moveFocus=true) {
+    root.replaceChildren(...nodes);
+    if(moveFocus) {
+      heading.focus({preventScroll:true});
+      if (window.parent === window) window.scrollTo(0,0);
+      else window.frameElement?.scrollIntoView({block:'nearest'});
+    }
+  }
+  function intro(moveFocus) {
+    root.dataset.screen='start';
+    const heading=title('四元素診断','intro-title');
+    const suits=el('ul','suits');
+    for(const key of ORDER) {
+      const item=el('li');
+      item.append(el('span','suit-letter',ELEMENTS[key].name));
+      suits.append(item);
+    }
+    show([heading,el('p','intro-copy','表の武器と、裏の支え。'),el('p','intro-sub','心が引かれる絵を選んで、あなたを動かす二つの力を読み解く。'),
+      compass(), suits, action('診断を始める', 'button primary',()=>{trail=[];seed=Math.floor(Math.random()*4);render();}),
+      el('p','note','ログイン不要。診断結果は保存しません。')],heading,moveFocus);
+  }
+  function question(position, extra=null) {
+    root.dataset.screen=extra?.status??'question';
+    const q=QUESTIONS[position];
+    const positionLabel=extra ? '追加' : (position+1)+' / 12';
+    document.getElementById('brand').classList.add('compact');
+    const heading=title(PROMPT,'screen-heading','h2');
+    const progress=el('div','progress');
+    progress.setAttribute('aria-label',extra ? '追加の画像選択' : (position+1)+'問目、全12問');
+    const bars=el('span','bars');
+    bars.setAttribute('aria-hidden','true');
+    for(let i=0;i<12;i++) bars.append(el('span',i<position?'done':i===position?'current':''));
+    progress.append(bars,el('span','progress-number',positionLabel));
+    const options=el('div','image-options');
+    options.setAttribute('role','group');
+    options.setAttribute('aria-label','画像の選択肢');
+    const entries=Object.entries(extra?.images??q.images);
+    const offset=(seed+position+(extra?.index??0))%entries.length;
+    for(const [key,id] of [...entries.slice(offset),...entries.slice(0,offset)]) {
+      const button=action('', 'button image-choice',()=>{
+        trail.push(extra?.status==='arcana'?{arcana:key}:extra?{phase:extra.phase,key}:{position,key});
+        render();
+      });
+      button.dataset.image=id;
+      const art=el('img');
+      art.src='/assets/personality-assessment/'+id+'.webp?v=3';
+      art.alt=ART_NAMES[id];
+      art.draggable=false;
+      button.append(art);
+      options.append(button);
+    }
+    show([el('p','minor-title','四元素診断'),progress,heading,options,
+      action(position===0?'トップに戻る':'前に戻る','button text-action',back)],heading);
+  }
+  function majorView(result) {
+    root.dataset.screen='major';
+    const [number,name,lead,description]=result.type;
+    const heading=title(name,'result-title','h2');
+    const art=el('img','arcana-result');
+    art.src='/assets/pirate-tarot/cards/major-'+{fool:0,magician:1,world:21}[result.key]+'.webp';
+    art.alt='海賊タロット：'+name;
+    show([el('p','minor-title','四元素診断'),el('p','ruled','大アルカナ ／ '+number),
+      heading,art,el('p','result-lead',lead),el('p','result-copy',description),
+      action('もう一度診断する','button primary',()=>{trail=[];seed=(seed+1)%4;render();}),
+      action('回答を見直す','button text-action',back),
+      el('p','note','TROY オリジナルのエンターテインメント診断です。')],heading);
+  }
+  function resultView(r) {
+    root.dataset.screen='result';
+    const [name,image,lead,description]=r.type;
+    const heading=title(name,'result-title','h2');
+    const box=el('div','aspects');
+    for(const phase of ['main','sub']) {
+      const [stage,detail]=stages[phase], suit=ELEMENTS[r[phase]];
+      const part=el('section','aspect');
+      part.append(el('p','aspect-label',stage+' ／ '+detail),el('h3','aspect-name',suit.name+'〈'+suit.suit+'〉'),el('p','aspect-copy',suit[phase]));
+      box.append(part);
+    }
+    show([el('p','minor-title','四元素診断'),compass(true),el('p','ruled','診断結果'),heading,
+      el('p','result-image',image+' ／ '+(r.pure?'純粋タイプ':'複合タイプ')),
+      el('p','pair',ELEMENTS[r.main].name+' × '+ELEMENTS[r.sub].name),
+      el('p','result-lead',lead), el('p','result-copy',description), box,
+      action('もう一度診断する','button primary',()=>{trail=[];seed=(seed+1)%4;render();}),
+      action('回答を見直す','button text-action',back),el('p','note','TROY オリジナルのエンターテインメント診断です。')],heading);
+  }
+  function render() {
+    const answers=[], arcana=[], ties={};
+    for(const event of trail) {
+      if(Object.hasOwn(event,'position')) answers[event.position]=event.key;
+      else if(event.arcana) arcana.push(event.arcana);
+      else ties[event.phase]=event.key;
+    }
+    const state=assess(answers,arcana,ties);
+    if(state.status==='incomplete') return question(answers.length);
+    if(state.status==='tie'||state.status==='arcana') return question(12,state);
+    if(state.status==='major') return majorView(state);
+    return resultView(state);
+  }
+  function back() {
+    if(trail.length) {trail.pop();render();return;}
+    document.getElementById('brand').classList.remove('compact');
+    intro(true);
+  }
+  intro(false);
+})();
+</script>
+</body>
+</html>

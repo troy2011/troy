@@ -6468,20 +6468,55 @@ async function submitPersonalityAnswer(optionId) {
     }
 }
 
+let resizeElementsFrame;
+let hasRequestedCustomers = false;
+const requestedReadingMode = new URLSearchParams(window.location.search).get('mode');
+
+function openFourElements() {
+    const frame = $('fourElementsFrame');
+    if (!frame || frame.getAttribute('src')) return;
+    frame.addEventListener('load', () => {
+        const sheet = frame.contentDocument?.querySelector('.sheet');
+        if (!sheet) return;
+        function resize() {
+            const height = Math.ceil(sheet.getBoundingClientRect().height);
+            if (height > 0) frame.style.height = `${height}px`;
+        }
+        resizeElementsFrame?.disconnect();
+        resizeElementsFrame = new ResizeObserver(resize);
+        resizeElementsFrame.observe(sheet);
+        resize();
+    });
+    frame.src = frame.dataset.src;
+}
+
 function setReadingMode(mode) {
-    const nextMode = mode === 'personality' && state.personality.enabled ? 'personality' : 'tarot';
+    const nextMode = mode === 'elements' ? 'elements'
+        : mode === 'personality' && state.personality.enabled ? 'personality' : 'tarot';
     state.mode = nextMode;
     const isPersonality = nextMode === 'personality';
-    if ($('tarotReadingBoard')) $('tarotReadingBoard').hidden = isPersonality;
+    const isElements = nextMode === 'elements';
+    if ($('tarotReadingBoard')) $('tarotReadingBoard').hidden = nextMode !== 'tarot';
     if ($('personalityBoard')) $('personalityBoard').hidden = !isPersonality;
+    if ($('fourElementsBoard')) $('fourElementsBoard').hidden = !isElements;
+    if ($('tarotReadingCustomerPanel')) $('tarotReadingCustomerPanel').hidden = isElements;
+    if ($('tarotReadingStatus')) $('tarotReadingStatus').hidden = isElements;
     if ($('tarotCustomerSectionTitle')) $('tarotCustomerSectionTitle').textContent = isPersonality ? '診断するお客様' : '送信先';
-    if ($('tarotReadingKicker')) $('tarotReadingKicker').textContent = isPersonality ? 'TROY PERSONALITY VOYAGE' : 'TROY STAFF TAROT';
+    if ($('tarotReadingKicker')) $('tarotReadingKicker').textContent = isElements ? 'TROY TAROT' : isPersonality ? 'TROY PERSONALITY VOYAGE' : 'TROY STAFF TAROT';
     if ($('tarotReadingTitle')) $('tarotReadingTitle').textContent = isPersonality ? '魂の航路' : 'タロット航路';
     document.querySelectorAll('[data-reading-mode]').forEach((button) => {
         const active = button.dataset.readingMode === nextMode;
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
+    if (isElements) {
+        openFourElements();
+        return;
+    }
+    if (!hasRequestedCustomers) {
+        hasRequestedCustomers = true;
+        loadStoreCustomers();
+    }
     if (state.storeData) renderStoreCustomers(state.storeData, getSelectedCustomerRef());
     if (isPersonality) {
         checkPersonalityStatus();
@@ -6498,8 +6533,7 @@ async function loadPersonalityConfig() {
         state.personality.enabled = true;
         state.personality.totalRounds = Math.max(1, Math.min(24, Math.trunc(Number(data.totalRounds) || 12)));
         state.personality.assetVersion = Math.max(1, Math.trunc(Number(data.assetVersion) || 3));
-        if ($('readingModeSwitch')) $('readingModeSwitch').hidden = false;
-        document.querySelector('[data-reading-mode="tarot"]')?.classList.add('is-active');
+        if (requestedReadingMode === 'legacy-personality' && state.mode === 'tarot') setReadingMode('personality');
         try {
             await preloadPersonalityImages();
             state.personality.assetsReady = true;
@@ -6714,9 +6748,8 @@ function init() {
     renderCardGrid();
     updateResult();
     bindEvents();
-    setReadingMode('tarot');
-    loadStoreCustomers();
-    loadPersonalityConfig();
+    setReadingMode(requestedReadingMode === 'four-elements' ? 'elements' : 'tarot');
+    if (requestedReadingMode === 'legacy-personality') loadPersonalityConfig();
 }
 
 window.TarotReadingApp = {
