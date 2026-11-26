@@ -47,7 +47,7 @@ function makeRow({ date, status, openTime, closeTime, publicHelmName }) {
 
 function renderToday(entry) {
     const { status, openTime, publicHelmName } = entry ?? {};
-    let label = '本日の営業は未掲載';
+    let label = '本日休航';
     if (status === 'open') label = openTime ? '本日 ' + openTime + ' 出航' : '本日出航（時間未定）';
     if (status === 'closed') label = '本日休航';
     if (status === 'private') label = '本日貸切';

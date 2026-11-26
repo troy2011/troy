@@ -12,7 +12,8 @@ test.describe('public shop MEO page', () => {
     await expect(page.getByRole('link', { name: 'お問い合わせ' })).toHaveAttribute('href', 'tel:09047120670');
 
     const routeLink = page.getByRole('link', { name: 'Googleマップでルートを見る' });
-    await expect(page.getByRole('link', { name: 'お電話でご確認ください' })).toHaveAttribute('href', 'tel:09047120670');
+    await expect(page.locator('#access').getByText('駐車場あり（5台分）', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'お電話でご確認ください' })).toHaveCount(0);
     await expect(routeLink).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
     await expect(page.getByRole('navigation', { name: '来店アクション' }).getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
 
@@ -71,7 +72,7 @@ test.describe('public shop MEO page', () => {
     await expect(page.locator('#shop-calendar-days')).not.toContainText('22:00');
     calendar = [];
     await page.reload();
-    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日の営業は未掲載');
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日休航');
     await expect(page.locator('#shop-calendar-status')).toHaveText('今後の航海予定はまだ掲載されていません。');
   });
 
@@ -161,7 +162,7 @@ test.describe('public shop MEO page', () => {
     await expect(mobileActions.getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
     await expect(mobileActions.getByRole('link', { name: 'アクセス' })).toHaveAttribute('href', '#access');
     await expect(page.getByText('23:00–01:00')).toBeInViewport();
-    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日の営業は未掲載');
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日休航');
     await expect(page.getByText('営業日を見る', { exact: true })).toHaveCount(0);
     await expect(page.locator('.home-play-grid img')).toHaveCount(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);

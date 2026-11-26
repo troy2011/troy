@@ -385,16 +385,8 @@
 
 .home-parking {
     margin: 1.15rem auto;
-    font-size: 0.88rem;
-}
-
-.home-parking strong {
     color: var(--gold-bright);
-}
-
-.home-parking a {
-    color: var(--ink);
-    text-underline-offset: 0.2em;
+    font-size: 0.88rem;
 }
 
 .home-access .access-actions {
