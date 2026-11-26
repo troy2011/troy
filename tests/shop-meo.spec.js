@@ -1,21 +1,19 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('public shop MEO page', () => {
-  test('exposes crawlable NAP, hours, actions, and structured data', async ({ page }) => {
+  test('exposes crawlable NAP, schedule access, actions, and structured data', async ({ page }) => {
     await page.goto('/shop/');
 
     await expect(page).toHaveTitle('海賊酒場TROY｜千葉県富里市十倉のアミューズメントバー');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('海賊の酒場へ');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('海賊の酒場');
     await expect(page.getByText('〒286-0212', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('千葉県富里市十倉310-401', { exact: true }).first()).toBeVisible();
 
-    const phoneLinks = page.locator('a[href="tel:09047120670"]');
-    await expect(phoneLinks.first()).toBeVisible();
-    await expect(phoneLinks).toHaveCount(4);
+    await expect(page.getByRole('link', { name: 'お問い合わせ' })).toHaveAttribute('href', 'tel:09047120670');
 
     const routeLink = page.getByRole('link', { name: 'Googleマップでルートを見る' });
     await expect(routeLink).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
-    await expect(page.getByRole('link', { name: 'メニューをすべて見る' })).toHaveAttribute('href', '/shop/menu.html');
+    await expect(page.getByRole('navigation', { name: '来店アクション' }).getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
 
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://troy-xetw.onrender.com/shop/');
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /富里市十倉/);
@@ -34,12 +32,50 @@ test.describe('public shop MEO page', () => {
       streetAddress: '十倉310-401',
       addressCountry: 'JP'
     });
-    expect(jsonLd.openingHoursSpecification.opens).toBe('21:00');
-    expect(jsonLd.openingHoursSpecification.closes).toBe('00:00');
-    expect(jsonLd.openingHoursSpecification.dayOfWeek).not.toContain('https://schema.org/Wednesday');
+    expect(jsonLd.openingHoursSpecification).toBeUndefined();
+    await expect(page.getByText('水曜定休')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '航海予定' })).toBeVisible();
     expect(jsonLd.menu).toBe('https://troy-xetw.onrender.com/shop/menu.html');
     expect(jsonLd.hasMenu).toBe('https://troy-xetw.onrender.com/shop/menu.html');
     expect(jsonLd.aggregateRating).toBeUndefined();
+  });
+
+  test('renders the public schedule and picks up updates without a LINE session', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    let calendar = [
+      { date: '2030-12-04', status: 'open', openTime: '22:00', closeTime: '02:00', publicHelmName: 'カイ' },
+      { date: '2030-12-06', status: 'private', openTime: '', closeTime: '', publicHelmName: '公開しない名前' }
+    ];
+    await page.route('**/api/troy-calendar/public', async (route) => {
+      expect(route.request().method()).toBe('GET');
+      expect(route.request().headers().authorization).toBeUndefined();
+      await route.fulfill({ json: { calendar } });
+    });
+    await page.goto('/shop/#hours');
+    await expect(page.locator('#shop-calendar-days')).toContainText('22:00–02:00');
+    await expect(page.getByText('出航時間', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '航海予定' })).toBeVisible();
+    await expect(page.locator('#shop-calendar-days')).toContainText('出航');
+    await expect(page.locator('#shop-calendar-days')).toContainText('本日の舵取り：カイ');
+    await expect(page.locator('#shop-calendar-days')).not.toContainText('公開しない名前');
+    await expect(page.locator('#shop-calendar-days')).toContainText('貸切');
+    await expect(page.locator('#shop-calendar-days > div')).toHaveCount(2);
+    calendar = [{ date: '2030-12-04', status: 'closed', openTime: '', closeTime: '' }];
+    await page.reload();
+    await expect(page.locator('#shop-calendar-days')).toContainText('休航');
+    await expect(page.locator('#shop-calendar-days')).not.toContainText('本日の舵取り');
+    await expect(page.locator('#shop-calendar-days')).not.toContainText('22:00');
+    calendar = [];
+    await page.reload();
+    await expect(page.getByRole('status')).toHaveText('今後の航海予定はまだ掲載されていません。');
+  });
+
+  test('keeps the calendar failure separate from a closure', async ({ page }) => {
+    await page.route('**/api/troy-calendar/public', (route) => route.fulfill({ status: 503 }));
+    await page.goto('/shop/#hours');
+    await expect(page.getByRole('status')).toContainText('航海予定を読み込めませんでした');
+    await expect(page.locator('#shop-calendar-days > div')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /お電話で営業を確認/ })).toBeVisible();
   });
 
   test('publishes a complete standalone menu', async ({ page }) => {
@@ -107,14 +143,23 @@ test.describe('public shop MEO page', () => {
   });
 
   test('keeps visit actions visible on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.route('**/api/troy-calendar/public', (route) => route.fulfill({
+      json: { calendar: [{ date: '2030-12-04', status: 'open', openTime: '23:00', closeTime: '01:00' }] }
+    }));
     await page.goto('/shop/');
 
     const mobileActions = page.getByRole('navigation', { name: '来店アクション' });
     await expect(mobileActions).toBeVisible();
-    await expect(mobileActions.getByRole('link', { name: '電話' })).toHaveAttribute('href', 'tel:09047120670');
+    await expect(mobileActions.getByRole('link', { name: 'お問い合わせ' })).toHaveAttribute('href', 'tel:09047120670');
     await expect(mobileActions.getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
-    await expect(mobileActions.getByRole('link', { name: 'ルート' })).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
+    await expect(mobileActions.getByRole('link', { name: 'アクセス' })).toHaveAttribute('href', '#access');
+    await expect(page.getByText('23:00–01:00')).toBeInViewport();
+    await expect(page.getByText('営業日を見る', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.home-play-grid img')).toHaveCount(4);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
+    await page.getByLabel('サイトメニュー').click();
+    await expect(page.getByRole('navigation', { name: '店舗情報ナビゲーション' })).toBeVisible();
   });
 
   test('keeps visit actions visible on tablet', async ({ page }) => {

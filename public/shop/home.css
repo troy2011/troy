@@ -1,0 +1,377 @@
+.shop-home {
+    --night: #100b07;
+    --ink: #faeedc;
+    --muted: #d2bea3;
+    --line: #67523d;
+    --gold: #cd985b;
+    --gold-bright: #f4c784;
+    --home-width: 64rem;
+    --home-serif: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", "Noto Serif JP", "MS PMincho", Georgia, serif;
+    background: radial-gradient(ellipse at 42% 28%, #23180e 0%, #140e08 58%, #0d0906 100%);
+    font-family: var(--home-serif);
+}
+
+.home-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 max(0.85rem, calc((100% - var(--home-width)) / 2));
+    background: #120d08;
+}
+
+.home-wordmark {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    font-size: clamp(1.1rem, 5vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.home-wordmark svg {
+    width: 2.25rem;
+    height: 1.75rem;
+}
+
+.home-wordmark-latin {
+    margin-left: 0.13em;
+    font-family: Georgia, serif;
+}
+
+.home-navigation summary {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    cursor: pointer;
+    list-style: none;
+}
+
+.home-navigation summary::-webkit-details-marker {
+    display: none;
+}
+
+.home-navigation svg,
+.home-actions svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.45;
+}
+
+.home-navigation nav {
+    position: absolute;
+    top: 100%;
+    right: max(0.85rem, calc((100% - var(--home-width)) / 2));
+    display: grid;
+    min-width: 11rem;
+    border: 1px solid var(--line);
+    background: #181007;
+    box-shadow: 0 12px 30px #0008;
+}
+
+.home-navigation nav a {
+    padding: 0.55rem 1rem;
+    text-decoration: none;
+}
+
+.home-navigation nav a:hover,
+.home-navigation nav a:focus-visible {
+    color: var(--gold-bright);
+    background: #302013;
+}
+
+.home-hero {
+    position: relative;
+    display: grid;
+    width: min(100%, 90rem);
+    aspect-ratio: 16 / 9;
+    max-height: 32rem;
+    margin-inline: auto;
+    overflow: hidden;
+    background: #24150c;
+}
+
+.home-hero img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 60%;
+}
+
+.home-hero::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #0c0704a3, #10070440 53%, transparent 75%);
+    content: "";
+}
+
+.home-hero-copy {
+    z-index: 1;
+    width: min(100%, var(--home-width));
+    align-self: start;
+    margin-inline: auto;
+    padding: clamp(2.15rem, 8vw, 6.25rem) 6.5% 0;
+}
+
+.home-hero h1 {
+    margin: 0;
+    font-size: clamp(1.65rem, 7.35vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.18;
+    text-shadow: 0 2px 16px #090400b3;
+}
+
+.home-hero-copy::after {
+    display: block;
+    width: clamp(2.25rem, 9vw, 5.2rem);
+    margin-top: clamp(0.9rem, 3vw, 1.75rem);
+    border-top: 1px solid #f5e5ce;
+    content: "";
+}
+
+.home-hero-image-label {
+    position: absolute;
+    z-index: 1;
+    right: 0.55rem;
+    bottom: 0.42rem;
+    padding: 0 0.32rem;
+    background: #100b07b3;
+    font-size: 0.68rem;
+}
+
+.home-section {
+    width: min(var(--home-width), 100% - clamp(1.75rem, 9.6vw, 4.5rem));
+    margin-inline: auto;
+}
+
+.home-calendar {
+    padding-top: clamp(1rem, 4.8vw, 2.75rem);
+}
+
+.home-rule-title {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 0.9em;
+    font-size: clamp(1.2rem, 5.3vw, 2.4rem);
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.home-rule-title::before,
+.home-rule-title::after {
+    height: 1px;
+    flex: 1 1 0;
+    background: linear-gradient(90deg, transparent, #a28d73);
+    content: "";
+}
+
+.home-rule-title::after {
+    background: linear-gradient(90deg, #a28d73, transparent);
+}
+
+.home-calendar-grid {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #e7b78208;
+    font-variant-numeric: tabular-nums;
+}
+
+.home-calendar-grid:empty {
+    display: none;
+}
+
+.home-calendar-labels:not([hidden]) {
+    display: grid;
+    grid-template-columns: 30% 39.9% minmax(0, 1fr);
+    margin-block-end: 0.35rem;
+    color: var(--gold-bright);
+    font-size: 0.74rem;
+    text-align: center;
+}
+
+.home-calendar-grid > div {
+    display: grid;
+    min-height: 2.35rem;
+    grid-template-columns: 30% minmax(0, 1fr);
+    text-align: center;
+}
+
+.home-calendar-grid > div + div {
+    border-top: 1px solid var(--line);
+}
+
+.home-calendar-grid dt,
+.home-calendar-grid dd {
+    display: grid;
+    align-items: stretch;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.home-calendar-grid dt,
+.home-calendar-grid dd > span {
+    align-content: center;
+    padding: 0.22rem 0.2rem;
+}
+
+.home-calendar-grid dd {
+    grid-template-columns: 57% minmax(0, 1fr);
+}
+
+.home-calendar-grid dd > span {
+    border-left: 1px solid var(--line);
+}
+
+.home-calendar-time {
+    font-size: clamp(0.82rem, 3.7vw, 1.1rem);
+}
+
+.home-calendar-helm {
+    display: block;
+    color: var(--gold-bright);
+    font-size: 0.7rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.home-calendar-state.is-closed {
+    color: #ef9986;
+}
+
+.home-calendar-state.is-private,
+.home-calendar-state.is-tentative {
+    color: var(--gold-bright);
+}
+
+.home-calendar-message {
+    margin: 0;
+    padding: 0.9rem;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.home-calendar-message a {
+    display: inline-block;
+    margin-left: 0.4em;
+    color: var(--gold-bright);
+}
+
+.home-play {
+    margin-top: clamp(1.8rem, 8.8vw, 3.5rem);
+}
+
+.home-play-title {
+    font-family: Georgia, serif;
+    letter-spacing: 0.1em;
+}
+
+.home-play-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(0.34rem, 1.75vw, 1rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: center;
+}
+
+.home-play-grid img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1.08;
+    background: #261a10;
+    object-fit: cover;
+}
+
+.home-play-grid span {
+    display: block;
+    margin-top: 0.34em;
+    font-size: clamp(0.64rem, 2.95vw, 1.1rem);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.home-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: clamp(1.5rem, 7vw, 3.25rem);
+    padding-top: clamp(1.45rem, 7vw, 3.25rem);
+    border-top: 1px solid var(--line);
+}
+
+.home-actions a {
+    display: grid;
+    min-height: 2.75rem;
+    grid-template-columns: auto minmax(0, auto) auto;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.36rem 0.45rem;
+    border: 1px solid #c2ab8c;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #291e13, #181009);
+    font-size: clamp(0.84rem, 3.5vw, 1.2rem);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.home-actions a:hover,
+.home-actions a:focus-visible {
+    border-color: var(--gold-bright);
+    color: var(--gold-bright);
+}
+
+.home-actions i {
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-left: 0.3rem;
+    border-top: 1px solid;
+    border-right: 1px solid;
+    transform: rotate(45deg);
+}
+
+.home-actions .home-contact {
+    grid-column: 1 / -1;
+    border-color: #ac7749;
+    background: linear-gradient(145deg, #3a2312, #211208);
+}
+
+.home-access {
+    padding-block: clamp(2.5rem, 10vw, 5rem) 1.5rem;
+    color: var(--muted);
+    text-align: center;
+}
+
+.home-access .access-actions {
+    justify-content: center;
+}
+
+.home-access .access-actions a {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    padding-inline: 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink);
+    text-decoration: none;
+}

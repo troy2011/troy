@@ -66,6 +66,9 @@ function createFakeFirestore(initialCollections = {}, options = {}) {
       limit(value) {
         return collectionReference(collectionName, { ...query, limit: Number(value) });
       },
+      select(...fields) {
+        return collectionReference(collectionName, { ...query, fields });
+      },
       async get() {
         let rows = [...(collections.get(collectionName) || new Map()).entries()];
         if (query.where) {
@@ -88,7 +91,9 @@ function createFakeFirestore(initialCollections = {}, options = {}) {
         const docs = rows.map(([id, data]) => ({
           id,
           ref: documentReference(collectionName, id),
-          data: () => clone(data)
+          data: () => clone(query.fields
+            ? Object.fromEntries(query.fields.map((field) => [field, data[field]]))
+            : data)
         }));
         return { docs, size: docs.length, empty: docs.length === 0 };
       }
@@ -178,6 +183,9 @@ function createFakeFirestore(initialCollections = {}, options = {}) {
 function createFakeApp() {
   const routes = new Map();
   return {
+    get(path, handler) {
+      routes.set(path, handler);
+    },
     post(path, handler) {
       routes.set(path, handler);
     },
@@ -190,6 +198,11 @@ function createFakeApp() {
       const response = {
         statusCode: 200,
         body: undefined,
+        headers: {},
+        set(name, value) {
+          this.headers[name] = value;
+          return this;
+        },
         status(code) {
           this.statusCode = code;
           return this;
@@ -200,7 +213,11 @@ function createFakeApp() {
         }
       };
       await handler({ body }, response);
-      return { status: response.statusCode, body: response.body };
+      return {
+        status: response.statusCode,
+        body: response.body,
+        ...(Object.keys(response.headers).length && { headers: response.headers })
+      };
     }
   };
 }
@@ -211,6 +228,7 @@ function createHarness({
   failDocumentGetsAfterCommit = false,
   authenticated = true,
   isKing = true,
+  profileDisplayName = 'カイ',
   nation = 'fire'
 } = {}) {
   const store = createFakeFirestore(initialCollections, { failCommits, failDocumentGetsAfterCommit });
@@ -230,12 +248,13 @@ function createHarness({
       res.status(401).json({ error: 'Unauthorized' });
       return '';
     },
-    PlayFabServer: { GetUserReadOnlyData: getUserReadOnlyData },
+    PlayFabServer: { GetUserReadOnlyData: getUserReadOnlyData, GetPlayerProfile: () => {} },
     promisifyPlayFab: async (_method, request) => {
       if (request.Keys?.includes('IsKing')) {
         return { Data: { IsKing: { Value: isKing ? 'true' : 'false' } } };
       }
       if (request.Keys?.includes('Nation')) return { Data: { Nation: { Value: nation } } };
+      if (request.ProfileConstraints?.ShowDisplayName) return { PlayerProfile: { DisplayName: profileDisplayName } };
       throw new Error(`Unexpected PlayFab request: ${JSON.stringify(request)}`);
     }
   });
@@ -255,6 +274,54 @@ function saveBody(overrides = {}) {
     ...overrides
   };
 }
+
+test('only authenticated staff can request their own helm prefill and IDs are not a fallback', async () => {
+  const read = (app, body) => app.invoke('/api/troy-calendar/list', { ...body, includeHelmPrefill: true });
+  expect((await read(createHarness().app, { playFabId: 'KING-001' })).body.ownPublicHelmName).toBe('カイ');
+  expect((await read(createHarness().app, {})).body.ownPublicHelmName).toBeUndefined();
+  expect((await read(createHarness({ isKing: false }).app, { playFabId: 'KING-001' })).body.ownPublicHelmName).toBeUndefined();
+  expect((await read(createHarness({ profileDisplayName: '' }).app, { playFabId: 'KING-001' })).body.ownPublicHelmName).toBeUndefined();
+});
+
+test('public calendar reflects staff saves and deletes without exposing staff-only fields', async () => {
+  const date = new Date(Date.now() + 3 * 86400000 + 9 * 3600000).toISOString().slice(0, 10);
+  const { app } = createHarness();
+  const read = () => app.invoke('/api/troy-calendar/public');
+  expect((await read()).body).toEqual({ calendar: [] });
+
+  const saved = await app.invoke('/api/troy-calendar/save', saveBody({
+    date, title: 'Staff event title', note: 'Staff memo', publicHelmName: '  カイ  '
+  }));
+  expect(saved.status).toBe(200);
+  expect(await read()).toEqual({
+    status: 200,
+    body: { calendar: [{ date, status: 'open', openTime: '18:00', closeTime: '23:00', publicHelmName: 'カイ' }] },
+    headers: { 'Cache-Control': 'no-store' }
+  });
+
+  const calendarId = saved.body.entry.id;
+  const changed = await app.invoke('/api/troy-calendar/save', saveBody({
+    date, calendarId, publicHelmName: 'ユウキ'
+  }));
+  expect(changed.status).toBe(200);
+  expect((await read()).body.calendar[0].publicHelmName).toBe('ユウキ');
+  const timeOnly = await app.invoke('/api/troy-calendar/save', saveBody({
+    playFabId: 'KING-002', date, calendarId, openTime: '19:00'
+  }));
+  expect(timeOnly.status).toBe(200);
+  expect((await read()).body.calendar).toEqual([
+    { date, status: 'open', openTime: '19:00', closeTime: '23:00', publicHelmName: 'ユウキ' }
+  ]);
+  const closed = await app.invoke('/api/troy-calendar/save', saveBody({
+    date, calendarId, status: 'closed', requestId: 'route-request-0002'
+  }));
+  expect(closed.status).toBe(200);
+  expect((await read()).body).toEqual({
+    calendar: [{ date, status: 'closed', openTime: '', closeTime: '' }]
+  });
+  expect((await app.invoke('/api/troy-calendar/delete', { playFabId: 'KING-001', calendarId })).status).toBe(200);
+  expect((await read()).body).toEqual({ calendar: [] });
+});
 
 async function invokeWithExpectedServerError(app, path, body) {
   const originalConsoleError = console.error;

@@ -36,7 +36,8 @@
 | POST | `/api/transfer-points` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/economy.js:744` |
 | POST | `/api/get-player-display-name` | read | none in route handler | no global admin role | PlayFab | `server/economy.js:852` |
 | POST | `/api/update-player-display-name` | state-change | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab | `server/economy.js:870` |
-| POST | `/api/troy-calendar/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:529` |
+| GET | `/api/troy-calendar/public` | read | public (no credentials) | no role | Firestore | `server/events.js`; date, status, public hours, and optional staff-entered public helm name on open days |
+| POST | `/api/troy-calendar/list` | read | Firebase ID token (UID = PlayFab ID) when PlayFab ID is supplied | no global admin role | PlayFab, Firestore | `server/events.js` |
 | POST | `/api/troy-calendar/save` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:555` |
 | POST | `/api/troy-calendar/delete` | state-change | Firebase ID token (UID = PlayFab ID) | domain checks | PlayFab, Firestore | `server/events.js:749` |
 | POST | `/api/events/list` | read | Firebase ID token (UID = PlayFab ID) | no global admin role | PlayFab, Firestore | `server/events.js:837` |

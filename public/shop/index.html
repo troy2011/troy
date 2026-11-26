@@ -7,11 +7,13 @@
     <title>海賊酒場TROY｜千葉県富里市十倉のアミューズメントバー</title>
     <meta name="description" content="千葉県富里市十倉の海賊酒場TROY。ビリヤード、ダーツ、カラオケ、ボードゲームを楽しめる海賊テーマのアミューズメントバーです。営業時間、メニュー、電話、アクセスをご案内します。">
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
-    <meta name="theme-color" content="#0b1018">
+    <meta name="theme-color" content="#130d08">
     <link rel="canonical" href="https://troy-xetw.onrender.com/shop/">
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
-    <link rel="stylesheet" href="/shop/shop.css?v=20260722a">
+    <link rel="stylesheet" href="/shop/shop.css?v=20261126">
+    <link rel="stylesheet" href="/shop/home.css?v=3">
+    <script type="module" src="/shop/calendar.js?v=4"></script>
 
     <meta property="og:type" content="website">
     <meta property="og:locale" content="ja_JP">
@@ -44,19 +46,6 @@
             "streetAddress": "十倉310-401",
             "addressCountry": "JP"
         },
-        "openingHoursSpecification": {
-            "@type": "OpeningHoursSpecification",
-            "dayOfWeek": [
-                "https://schema.org/Sunday",
-                "https://schema.org/Monday",
-                "https://schema.org/Tuesday",
-                "https://schema.org/Thursday",
-                "https://schema.org/Friday",
-                "https://schema.org/Saturday"
-            ],
-            "opens": "21:00",
-            "closes": "00:00"
-        },
         "menu": "https://troy-xetw.onrender.com/shop/menu.html",
         "hasMenu": "https://troy-xetw.onrender.com/shop/menu.html",
         "sameAs": [
@@ -67,115 +56,74 @@
     </script>
 </head>
 
-<body>
+<body class="shop-home">
     <a class="skip-link" href="#main">本文へ移動</a>
-    <header class="site-header">
-        <a class="brand" href="/shop/" aria-label="海賊酒場TROY 店舗情報トップ">
-            <span class="brand-mark" aria-hidden="true">☠</span>
-            <span><strong>海賊酒場TROY</strong><small>PIRATES BAR IN TOMISATO</small></span>
+    <header class="home-header">
+        <a class="home-wordmark" href="/shop/" aria-label="海賊酒場TROY 店舗情報トップ">
+            <svg viewBox="0 0 48 38" aria-hidden="true"><path fill="currentColor" d="M24 2c-7 0-11 4.7-11 10.1 0 4.5 2.3 6.9 5.4 7.7V23h3v-2h2v2h2v-2h2v2h2.2v-3.2c3.1-.8 5.4-3.2 5.4-7.7C35 6.7 31 2 24 2Zm-4.5 14.2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm9 0a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm-6 2.2 1.5-3.2 1.5 3.2h-3Z"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M4 12c6 13 23 18 38 19M44 12C38 25 21 30 6 31M10 27l2 7m26-7-2 7M4 33l4 3m36-3-4 3"/></svg>
+            <span>海賊酒場<span class="home-wordmark-latin">TROY</span></span>
         </a>
-        <nav aria-label="店舗情報ナビゲーション">
-            <a href="#about">店について</a>
-            <a href="#hours">営業時間</a>
-            <a href="/shop/menu.html">メニュー</a>
-            <a href="#access">アクセス</a>
-            <a href="/shop/about.html">運営情報</a>
-        </nav>
+        <details class="home-navigation">
+            <summary aria-label="サイトメニュー"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M3 12h18M3 19h18"/></svg></summary>
+            <nav aria-label="店舗情報ナビゲーション">
+                <a href="#hours">航海予定</a>
+                <a href="#play">酒場の遊び</a>
+                <a href="/shop/menu.html">メニュー</a>
+                <a href="#access">アクセス</a>
+                <a href="/shop/about.html">運営情報</a>
+            </nav>
+        </details>
     </header>
 
     <main id="main">
-        <section class="hero" aria-labelledby="hero-title">
-            <div class="hero-art" role="img" aria-label="海賊酒場TROYのブランドビジュアル"></div>
-            <div class="hero-shade"></div>
-            <div class="hero-content">
-                <p class="eyebrow">CHIBA · TOMISATO · TOKURA</p>
-                <h1 id="hero-title"><span class="hero-business-name">海賊酒場TROY</span>今夜は、<br><span>海賊の酒場へ。</span></h1>
-                <p class="hero-copy">ビリヤード、ダーツ、カラオケ、ボードゲーム。<br>千葉県富里市十倉で、遊べる夜を。</p>
-                <div class="cta-row">
-                    <a class="button button-primary" href="tel:09047120670">電話する</a>
-                    <a class="button button-secondary" href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">ルートを見る</a>
-                </div>
+        <section class="home-hero" aria-labelledby="hero-title">
+            <img src="/shop/art/tavern.webp" srcset="/shop/art/tavern-mobile.webp 768w, /shop/art/tavern.webp 1536w" sizes="(min-width: 1440px) 1440px, 100vw" width="1536" height="864" fetchpriority="high" alt="">
+            <div class="home-hero-copy">
+                <h1 id="hero-title">遊べる、<br>海賊の酒場</h1>
             </div>
+            <small class="home-hero-image-label">イメージ</small>
         </section>
 
-        <section class="quick-facts" aria-label="店舗の基本情報">
-            <div><span>OPEN</span><strong>21:00–0:00</strong><small>水曜定休</small></div>
-            <div><span>PLACE</span><strong>千葉県富里市十倉</strong><small>〒286-0212</small></div>
-            <div><span>CALL</span><strong><a href="tel:09047120670">090-4712-0670</a></strong><small>営業確認・お問い合わせ</small></div>
+        <section id="hours" class="home-section home-calendar" aria-labelledby="hours-title">
+            <h2 id="hours-title" class="home-rule-title">航海予定</h2>
+            <p id="shop-calendar-status" class="home-calendar-message" role="status" hidden></p>
+            <div id="shop-calendar-labels" class="home-calendar-labels" aria-hidden="true" hidden>
+                <span>日付</span><span>出航時間</span><span>ご案内</span>
+            </div>
+            <dl id="shop-calendar-days" class="home-calendar-grid"></dl>
+            <details id="shop-calendar-more" class="shop-calendar-more" hidden>
+                <summary>先の航海予定を見る</summary>
+                <dl id="shop-calendar-later" class="home-calendar-grid"></dl>
+            </details>
+            <noscript><p class="home-calendar-message">航海予定を見るにはJavaScriptを有効にしてください。</p></noscript>
         </section>
 
-        <section id="about" class="section section-about">
-            <div class="section-heading">
-                <p class="eyebrow">ABOUT TROY</p>
-                <h2>飲んで、遊んで、<br>同じ船の仲間になる。</h2>
-            </div>
-            <div class="about-copy">
-                <p>海賊酒場TROYは、千葉県富里市十倉にある海賊テーマのアミューズメントバーです。カクテルやビール、ソフトドリンク、軽食と一緒に、店内の遊びをお楽しみいただけます。</p>
-                <p>お一人での一杯から仲間との夜まで、気軽にお立ち寄りください。営業予定や臨時休業は、Googleプロフィールの最新情報をご確認いただくか、店舗へお電話ください。</p>
-            </div>
+        <section id="play" class="home-section home-play" aria-labelledby="features-title">
+            <h2 id="features-title" class="home-rule-title home-play-title" lang="en">PLAY</h2>
+            <ul class="home-play-grid">
+                <li><img src="/shop/art/billiards.webp" width="480" height="480" alt=""><span>ビリヤード</span></li>
+                <li><img src="/shop/art/darts.webp" width="480" height="480" alt=""><span>ダーツ</span></li>
+                <li><img src="/shop/art/karaoke.webp" width="480" height="480" alt=""><span>カラオケ</span></li>
+                <li><img src="/shop/art/board-games.webp" width="480" height="480" alt=""><span>ボードゲーム</span></li>
+            </ul>
         </section>
 
-        <section class="section features" aria-labelledby="features-title">
-            <div class="section-heading compact">
-                <p class="eyebrow">PLAY AT TROY</p>
-                <h2 id="features-title">遊べる酒場</h2>
-            </div>
-            <div class="feature-grid">
-                <article><span>01</span><h3>ビリヤード</h3><p>一杯飲みながら、気軽に対戦。</p></article>
-                <article><span>02</span><h3>ダーツ</h3><p>仲間と盛り上がる定番の遊び。</p></article>
-                <article><span>03</span><h3>カラオケ</h3><p>好きな曲で、酒場の夜をもっと楽しく。</p></article>
-                <article><span>04</span><h3>ボードゲーム</h3><p>初対面でも会話が生まれるテーブルゲーム。</p></article>
-            </div>
-        </section>
+        <nav class="home-section home-actions" aria-label="来店アクション">
+            <a href="/shop/menu.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v15M12 5C8 2 4 3 2 4v15c3-1 6-1 10 1 4-2 7-2 10-1V4c-2-1-6-2-10 1Z"/></svg><span>メニュー</span><i aria-hidden="true"></i></a>
+            <a href="#access"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg><span>アクセス</span><i aria-hidden="true"></i></a>
+            <a class="home-contact" href="tel:09047120670"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h3l1.5 5-2 1.5a13 13 0 0 0 6 6l1.5-2 5 1.5v3a3 3 0 0 1-3.2 3A17 17 0 0 1 3 6.2 3 3 0 0 1 6 3Z"/></svg><span>お問い合わせ</span><i aria-hidden="true"></i></a>
+        </nav>
 
-        <section id="hours" class="section split-section">
-            <div class="section-heading compact">
-                <p class="eyebrow">OPENING HOURS</p>
-                <h2>営業時間</h2>
-                <p class="section-note">祝日・貸切・イベント等で変更する場合があります。</p>
-            </div>
-            <div class="hours-card">
-                <dl>
-                    <div><dt>月曜日</dt><dd>21:00–0:00</dd></div>
-                    <div><dt>火曜日</dt><dd>21:00–0:00</dd></div>
-                    <div class="closed"><dt>水曜日</dt><dd>定休日</dd></div>
-                    <div><dt>木曜日</dt><dd>21:00–0:00</dd></div>
-                    <div><dt>金曜日</dt><dd>21:00–0:00</dd></div>
-                    <div><dt>土曜日</dt><dd>21:00–0:00</dd></div>
-                    <div><dt>日曜日</dt><dd>21:00–0:00</dd></div>
-                </dl>
-                <a class="text-link" href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">Googleで本日の営業状況を確認 →</a>
-            </div>
-        </section>
-
-        <section id="menu" class="section menu-preview" aria-labelledby="menu-title">
-            <div class="section-heading compact">
-                <p class="eyebrow">MENU</p>
-                <h2 id="menu-title">酒場のメニュー</h2>
-                <p class="section-note">ドリンク、カクテル、ソフトドリンク、軽食をご用意しています。</p>
-            </div>
-            <div class="menu-preview-grid">
-                <article><span>DRINK</span><h3>ハイボール</h3><p>角</p><strong>S ¥500〜</strong></article>
-                <article><span>COCKTAIL</span><h3>ジントニック</h3><p>ジン＋トニック</p><strong>S ¥500〜</strong></article>
-                <article><span>SOFT DRINK</span><h3>ソフトドリンク</h3><p>各種</p><strong>¥400</strong></article>
-                <article><span>FOOD</span><h3>酒場のフード</h3><p>カップ麺</p><strong>¥500</strong></article>
-            </div>
-            <a class="button button-primary menu-button" href="/shop/menu.html">メニューをすべて見る</a>
-        </section>
-
-        <section id="access" class="section access-section">
-            <div class="section-heading compact">
-                <p class="eyebrow">ACCESS</p>
-                <h2>海賊酒場TROY</h2>
-            </div>
-            <div class="access-card">
+        <section id="access" class="home-section home-access" aria-labelledby="access-title">
+            <h2 id="access-title" class="home-rule-title">アクセス</h2>
+            <div>
                 <address>
-                    <p>〒286-0212<br><strong>千葉県富里市十倉310-401</strong></p>
+                    <p><span>〒286-0212</span><br><strong>千葉県富里市十倉310-401</strong></p>
                     <p><a href="tel:09047120670">090-4712-0670</a></p>
                 </address>
                 <div class="access-actions">
-                    <a class="button button-primary" href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">Googleマップでルートを見る</a>
-                    <a class="button button-secondary" href="https://www.instagram.com/piratesbar.troy/" target="_blank" rel="noopener noreferrer">Instagramを見る</a>
+                    <a href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">Googleマップでルートを見る</a>
+                    <a href="https://www.instagram.com/piratesbar.troy/" target="_blank" rel="noopener noreferrer">Instagramを見る</a>
                 </div>
             </div>
         </section>
@@ -191,7 +139,7 @@
             <p>〒286-0212 千葉県富里市十倉310-401</p>
         </div>
         <nav aria-label="関連リンク">
-            <a href="/">店舗連動・会員向け TROYゴールド</a>
+            <a href="https://troy-xetw.onrender.com/">店舗連動・会員向け TROYゴールド</a>
             <a href="/shop/menu.html">メニュー</a>
             <a href="/shop/about.html">店舗・運営情報</a>
             <a href="/shop/privacy.html">プライバシー</a>
@@ -201,11 +149,6 @@
         <small>© 海賊酒場TROY</small>
     </footer>
 
-    <nav class="mobile-cta" aria-label="来店アクション">
-        <a href="tel:09047120670">電話</a>
-        <a href="/shop/menu.html">メニュー</a>
-        <a href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">ルート</a>
-    </nav>
 </body>
 
 </html>

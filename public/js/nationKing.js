@@ -271,7 +271,7 @@ function _renderKingReservations(reservations = []) {
     `;
 }
 
-function _renderKingTroyCalendar(entries = []) {
+function _renderKingTroyCalendar(entries = [], ownPublicHelmName = '') {
     const mount = document.getElementById('kingTroyCalendarMount');
     if (!mount) return;
     const rows = Array.isArray(entries) ? entries : [];
@@ -331,6 +331,10 @@ function _renderKingTroyCalendar(entries = []) {
                 <input id="kingTroyCalendarTitle" type="text" class="admin-input" maxlength="80" placeholder="例: 通常営業" />
             </div>
             <div>
+                <label for="kingTroyCalendarHelmName" class="troy-admin-field-label">本日の舵取り（公開用・任意）</label>
+                <input id="kingTroyCalendarHelmName" type="text" class="admin-input" maxlength="24" placeholder="お店で使う名前" value="${_escapeHtml(ownPublicHelmName)}" />
+            </div>
+            <div>
                 <div class="troy-admin-field-label">メモ</div>
                 <input id="kingTroyCalendarNote" type="text" class="admin-input" maxlength="300" placeholder="例: 21時から混雑予定" />
             </div>
@@ -344,10 +348,14 @@ function _renderKingTroyCalendar(entries = []) {
 
 async function _loadKingTroyCalendar(playFabId, nation) {
     try {
-        const result = await getTroyCalendar(playFabId, {}, { isSilent: true });
+        const result = await getTroyCalendar(playFabId, { includeHelmPrefill: true }, { isSilent: true });
         const calendar = result?.calendar || [];
-        if (_lastPageData) _lastPageData.troyCalendar = calendar;
-        _renderKingTroyCalendar(calendar);
+        const ownPublicHelmName = result?.ownPublicHelmName || '';
+        if (_lastPageData) {
+            _lastPageData.troyCalendar = calendar;
+            _lastPageData.ownPublicHelmName = ownPublicHelmName;
+        }
+        _renderKingTroyCalendar(calendar, ownPublicHelmName);
     } catch (error) {
         const mount = document.getElementById('kingTroyCalendarMount');
         if (mount) mount.innerHTML = '<div class="troy-calendar-empty">営業予定を読み込めませんでした。</div>';
@@ -383,6 +391,8 @@ function _clearCalendarForm() {
     if (closeEl) closeEl.value = '23:59';
     if (statusEl) statusEl.value = 'open';
     if (titleEl) titleEl.value = '';
+    const helmEl = document.getElementById('kingTroyCalendarHelmName');
+    if (helmEl) helmEl.value = _lastPageData?.ownPublicHelmName || '';
     if (noteEl) noteEl.value = '';
 }
 
@@ -1115,6 +1125,7 @@ function _wireHandlers(playFabId) {
                 '#kingTroyCalendarCloseTime',
                 '#kingTroyCalendarStatus',
                 '#kingTroyCalendarTitle',
+                '#kingTroyCalendarHelmName',
                 '#kingTroyCalendarNote'
             ].join(','))) return;
             _pendingCalendarCreateRequestId = '';
@@ -1163,6 +1174,8 @@ function _wireHandlers(playFabId) {
                 if (closeEl) closeEl.value = entry.closeTime || '23:59';
                 if (statusEl) statusEl.value = entry.status || 'open';
                 if (titleEl) titleEl.value = entry.title || '';
+                const helmEl = document.getElementById('kingTroyCalendarHelmName');
+                if (helmEl) helmEl.value = entry.publicHelmName || '';
                 if (noteEl) noteEl.value = entry.note || '';
                 return;
             }
@@ -1203,6 +1216,7 @@ function _wireHandlers(playFabId) {
                     closeTime: String(document.getElementById('kingTroyCalendarCloseTime')?.value || '23:59').trim(),
                     status: String(document.getElementById('kingTroyCalendarStatus')?.value || 'open').trim(),
                     title: String(document.getElementById('kingTroyCalendarTitle')?.value || '').trim(),
+                    publicHelmName: String(document.getElementById('kingTroyCalendarHelmName')?.value || '').trim(),
                     note: String(document.getElementById('kingTroyCalendarNote')?.value || '').trim()
                 };
                 if (!payload.date) {

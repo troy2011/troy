@@ -14,7 +14,7 @@ import * as Player from 'player';
 import * as Inventory from 'inventory';
 import * as Guild from './js/guild.js';
 import * as Ship from './js/ship.js?v=20260828-exploration-retreat-v1';
-import * as NationKing from './js/nationKing.js?v=20260831-home-king-v1';
+import * as NationKing from './js/nationKing.js?v=20261126-calendar-helm-v1';
 import { initTroyChat } from './js/mapChat.js';
 import { renderAvatar, preloadAvatarBaseSprites, playAvatarBodyMotion, stopAvatarBodyMotion } from './js/avatar.js';
 import {

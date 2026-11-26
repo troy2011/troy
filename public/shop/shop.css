@@ -409,6 +409,15 @@ p {
     color: #df8d7e;
 }
 
+.shop-calendar-more {
+    margin-top: 1rem;
+}
+
+.shop-calendar-more summary {
+    color: var(--gold-bright);
+    cursor: pointer;
+}
+
 .text-link {
     display: inline-block;
     margin-top: 1.4rem;

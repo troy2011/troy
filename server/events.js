@@ -1,20 +1,22 @@
 const { addGlobalChatMessage } = require('./chat');
 const { createHash } = require('node:crypto');
+const {
+    TROY_CALENDAR_COLLECTION, TROY_CALENDAR_MAX_VISIBLE_ENTRIES, getJstStartOfTodayMs,
+    normalizeStrictTroyCalendarStatus, normalizeStrictTimeText, normalizeDateText,
+    listUpcomingCalendarDocs, createPublicCalendarHandler, normalizePublicHelmName
+} = require('./troyBusinessCalendar');
 
 const cron = require('node-cron');
 
 const EVENT_COLLECTION = 'store_events';
 const RESERVATION_COLLECTION = 'store_reservations';
-const TROY_CALENDAR_COLLECTION = 'troy_business_calendar';
 const TROY_CALENDAR_GLOBAL_NATION = 'global';
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STORE_SCHEDULE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const TROY_CALENDAR_AUDIT_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const TROY_CALENDAR_AUDIT_COLLECTION = 'troy_business_calendar_audit';
 const TROY_CALENDAR_DATE_INDEX_COLLECTION = 'troy_business_calendar_dates';
 const TROY_CALENDAR_CONTROL_COLLECTION = 'integration_states';
 const TROY_CALENDAR_CONTROL_DOCUMENT = 'troy_business_calendar_write_control';
-const TROY_CALENDAR_MAX_VISIBLE_ENTRIES = 80;
 const TROY_CALENDAR_MAX_FUTURE_DAYS = 366;
 const TROY_CALENDAR_MUTATION_WINDOW_MS = 10 * 60 * 1000;
 const TROY_CALENDAR_MAX_MUTATIONS_PER_WINDOW = 20;
@@ -43,7 +45,6 @@ const RESERVATION_PURPOSE_LABELS = {
     consultation: '相談',
     other: 'その他'
 };
-const TROY_CALENDAR_STATUSES = new Set(['open', 'closed', 'private', 'tentative']);
 const NATION_GROUP_BY_NATION = {
     fire: { groupName: 'nation_fire_island' },
     earth: { groupName: 'nation_earth_island' },
@@ -55,11 +56,6 @@ let storeScheduleCleanupStarted = false;
 
 function normalizeString(value, maxLength = 200) {
     return String(value || '').trim().slice(0, maxLength);
-}
-
-function getJstStartOfTodayMs(nowMs = Date.now()) {
-    const jst = new Date(Number(nowMs || Date.now()) + JST_OFFSET_MS);
-    return Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()) - JST_OFFSET_MS;
 }
 
 function normalizeEventType(value) {
@@ -88,50 +84,12 @@ function isEditableTroyCalendarNation(value, kingNation) {
     return raw === TROY_CALENDAR_GLOBAL_NATION || (!!kingNation && raw === kingNation);
 }
 
-function normalizeStrictTroyCalendarStatus(value) {
-    const key = normalizeString(value, 20).toLowerCase();
-    return TROY_CALENDAR_STATUSES.has(key) ? key : '';
-}
-
 function normalizeTimeText(value, fallback = '19:00') {
     const raw = normalizeString(value, 5);
     if (!/^\d{2}:\d{2}$/.test(raw)) return fallback;
     const [hh, mm] = raw.split(':').map((part) => Number(part));
     if (!Number.isInteger(hh) || !Number.isInteger(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) return fallback;
     return raw;
-}
-
-function normalizeStrictTimeText(value) {
-    const raw = normalizeString(value, 5);
-    if (!/^\d{2}:\d{2}$/.test(raw)) return '';
-    const [hours, minutes] = raw.split(':').map(Number);
-    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return '';
-    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59 ? raw : '';
-}
-
-function normalizeDateText(value) {
-    const raw = normalizeString(value, 10);
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-    if (!match) return '';
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-    if (year < 1 || month < 1 || month > 12 || day < 1) return '';
-    const daysInMonth = [
-        31,
-        year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-        31,
-        30,
-        31,
-        30,
-        31,
-        31,
-        30,
-        31,
-        30,
-        31
-    ];
-    return day <= daysInMonth[month - 1] ? raw : '';
 }
 
 function normalizeCalendarRequestId(value) {
@@ -163,7 +121,8 @@ function calendarPayloadMatches(existing, candidate) {
         'closeTime',
         'status',
         'title',
-        'note'
+        'note',
+        'publicHelmName'
     ];
     return fields.every((field) => String(existing?.[field] ?? '') === String(candidate?.[field] ?? ''));
 }
@@ -326,6 +285,7 @@ function troyCalendarDocToPayload(doc) {
         status: data.status || 'open',
         title: data.title || '',
         note: data.note || '',
+        ...(data.status === 'open' && data.publicHelmName ? { publicHelmName: normalizePublicHelmName(data.publicHelmName) } : {}),
         startsAtMs: Number(data.startsAtMs || 0),
         updatedAtMs: Number(data.updatedAtMs || 0),
         updatedBy: data.updatedBy || ''
@@ -526,25 +486,29 @@ function initializeEventRoutes(app, deps) {
         return requireAuthenticatedPlayFabId(req, res, playFabId);
     }
 
+    app.get('/api/troy-calendar/public', createPublicCalendarHandler(firestore));
+
     app.post('/api/troy-calendar/list', async (req, res) => {
         const requestedPlayFabId = normalizeString(req.body?.playFabId, 64);
         const playFabId = requestedPlayFabId ? await requireAuthed(req, res, requestedPlayFabId) : '';
         if (requestedPlayFabId && !playFabId) return;
         try {
-            const displayFromMs = getJstStartOfTodayMs();
-            const snap = await firestore
-                .collection(TROY_CALENDAR_COLLECTION)
-                .where('startsAtMs', '>=', displayFromMs)
-                .orderBy('startsAtMs', 'asc')
-                .limit(TROY_CALENDAR_MAX_VISIBLE_ENTRIES)
-                .get();
-            const calendar = snap.docs
-                .map(troyCalendarDocToPayload)
-                .sort((a, b) => Number(a.startsAtMs || 0) - Number(b.startsAtMs || 0));
+            const calendar = (await listUpcomingCalendarDocs(firestore)).map(troyCalendarDocToPayload);
+            let ownPublicHelmName = '';
+            if (playFabId && req.body?.includeHelmPrefill === true) {
+                const mayPrefill = await isKing(playFabId, deps).catch(() => false);
+                if (mayPrefill) {
+                    const displayName = await getDisplayName(playFabId, deps);
+                    if (displayName.toLowerCase() !== playFabId.toLowerCase()) {
+                        ownPublicHelmName = normalizePublicHelmName(displayName);
+                    }
+                }
+            }
             res.json({
                 success: true,
                 nation: TROY_CALENDAR_GLOBAL_NATION,
-                calendar
+                calendar,
+                ...(ownPublicHelmName ? { ownPublicHelmName } : {})
             });
         } catch (error) {
             console.error('[troy-calendar/list] failed:', error?.message || error);
@@ -601,6 +565,9 @@ function initializeEventRoutes(app, deps) {
                 status,
                 title: normalizeString(req.body?.title, 80) || 'TROY営業',
                 note: normalizeString(req.body?.note, 300),
+                ...(status !== 'open' ? { publicHelmName: '' } :
+                    typeof req.body?.publicHelmName === 'string' ?
+                        { publicHelmName: normalizePublicHelmName(req.body.publicHelmName) } : {}),
                 startsAtMs,
                 updatedBy: playFabId,
                 updatedAtMs: mutationAtMs,
@@ -688,6 +655,9 @@ function initializeEventRoutes(app, deps) {
                 }
 
                 const payload = { ...basePayload };
+                if (status === 'open' && payload.publicHelmName === undefined && beforeData?.publicHelmName) {
+                    payload.publicHelmName = normalizePublicHelmName(beforeData.publicHelmName);
+                }
                 if (isNewEntry) {
                     payload.createdBy = playFabId;
                     payload.createdAtMs = mutationAtMs;
