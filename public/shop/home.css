@@ -331,6 +331,21 @@
     white-space: nowrap;
 }
 
+.home-play-price {
+    margin: 1rem 0 0;
+    color: var(--gold-bright);
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
+    font-weight: 700;
+    text-align: center;
+}
+
+.home-play-visit {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
 .home-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;

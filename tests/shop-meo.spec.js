@@ -165,6 +165,9 @@ test.describe('public shop MEO page', () => {
     await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日休航');
     await expect(page.getByText('営業日を見る', { exact: true })).toHaveCount(0);
     await expect(page.locator('.home-play-grid img')).toHaveCount(4);
+    await expect(page.locator('#play').getByText('チャージ500円・ゲーム遊び放題', { exact: true })).toBeVisible();
+    await expect(page.locator('#play').getByText('お支払いは現金のみ', { exact: true })).toBeVisible();
+    await expect(page.locator('#play').getByText('予約不要・お一人でも歓迎', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
     await page.getByLabel('サイトメニュー').click();
     await expect(page.getByRole('navigation', { name: '店舗情報ナビゲーション' })).toBeVisible();
