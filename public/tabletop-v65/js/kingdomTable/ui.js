@@ -647,7 +647,6 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
         node.style.setProperty('--kt-card-angle', `${offset * HAND_FAN_ANGLE_STEP}deg`);
         node.style.setProperty('--kt-card-offset', `${Math.abs(offset) * HAND_FAN_CURVE_STEP}px`);
         node.style.setProperty('--kt-card-order', String(index));
-        node.classList.toggle('is-final-hand-card', hand.length === 1 && round.phase !== 'over');
         node.classList.toggle('is-drawn', card.id === acquisition?.id);
         node.setAttribute('aria-label', `${cardName(card)}${card.id === acquisition?.id ? '（' + acquiredCardLabel() + '）' : ''}`);
         node.classList.toggle('is-selected', selected.has(card.id));
@@ -1345,8 +1344,8 @@ function playEffects(events, fieldBefore, feedback) {
         Sfx.play('last-card');
         if (reducedMotion()) return;
         for (const seat of seats) {
-            const hand = seat === ME ? $('ktHand') : seatHost(seat)?.querySelector('.kt-opponent-hand');
-            const card = hand?.querySelector('.is-final-hand-card');
+            if (seat === ME) continue;
+            const card = seatHost(seat)?.querySelector('.kt-opponent-hand .is-final-hand-card');
             if (!card) continue;
             const resting = getComputedStyle(card).boxShadow;
             card.animate([

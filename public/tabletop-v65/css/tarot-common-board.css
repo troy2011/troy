@@ -94,7 +94,7 @@
   transform: translate(-50%, -100%) rotate(var(--kt-grip-angle, 0deg));
   transform-origin: 50% 100%;
 }
-.kt-fan-card.is-final-hand-card, #ktHand > .is-final-hand-card {
+.kt-fan-card.is-final-hand-card {
   box-shadow: 0 0 0 1px #591b24, 0 0 0 3px #ff5965, 0 0 8px rgb(255 63 82 / 65%);
 }
 .kt-fan-card {

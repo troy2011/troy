@@ -29,16 +29,22 @@ for(const reducedMotion of ['no-preference','reduce']) test('last-card cue: '+re
     await expect(other).toHaveCount(0);
     for(const [seat,card,expected] of [[1,other,1],[0,self,2]]){
         await page.evaluate(seat=>window.lastCardFixture(seat,1),seat);
-        await expect(card).toBeVisible();
         await expect.poll(cues).toBe(expected);
-        await expect(card).toHaveCSS('box-shadow',/rgb\(255, 89, 101\)/);
+        if(seat===1){
+            await expect(card).toBeVisible();
+            await expect(card).toHaveCSS('box-shadow',/rgb\(255, 89, 101\)/);
+        }else{
+            await expect(page.locator('#ktHand .kt-card')).toHaveCount(1);
+            await expect(self).toHaveCount(0);
+            await expect(page.locator('#ktHand .kt-card')).not.toHaveCSS('box-shadow',/rgb\(255, 89, 101\)/);
+        }
         await page.evaluate(seat=>window.lastCardFixture(seat,1),seat);
         await expect.poll(cues).toBe(expected);
         await expect(page.locator('[data-kt-feedback="last-card"]')).toHaveCount(0);
     }
-    expect(await page.evaluate(()=>window.pulses)).toBe(reducedMotion==='reduce'?0:2);
+    expect(await page.evaluate(()=>window.pulses)).toBe(reducedMotion==='reduce'?0:1);
     await page.evaluate(()=>window.lastCardFixture(1,2));
     await expect(other).toHaveCount(0);
-    await expect(self).toBeVisible();
+    await expect(self).toHaveCount(0);
     expect(await cues()).toBe(2);
 });
