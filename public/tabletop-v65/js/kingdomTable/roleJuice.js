@@ -1,6 +1,6 @@
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
 import * as Fx from './effects.js?v=field-pose-v1';
-import * as Sfx from './sfx.js?v=whisky-v2';
+import * as Sfx from './sfx.js?v=whisky-v2-cheer-toggle-v1';
 import {ROLE_SETTLE_MS,ROLE_SLAM_MS,ROLE_TAKE_MS} from './roleJuicePlan.js?v=role-cutin-v1';
 
 import {ROLE_CUTIN_MS,roleAnticipationMs,startRoleLanding} from './roleCinematic.js?v=sites-role-timing-v1';

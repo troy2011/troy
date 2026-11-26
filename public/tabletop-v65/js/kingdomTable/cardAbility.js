@@ -1,4 +1,6 @@
 import { ABILITY } from './abilityNames.js?v=pirate-ability-finish-han-v1';
+import { activeTableLanguage } from './tableLocale.js?v=6';
+import { cardInspectEnglish } from './cardAbilityEnglish.js?v=1';
 // Static, turn-independent TCG-style text for the 78 cards.
 const SUITS = {wand:'ワンド',cup:'カップ',sword:'ソード',coin:'ペンタクル'};
 const COUNTERS = {wand:19,cup:17,sword:16,coin:18};
@@ -99,11 +101,12 @@ const MINOR_FLAVOR = {
 
 const EMPTY = () => ({effects:[], flavor:''});
 
-export function cardInspectDetails(card) {
+export function cardInspectDetails(card, language = activeTableLanguage()) {
     if (!card || !Number.isInteger(card.num) || typeof card.major !== 'boolean') return EMPTY();
     const {num,suit} = card;
     if (!card.major) {
         if (!Object.hasOwn(SUITS,suit) || num < 2 || num > 15) return EMPTY();
+        if (language === 'en') return cardInspectEnglish(card);
         const clauses = num === 15 ? [
             ['天敵',`1枚場では同スートの大札（${SUITS[suit]}は${COUNTERS[suit]}）に返される。11バック中は返されない。`],
             ['5枚役','A・2・3・4・5だけ1として扱う。A4枚＋1枚でエレメンタル。5枚目が悪魔ならハイファイブカード。'],
@@ -112,6 +115,7 @@ export function cardInspectDetails(card) {
         return format(clauses, MINOR_FLAVOR[suit][num-2]);
     }
     if (num < 0 || num > 21) return EMPTY();
+    if (language === 'en') return cardInspectEnglish(card);
     const counter = COUNTER_SUITS[num];
     const base = counter ? [
         ['返せる札',`${counter}を持つ。同スートの1枚場に強弱どおりに返す。小札Aにも返せるが、11バック中は不可。`],
@@ -129,6 +133,7 @@ function format(clauses, flavor) {
 }
 
 // Keep existing textual callers working during staged integration.
-export function cardAbility(card) {
-    return cardInspectDetails(card).effects.map(({label,text}) => `${label}：${text}`).join(' ');
+export function cardAbility(card, language = activeTableLanguage()) {
+    const separator = language === 'en' ? ': ' : '：';
+    return cardInspectDetails(card, language).effects.map(({label,text}) => label + separator + text).join(' ');
 }

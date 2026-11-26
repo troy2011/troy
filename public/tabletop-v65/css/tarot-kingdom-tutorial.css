@@ -1,4 +1,4 @@
-/* Tarot Kingdom tutorial. Builds on the common page shell; mobile first from 320px. */
+/* Tarot Kingdom tutorial. Builds on tarot-kingdom-table.css; mobile first from 320px. */
 .tt-app { gap: 6px; }
 .tt-menu h1 { margin: 4px 0 8px; font-family: var(--kt-serif); font-size: 26px; font-weight: 600; text-align: center; }
 .tt-lead { margin: 0 0 12px; color: var(--kt-dim); font-size: 14px; }
@@ -100,4 +100,25 @@
   .tt-chapters br { display: none; }
   .tt-chapters small { margin-left: 8px; }
   .kt-tavern-theme.kt-tavern-tutorial #ttMenu { padding-bottom: 72px; }
+}
+
+/* The Japanese title is part of the illustrated frame. An opaque tavern plaque
+   covers just that title in English, keeping the surrounding illustration and trim. */
+html[lang="en"] .kt-tavern-tutorial #ttMenu .nv-tutorial h1.kt-tavern-live-label {
+  position: absolute;
+  inset: 46% 16% 22%;
+  display: grid;
+  place-items: center;
+  clip-path: none;
+  overflow: visible;
+  width: auto;
+  height: auto;
+  margin: 0;
+  color: #fff0c9;
+  background: linear-gradient(167deg, #3b2716, #20130c 74%);
+  border: 1px solid #ad7d48;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 2px #27160d, 0 2px 5px #100a0770;
+  font: 700 clamp(1.1rem, 7.2cqw, 2.15rem)/1 var(--kt-serif);
+  text-shadow: 0 1px 2px #120a05;
 }

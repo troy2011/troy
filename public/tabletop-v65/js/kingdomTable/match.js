@@ -1,8 +1,8 @@
 // Tarot Kingdom, table version: a match of several rounds played for chips.
 // Chips are match-local points. Online matches and ratings are authoritative on the server.
-import { localizedLabel, formatScoreHan } from './tableLocale.js?v=5';
+import { localizedLabel, formatScoreHan } from './tableLocale.js?v=6';
 import { openingRoleName } from './roleRecordKey.js?v=piece-of-eight-finish-han-v1';
-import { createRound, lastCardHan, roleName } from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { createRound, lastCardHan, roleName } from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
 
 export const CHIP_RULES = {
     startChips: 1000,
@@ -49,8 +49,10 @@ function extraHan(match, p) {
 }
 
 // "Round 2", or "Round 2, repeat 1" while the dealer keeps the seat.
-export function roundLabel(match) {
-    const round = `第${Math.min(match.roundIndex + 1, match.rounds)}局`;
+export function roundLabel(match, language = 'ja') {
+    const number = Math.min(match.roundIndex + 1, match.rounds);
+    if (language === 'en') return 'Round ' + number + (match.repeats ? ' · repeat ' + match.repeats : '');
+    const round = `第${number}局`;
     return match.repeats ? `${round} ${match.repeats}本場` : round;
 }
 

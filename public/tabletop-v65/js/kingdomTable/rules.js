@@ -406,11 +406,41 @@ function discardStrongestCourts(state, actor) {
     }
 }
 
-function advance(state, from, skip) {
+function advanceSeat(state, from, skip = 0) {
     let seat = from;
     for (let i = 0; i <= skip; i += 1) seat = nextSeat(state, seat);
     for (let i = 0; i < state.players.length && state.passed.includes(seat); i += 1) seat = nextSeat(state, seat);
     state.turn = seat;
+}
+
+export function mustAutoPass(state) {
+    // A call uses four cards against one; all other legal replies need at least the field count.
+    return state.phase === 'play' && !!state.field.kind && state.turn !== state.last
+        && !state.passed.includes(state.turn) && handOf(state, state.turn).length < state.field.count;
+}
+
+function recordPass(state, p, auto = false) {
+    state.passed.push(p);
+    note(state, auto ? { type: 'pass', by: p, auto: true } : { type: 'pass', by: p });
+    const complete = state.players.every((_, i) => i === state.last || state.passed.includes(i));
+    if (complete) clearField(state, true);
+    return complete;
+}
+
+export function resolveForcedPasses(state) {
+    let changed = false;
+    while (mustAutoPass(state)) {
+        changed = true;
+        const seat = state.turn;
+        if (recordPass(state, seat, true)) break;
+        advanceSeat(state, seat);
+    }
+    return changed;
+}
+
+function advance(state, from, skip) {
+    advanceSeat(state, from, skip);
+    resolveForcedPasses(state);
 }
 
 function awardNamedHan(state, p, key) {
@@ -603,10 +633,7 @@ function commitPlay(state,p,cards,kind,res,ferried=false) {
 
 export function pass(state, p) {
     if (!options(state, p).canPass) return no('今はパスできません');
-    state.passed.push(p);
-    note(state, { type: 'pass', by: p });
-    if (state.players.every((_, i) => i === state.last || state.passed.includes(i))) clearField(state, true);
-    else advance(state, p, 0);
+    if (!recordPass(state, p)) advance(state, p, 0);
     return YES;
 }
 

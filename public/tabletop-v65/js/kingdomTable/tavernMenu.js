@@ -1,3 +1,4 @@
+import { translateTable as tr } from './tableLocale.js?v=6';
 // The tavern menu: each choice is its own page in the browser history (#online, #cpu, #practice, #settings),
 // so the browser's back button, the on-screen back button and a reload all agree on where you are.
 const ROUTES = { practice: 'practice', settings: 'settings' };
@@ -35,8 +36,8 @@ export function installTavernMenu(settings) {
         cpu.hidden = !isCpu;
         back.hidden = !page;
         seats.hidden = !isCpu;
-        caption.textContent = 'CPU練習';
-        title.textContent = TITLES[page] || '';
+        caption.textContent = tr('CPU練習');
+        title.textContent = tr(TITLES[page]) || '';
         practice.forEach(node => { node.hidden = page !== 'practice'; });
         tabs.forEach(tab => tab.setAttribute('aria-expanded', String(tab.dataset.tavernMode === page)));
         if (focus && isCpu) caption.focus({ preventScroll: true });

@@ -33,6 +33,19 @@
 .kt-tavern-cover { position: relative; }
 .kt-tavern-brand h1 { margin: 0; padding: 0; color: #ffe4a7; }
 .kt-tavern-title-art { display: block; width: 100%; height: auto; margin: 0; }
+.kt-title-en { display: none; }
+html[lang="en"] .kt-tavern-brand {
+  aspect-ratio: 500 / 950;
+  background: #190e08 url("../assets/tarot-kingdom-table/nassau-preview/tavern-room.webp") center / cover no-repeat;
+}
+html[lang="en"] .kt-tavern-title-art { display: none; }
+html[lang="en"] .kt-title-en {
+  display: block; text-align: center; padding: 7% 4%;
+  font: 700 clamp(1.6rem, 7vw, 2.65rem)/1.1 Georgia, serif;
+  color: #ffe5a9; text-shadow: 0 2px 5px #150803;
+  background: linear-gradient(#160a05d9, transparent);
+}
+.kt-title-en small { display: block; font: 700 .44em/1.8 system-ui, sans-serif; text-transform: uppercase; letter-spacing: .16em; }
 /* Hit areas are proportional to the original 500 × 950 A artwork. */
 .kt-tavern-nav, .kt-tavern-nav-pair { display: contents; }
 .kt-tavern-cover .kt-tavern-plaque {
@@ -68,6 +81,20 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+html[lang="en"] .kt-tavern-cover .kt-tavern-plaque {
+  border: 1px solid #a9783b;
+  background: linear-gradient(155deg,#6b3e22,#2c150c 70%);
+  box-shadow: inset 0 0 0 2px #321a0d, 0 3px 9px #0f0704ad;
+}
+html[lang="en"] .kt-tavern-live-label {
+  position: static; width: auto; height: auto; overflow: visible;
+  clip-path: none; color: #ffe8b1; text-align: center;
+}
+html[lang="en"] .nv-companion-title {
+  background: var(--nv-wood); border-bottom: 1px solid #a9783b;
+  display: grid; place-items: center; aspect-ratio: auto; min-height: 72px;
+}
+html[lang="en"] .nv-companion-title .kt-tavern-live-label { margin: 0; font: 700 1.25rem Georgia, serif; }
 @media (min-width: 600px) {
   .kt-tavern-main #ktApp:has(> .kt-tavern-setup:not([hidden])) {
     max-width: clamp(360px, 52.6316svh, 520px);
@@ -305,6 +332,7 @@
   pointer-events: none;
   border-image: url("../assets/tarot-kingdom-table/nassau-preview/settings-wood-continuous.webp") 171 0 91 0 fill / 40.81cqw 0 21.72cqw 0 stretch;
 }
+html[lang="en"] .kt-tavern-theme #ktSettingsDialog { border-image-source: none; background: var(--nv-wood); }
 #ktSettingsDialog .nv-settings { background: none; }
 
 

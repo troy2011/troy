@@ -1,11 +1,13 @@
 // Tarot Kingdom tutorial: fixed deals and a fixed script, played on the real rule engine.
 // Pure logic: no DOM. The page (tutorial.js) and the tests drive the same session.
-import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { tutorialText } from './tutorialLocale.js';
+import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
 import { createMatch, startRound, settleRound } from './match.js?v=finish-locale-v1';
 
 export const ME = 0;
 export const SEATS = 3;
 export const NAMES = ['あなた', 'カイ', 'ミナ'];
+export const tutorialNames = language => NAMES.map(name => tutorialText(name, language));
 
 const me = (type, cards, before, after, rules = []) => ({ seat: ME, type, cards, before, after, rules });
 const cpu = (seat, type, cards = [], after = '', rules = []) => ({ seat, type, cards, after, rules });
@@ -97,8 +99,7 @@ export const CHAPTERS = [
             pass(1, '場が流れ、ミナが親です。'),
             cpu(2, 'play', ['wand-5', 'cup-6', 'sword-7', 'coin-8', 'wand-9'], 'ミナは5・6・7・8・9の「ストレート」を出しました。5枚役の場には、より強い5枚役でしか返せません。', ['role']),
             me('play', ['coin-3', 'coin-4', 'coin-10', 'coin-12', 'coin-14'], '同じスート5枚の「フラッシュ」はストレートより強い役です。光っているペンタクル5枚を選んで「役を出す」を押してください。', '', ['roleOver']),
-            pass(1),
-            pass(2, 'フラッシュが通って場が流れ、＋2翻です。5枚役で場を流すと、役に応じて翻が増えます。', ['roleHan', 'clear'])
+            pass(1, 'ミナは場の5枚より手札が少ないので自動でパス。フラッシュが通って場が流れ、＋2翻です。', ['roleHan', 'clear'])
         ],
         outro: '5枚役の強さと、場を流したときの翻を表で確認しましょう。表は弱い役から順に並んでいます。',
         table: true
@@ -176,14 +177,14 @@ const kindFor = ids => ids.length === 5 ? 'role' : ids.length === 4 ? 'call' : '
 // Apply the scripted step for the seat. A player's action must match the script exactly.
 export function perform(session, action) {
     const step = currentStep(session);
-    if (!step) return { ok: false, reason: 'この章は終わりました' };
+    if (!step) return { ok: false, reason: tutorialText('この章は終わりました') };
     const round = session.match.round;
-    if (round.turn !== step.seat || action.seat !== step.seat) return { ok: false, reason: '今は手番ではありません' };
+    if (round.turn !== step.seat || action.seat !== step.seat) return { ok: false, reason: tutorialText('今は手番ではありません') };
     if (action.type !== step.type) {
-        return { ok: false, reason: step.type === 'pass' ? '今は「パス」を押してください' : '光っている札を選んで「出す」を押してください' };
+        return { ok: false, reason: tutorialText(step.type === 'pass' ? '今は「パス」を押してください' : '光っている札を選んで「出す」を押してください') };
     }
     if (step.type === 'play' && !sameSet(action.ids || [], step.cards)) {
-        return { ok: false, reason: '光っている札だけを、すべて選んでください' };
+        return { ok: false, reason: tutorialText('光っている札だけを、すべて選んでください') };
     }
     const res = step.type === 'pass' ? Rules.pass(round, step.seat) : Rules.play(round, step.seat, step.cards, kindFor(step.cards));
     if (!res.ok) return res;

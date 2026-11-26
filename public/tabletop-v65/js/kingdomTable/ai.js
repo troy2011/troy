@@ -1,6 +1,6 @@
 // Tarot Kingdom, table version: a plain computer player. It only uses what a player at the table can see:
 // its own hand, the field and the public state.
-import { listMoves, options, numberKey, evaluateRole, suitsOf, roleStrength, trashCandidates, exchangeCandidates, ferryCandidates } from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import { listMoves, options, numberKey, evaluateRole, suitsOf, roleStrength, trashCandidates, exchangeCandidates, ferryCandidates } from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
 import { selectedCardEffect } from './selectedCardEffect.js?v=suit-opposition-v1-finish-han-v1';
 import { cpuLevel } from './rating.js';
 

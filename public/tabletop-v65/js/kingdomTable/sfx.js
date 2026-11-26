@@ -9,6 +9,7 @@ import { crowdPreviewActive, readCrowdCatalog, readCrowdCategories, selectCrowdV
 const AMBIENCE_GAIN = 2;
 
 const STORAGE_KEY = 'troy:kingdom-table:sound';
+const CHEER_STORAGE_KEY = 'troy:kingdom-table:cheers';
 
 let context = null;
 let master = null;
@@ -45,13 +46,21 @@ let roleAccentUntil = 0;
 let previewCategories = readCrowdCategories(null);
 const previewTails = new Set();
 let lastVoices = [];
-let enabled = readPreference();
+let enabled = readPreference(STORAGE_KEY);
+let cheerEnabled = readPreference(CHEER_STORAGE_KEY);
 
-function readPreference() {
-    try { return localStorage.getItem(STORAGE_KEY) !== 'off'; } catch { return true; }
+function readPreference(key) {
+    try { return localStorage.getItem(key) !== 'off'; } catch { return true; }
 }
 
 export const isOn = () => enabled;
+export const cheersOn = () => cheerEnabled;
+
+export function setCheersOn(value) {
+    cheerEnabled = !!value;
+    if (!cheerEnabled) cancelCheers(true);
+    try { localStorage.setItem(CHEER_STORAGE_KEY, cheerEnabled ? 'on' : 'off'); } catch { /* Keep it for this visit. */ }
+}
 
 export function setOn(value) {
     enabled = !!value;
@@ -265,7 +274,7 @@ export function completeRole(role, impactUntil = null, cheer) {
         const end = impactUntil ?? playTableImpact('role') ?? context.currentTime;
         if (cheer?.crowdPreview) {
             if (!cheer.cue) return; // The sole match-victory cheer is still J.
-            if (playPreviewCrowd(cheer.cue, Math.max(.08, end - context.currentTime + cheer.cue.offset))) return;
+            if (cheerEnabled && playPreviewCrowd(cheer.cue, Math.max(.08, end - context.currentTime + cheer.cue.offset))) return;
             // A missing recording must not quiet a play: old accent + one suitable legacy voice.
         }
         const accentAt = Math.max(foley[1], end - context.currentTime);
@@ -279,6 +288,7 @@ export function completeRole(role, impactUntil = null, cheer) {
 }
 
 function playRecorded(key, offset, rate = 1, group = null, volume = 1, asPreview = false, far = false, cap = Infinity) {
+    if (group === cheers && !cheerEnabled) return false;
     const buffer = recorded.get(key);
     if (!buffer) return false;
     const cue = context.createBufferSource();

@@ -1,3 +1,7 @@
+import { localizeRuleDocument } from './ruleDocumentLocale.js?v=1';
+
+localizeRuleDocument();
+
 // The rules book: a chapter list that fits the screen, each chapter read in its own sheet.
 // Every open chapter is a history entry (#eight, #reply, ...), so the browser's back button closes it.
 const sheets = new Map([...document.querySelectorAll('.nv-rule-sheet')].map(sheet => [sheet.id, sheet]));
@@ -7,11 +11,11 @@ let fromIndex = false;
 // Whether a page came before this one in this tab (a rules tab opened from the table has none). Read before any chapter adds entries.
 const cameFromPage = history.length > 1;
 
-// Long lists start each item with a term ending in "：". Set that term apart so the list can be scanned. The text itself is unchanged.
+// Long lists start some items with a term ending in a colon. Set that term apart so the list can be scanned. The text itself is unchanged.
 for (const item of document.querySelectorAll('.nv-rule-body li')) {
     const first = item.firstChild;
     if (first?.nodeType !== Node.TEXT_NODE) continue;
-    const at = first.data.indexOf('：');
+    const at = first.data.indexOf(document.documentElement.lang === 'en' ? ':' : '：');
     if (at < 1 || at > 40) continue;
     const term = document.createElement('b');
     term.className = 'nv-term';

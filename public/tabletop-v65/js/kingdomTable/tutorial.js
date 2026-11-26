@@ -1,10 +1,10 @@
 // Tarot Kingdom tutorial page. The script and the rules live in tutorialScript.js and rules.js.
-import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1';
-import { roleName } from './rules.js?v=suit-opposition-v1-finish-han-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
+import { roleName } from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
 import { seatHan, settlementHanBreakdown, formatHanEntry } from './match.js?v=finish-locale-v1';
 import { activeTableLanguage } from './tableLocale.js?v=5';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
-import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-finish-han-v1';
+import { CHAPTERS, ME, NAMES, startChapter, currentStep, chapterDone, perform, performCpu } from './tutorialScript.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
 
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命の輪', '正義',

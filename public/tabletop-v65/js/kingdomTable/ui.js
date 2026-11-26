@@ -1,41 +1,47 @@
-import { resolveTableLanguage, getTableLanguage, setTableLanguage, formatScoreHan, localizedLabel } from './tableLocale.js?v=5';
-import { createTutorialMode, tutorialIndex, NAMES as TUTORIAL_NAMES } from './tutorialMode.js?v=finish-locale-v1';
-import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1';
+import { createTableStaticLocale } from './tableMainStatic.js?v=6';
+import { translateTable as tr, translateTableTemplate as trf } from './tableLocale.js?v=6';
+import { resolveTableLanguage, getTableLanguage, setTableLanguage, formatScoreHan, localizedLabel } from './tableLocale.js?v=6';
+import { createTutorialMode, tutorialIndex, tutorialNames } from './tutorialMode.js?v=full-locale-v1';
+import { installTavernMenu } from './tavernMenu.js?v=match-return-cpu-v1-full-locale-v1';
 import { tableSeatCues } from './turnOrder.js?v=field-owner-v1';
-import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-finish-han-v1-finish-han-v1';
+import { cardInspectDetails } from './cardAbility.js?v=pirate-ability-finish-han-v1-finish-han-v1-full-locale-v1';
 import { installHandInspect } from './handInspect.js?v=hand-inspect-v1';
 import { choiceFocusState, renderChoiceFocus } from './choiceFocus.js?v=quiet-abilities-v1';
 import { ABILITY, playAbility } from './abilityNames.js?v=pirate-ability-finish-han-v1';
 import {roleFace} from './roleCinematic.js?v=sites-role-timing-v1';
 // Tarot Kingdom, table version: the screen. You sit at seat 0; the other seats are computer players.
-import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1';
-import { roleName as ruleRoleName, roleHan } from './rules.js?v=suit-opposition-v1-finish-han-v1';
-import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel, settlementHanBreakdown, formatHanEntry } from './match.js?v=finish-locale-v1';
+import * as Rules from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
+import { roleName as ruleRoleName, roleHan } from './rules.js?v=suit-opposition-v1-finish-han-v1-auto-pass-v1';
+import { createMatch, startRound, settleRound, ranking, seatHan, roundLabel, settlementHanBreakdown, formatHanEntry } from './match.js?v=finish-locale-v1-full-locale-v1';
 import { chooseAction, cpuActionDelay, isCpuOpening, CPU_OPENING_MS } from './ai.js?v=suit-opposition-v1-finish-han-v1';
 import { PIRATE_TAROT_ARTWORK_VERSION } from '../../assets/pirate-tarot/version.js';
 import * as Fx from './effects.js?v=field-pose-v1';
 import { multiCutBeatMs, flashRuleProp, cancelRulePropAnimations, renderRuleProps } from './ruleProps.js?v=table-cues-v4';
 import {layoutRole,makeRoleJuice} from './roleJuicePlan.js?v=role-foley-v1';
-import {animateRole} from './roleJuice.js?v=whisky-v2-field-pose-v1';
+import {animateRole} from './roleJuice.js?v=whisky-v2-field-pose-v1-cheer-toggle-v1';
 import {roleCheers} from './cheerPlan.js?v=viewer-cheers-opponent-reply-v1';
 import { crowdPreviewActive, previewCrowdPlan } from './roleCrowdPreview.js?v=round-score-v1';
 import {roleAccentKey} from './roleAccents.js?v=role-foley-v1';
-import * as Sfx from './sfx.js?v=whisky-v2';
+import * as Sfx from './sfx.js?v=whisky-v2-cheer-toggle-v1';
 import { Music } from './music.js?v=victory-mix-v1';
 import { bindMusicSession } from './musicSession.js?v=home-title-v1';
 import { updateAcquisition, updateTurns } from './tableFeedback.js?v=1';
 import { sortByNumber, displayHand, moveCard, installHandDrag } from './handOrder.js?v=suit-cycle-v1';
 import { calculateRating, makeOpponents, RATING_RULES } from './rating.js';
-import * as tableHostAdapter from './localTable.js?v=table-host-v1';
+import * as tableHostAdapter from './localTable.js?v=table-host-v1-full-locale-v1';
 import { resolveTableHost } from './tableHost.js?v=table-host-v1';
 import { getAvatar, avatarImage, createLocalAvatar, fitOpponentFanWidth, avatarGripClip } from './avatarArt.js?v=roster-kraken-ink-v1';
 import { openingRoleName as ruleOpeningRoleName } from './roleRecordKey.js?v=piece-of-eight-v1';
+
+const refreshStaticLocale = createTableStaticLocale();
+refreshStaticLocale();
 
 let NAMES = ['あなた', 'カイ', 'ミナ', 'ロウ'];
 const SUIT_NAME = { wand: 'ワンド', sword: 'ソード', cup: 'カップ', coin: 'ペンタクル' };
 const MAJOR = ['愚者', '魔術師', '女教皇', '女帝', '皇帝', '法王', '恋人', '戦車', '力', '隠者', '運命', '正義',
     '吊人', '死神', '節制', '悪魔', '塔', '星', '月', '太陽', '審判', '世界'];
 const ME = 0;
+const nameAt = seat => seat === ME || !online.view || online.view.members?.[seat]?.cpu ? tr(NAMES[seat]) : NAMES[seat];
 const PORTRAIT_ART = 'assets/tarot-kingdom-table/tavern-v2';
 const SEAT_PORTRAITS = { 1: 'rogue', 2: 'captain', 3: 'sailor' };
 const OPPONENT_HAND_POSES = {
@@ -68,7 +74,7 @@ const LEGEND_HAN = 10;
 
 // Pirate Tarot artwork, as served for the rest of the app (same version and delivery revision, so the cache is shared).
 const ART_QUERY = `?v=${PIRATE_TAROT_ARTWORK_VERSION}&delivery=20261025`;
-import {selectedCardEffect} from './selectedCardEffect.js?v=suit-opposition-v1-finish-han-v1';
+import {selectedCardEffect} from './selectedCardEffect.js?v=suit-opposition-v1-finish-han-v1-full-locale-v1';
 
 const { online, send, sendAction, returnToLobby, waitForCpuPresentation } =
     resolveTableHost(document.documentElement.dataset.tabletopHost, tableHostAdapter);
@@ -140,11 +146,11 @@ function makeRng(salt = 0) {
 const tableLanguage = () => resolveTableLanguage(getTableLanguage(), navigator.languages?.[0] || navigator.language);
 const roleName = role => localizedLabel(ruleRoleName(role), tableLanguage());
 const openingRoleName = parity => localizedLabel(ruleOpeningRoleName(parity), tableLanguage());
-const justiceName = () => localizedLabel('正義執行', tableLanguage());
-const temperanceName = () => localizedLabel('清めの盃', tableLanguage());
+const justiceName = () => localizedLabel(tr('正義執行'), tableLanguage());
+const temperanceName = () => localizedLabel(tr('清めの盃'), tableLanguage());
 
 const rankText = card => !card.major && card.num === 15 ? 'A' : String(card.num);
-const cardName = (card) => (card.major ? `大札${card.num} ${MAJOR[card.num]}` : `${SUIT_NAME[card.suit]}の${rankText(card)}`);
+const cardName = (card) => (card.major ? trf`大札${card.num} ${tr(MAJOR[card.num])}` : (tableLanguage() === 'en' ? rankText(card) + ' of ' + tr(SUIT_NAME[card.suit]) : SUIT_NAME[card.suit] + 'の' + rankText(card)));
 const sortHand = sortByNumber;
 
 function el(tag, className, text) {
@@ -195,7 +201,7 @@ function openZoom(card, trigger) {
     zoomTrigger = trigger;
     const name = cardName(card);
     zoom.replaceChildren(artImage(artUrl(card, 'cards'), 'kt-zoom-art'), el('span', 'kt-zoom-name', name));
-    zoom.setAttribute('aria-label', `${name}を閉じる`);
+    zoom.setAttribute('aria-label', trf`${name}を閉じる`);
     zoom.hidden = false;
     zoom.focus({ preventScroll: true });
 }
@@ -204,7 +210,7 @@ function openZoom(card, trigger) {
 function zoomableCard(card) {
     const node = cardNode(card, 'button');
     node.classList.add('is-zoomable');
-    node.setAttribute('aria-label', `${cardName(card)}を大きく見る`);
+    node.setAttribute('aria-label', trf`${cardName(card)}を大きく見る`);
     node.addEventListener('click', () => openZoom(card, node));
     return node;
 }
@@ -231,7 +237,7 @@ function openHandInspector(card, trigger) {
         row.append(el('dt', 'kt-inspect-label', localizedLabel(label, tableLanguage()) + '：'), el('dd', 'kt-inspect-effect', text));
         rows.append(row);
     }
-    details.replaceChildren(effects.length ? rows : el('p', 'kt-inspect-effect', '固有効果なし'));
+    details.replaceChildren(effects.length ? rows : el('p', 'kt-inspect-effect', tr('固有効果なし')));
     if (flavor) details.append(el('p', 'kt-inspect-flavor', flavor));
     dialog.showModal();
     details.scrollTop = 0;
@@ -255,48 +261,48 @@ function resetDrawFeedback() {
 }
 
 const drawnCard = () => match.round.players[ME].hand.find(card => card.id === acquisition?.id);
-const acquiredCardLabel = () => ({ give: '受け取った札', devilCardTransfer: '交換で受け取った札',
-    exchange: '交換で引いた札' })[acquisition?.source] ?? '引いた札';
+const acquiredCardLabel = () => ({ give: tr('受け取った札'), devilCardTransfer: tr('交換で受け取った札'),
+    exchange: tr('交換で引いた札') })[acquisition?.source] ?? tr('引いた札');
 
 function describe(event) {
-    const who = event.by === undefined ? '' : NAMES[event.by];
+    const who = event.by === undefined ? '' : nameAt(event.by);
     const dramatic = (event.type === 'cut' || event.type === 'back' || event.type === 'clear') ? namedConsequence(match?.round.events ?? [], event) : null;
     switch (event.type) {
-    case 'deal': return '最初の手札を配りました';
-    case 'start': return `最初の場札は ${cardName(event.cards[0])}`;
+    case 'deal': return tr('最初の手札を配りました');
+    case 'start': return trf`最初の場札は ${cardName(event.cards[0])}`;
     case 'play': {
-        if (event.kind === 'call') return `${who} がコール：${roleName(event.role)}`;
-        if (event.kind === 'role') return `${who} が ${roleName(event.role)}`;
-        return `${who} が ${event.cards.map(cardName).join('、')}`;
+        if (event.kind === 'call') return trf`${who} がコール：${roleName(event.role)}`;
+        if (event.kind === 'role') return trf`${who} が ${roleName(event.role)}`;
+        return trf`${who} が ${event.cards.map(cardName).join(tableLanguage() === 'en' ? ', ' : '、')}`;
     }
-    case 'pass': return `${who} はパス`;
-    case 'draw': return event.by === ME && drawnCard() ? `引いた札：${cardName(drawnCard())}` : `${who} が1枚引いた`;
-    case 'cede': return `${who} は初手を出せず、親を渡した`;
-    case 'clear': return `${dramatic ? dramatic.label + '：' : ''}場が流れ、${who} が親`;
-    case 'han': return `${who} の${roleName(event.role)}が通って +${event.add}翻`;
+    case 'pass': return trf`${who} はパス`;
+    case 'draw': return event.by === ME && drawnCard() ? trf`引いた札：${cardName(drawnCard())}` : trf`${who} が1枚引いた`;
+    case 'cede': return trf`${who} は初手を出せず、親を渡した`;
+    case 'clear': return trf`${dramatic ? tr(dramatic.label) + '：' : ''}場が流れ、${who} が親`;
+    case 'han': return trf`${who} の${roleName(event.role)}が通って +${event.add}翻`;
     case 'justiceHan': return `${who}：${justiceName()} +${formatScoreHan(event.add, tableLanguage())}`;
     case 'temperanceHan': return `${who}：${temperanceName()} +${formatScoreHan(event.add, tableLanguage())}`;
-    case 'tripletHan': return `${who}：${localizedLabel('スリーカード', tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
-    case 'fiveCardFinishHan': return `${who}：${localizedLabel('役上がり', tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
-    case 'majorClear': return `${who} の大札${event.num}が場を流して +${event.add}翻`;
-    case 'exchange': return event.by === ME && drawnCard() ? `交換で引いた札：${cardName(drawnCard())}` : `${who} が手札1枚を捨てて交換`;
-    case 'devil': return `${who} の悪魔が通って +${event.add}翻`;
+    case 'tripletHan': return `${who}：${localizedLabel(tr('スリーカード'), tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
+    case 'fiveCardFinishHan': return `${who}：${localizedLabel(tr('役上がり'), tableLanguage())} +${formatScoreHan(event.add, tableLanguage())}`;
+    case 'majorClear': return trf`${who} の大札${event.num}が場を流して +${event.add}翻`;
+    case 'exchange': return event.by === ME && drawnCard() ? trf`交換で引いた札：${cardName(drawnCard())}` : trf`${who} が手札1枚を捨てて交換`;
+    case 'devil': return trf`${who} の悪魔が通って +${event.add}翻`;
 
-    case 'back': return dramatic ? dramatic.label + (event.on ? '：強弱が逆に' : '：強弱を元に戻す') : event.on ? '11バック：強弱が逆に' : '11バック解除';
-    case 'lock': return `スートロック：${Rules.lockSuits(event.suit).map(suit => SUIT_NAME[suit]).join('・')}`;
-    case 'unlock': return 'ロック解除';
-    case 'reset': return temperanceName() + '：効果をリセット';
-    case 'cut': return dramatic ? dramatic.label + '：通常出しは世界のみ' : '8カット：コールかパスのみ';
-    case 'skip': return `スキップ ${event.count}人`;
-    case 'deathSwapStart': return `${who} が${event.devil ? ABILITY.devil : '死神の交換'}を発動`;
-    case 'deathSwapComplete': return (event.devil ? ABILITY.devil : '死神の交換') + 'が終了';
-    case 'deathDecree': return `${ABILITY.death}：${NAMES[event.from]} が${cardName(event.card)}を捨てた`;
-    case 'devilHanTransfer': return `悪魔：${NAMES[event.from]} から ${who} へ1翻`;
-    case 'give': return `${ABILITY.hang}：${who} が ${NAMES[event.to]} に手札1枚を渡した`;
-    case 'trash': return `${who} が手札1枚を除外`;
-    case 'retrieve': return `${ABILITY.resurrection}：${who} が ${NAMES[event.from]} の墓地から1枚回収`;
-    case 'win': return event.openingWin ? `${who} の${openingRoleName(event.openingWin)}` : event.method === 'give' ? `${who} が札を渡して上がり` : event.method === 'trash' ? `${who} が除外で上がり` : `${who} が上がり${event.lastCardHan ? `：切札 +${event.lastCardHan}翻` : ''}`;
-    case 'drawn': return '全員が出せず、引き分け';
+    case 'back': return dramatic ? tr(dramatic.label) + (event.on ? tr('：強弱が逆に') : tr('：強弱を元に戻す')) : event.on ? tr('11バック：強弱が逆に') : tr('11バック解除');
+    case 'lock': return trf`スートロック：${Rules.lockSuits(event.suit).map(suit => tr(SUIT_NAME[suit])).join('・')}`;
+    case 'unlock': return tr('ロック解除');
+    case 'reset': return temperanceName() + tr('：効果をリセット');
+    case 'cut': return dramatic ? tr(dramatic.label) + tr('：通常出しは世界のみ') : tr('8カット：コールかパスのみ');
+    case 'skip': return trf`スキップ ${event.count}人`;
+    case 'deathSwapStart': return trf`${who} が${event.devil ? tr(ABILITY.devil) : tr('死神の交換')}を発動`;
+    case 'deathSwapComplete': return (event.devil ? tr(ABILITY.devil) : tr('死神の交換')) + tr('が終了');
+    case 'deathDecree': return trf`${tr(ABILITY.death)}：${nameAt(event.from)} が${cardName(event.card)}を捨てた`;
+    case 'devilHanTransfer': return trf`悪魔：${nameAt(event.from)} から ${who} へ1翻`;
+    case 'give': return trf`${tr(ABILITY.hang)}：${who} が ${nameAt(event.to)} に手札1枚を渡した`;
+    case 'trash': return trf`${who} が手札1枚を除外`;
+    case 'retrieve': return trf`${tr(ABILITY.resurrection)}：${who} が ${nameAt(event.from)} の墓地から1枚回収`;
+    case 'win': return event.openingWin ? trf`${who} の${openingRoleName(event.openingWin)}` : event.method === 'give' ? trf`${who} が札を渡して上がり` : event.method === 'trash' ? trf`${who} が除外で上がり` : trf`${who} が上がり${event.lastCardHan ? trf`：切札 +${event.lastCardHan}翻` : ''}`;
+    case 'drawn': return tr('全員が出せず、引き分け');
     default: return '';
     }
 }
@@ -310,14 +316,14 @@ function seatSlots() {
 function badges(seat) {
     const round = match.round;
     const list = [];
-    if (round.dealer === seat) list.push(['親', 'dealer']);
-    if (round.passed.includes(seat)) list.push(['パス', 'pass']);
+    if (round.dealer === seat) list.push([tr('親'), 'dealer']);
+    if (round.passed.includes(seat)) list.push([tr('パス'), 'pass']);
     const host = el('span', 'kt-badges');
     host.append(...list.map(([text, kind]) => el('span', `kt-badge kt-badge-${kind}`, text)));
     return host;
 }
 
-const hanPill = (seat) => el('span', 'kt-han-pill', `${seatHan(match, seat, { preview: seat === ME })}翻`);
+const hanPill = (seat) => el('span', 'kt-han-pill', trf`${seatHan(match, seat, { preview: seat === ME })}翻`);
 
 // Match the grip in the actual contained image, including the empty space around it.
 function positionOpponentHand(host) {
@@ -434,15 +440,15 @@ function renderSeat(seat, host) {
         seatObserver.observe(host);
     }
     const hand = el('span', 'kt-seat-hand');
-    hand.append(el('span', 'kt-seat-hand-label', count === 1 ? 'あと' : '手札'), el('strong', 'kt-seat-count', String(count)), el('span', '', '枚'));
+    hand.append(el('span', 'kt-seat-hand-label', count === 1 ? tr('あと') : tr('手札')), el('strong', 'kt-seat-count', String(count)), el('span', '', tr('枚')));
     const identity = el('div', 'kt-seat-identity');
-    const name = el('strong', 'kt-seat-name', NAMES[seat]);
-    const fullName = el('button', 'kt-seat-name-full', '名前を表示');
+    const name = el('strong', 'kt-seat-name', nameAt(seat));
+    const fullName = el('button', 'kt-seat-name-full', tr('名前を表示'));
     fullName.type = 'button';
     fullName.hidden = true;
     fullName.setAttribute('aria-haspopup', 'dialog');
     fullName.setAttribute('aria-controls', 'ktSeatNameDialog');
-    fullName.setAttribute('aria-label', (seat + 1) + '番席の名前を表示');
+    fullName.setAttribute('aria-label', (seat + 1) + tr('番席の名前を表示'));
     fullName.addEventListener('click', () => {
         $('ktSeatNameText').textContent = name.textContent;
         $('ktSeatNameDialog').showModal();
@@ -487,9 +493,9 @@ function renderTableSeatCues(round) {
         if (cue && plate.dataset.turn !== cue) plate.dataset.turn = cue;
         else if (!cue && plate.hasAttribute('data-turn')) delete plate.dataset.turn;
     }
-    const label = seat => NAMES[seat] || (seat + 1) + '番席';
-    const message = [current === null ? '' : '手番：' + label(current),
-        owner === null ? '' : '場の札：' + label(owner)].filter(Boolean).join('。');
+    const label = seat => nameAt(seat) || (seat + 1) + tr('番席');
+    const message = [current === null ? '' : tr('手番：') + label(current),
+        owner === null ? '' : tr('場の札：') + label(owner)].filter(Boolean).join('。');
     if (box.textContent !== message) box.textContent = message;
     box.hidden = !message;
 }
@@ -528,27 +534,27 @@ function renderField() {
             group.append(...layoutRole(cards,role).map(card => current ? zoomableCard(card) : cardNode(card)));
             return group;
         }));
-        if (!layers.length) host.append(el('span', 'kt-field-empty', round.openingWin ? openingRoleName(round.openingWin) : '最初の札を出してください'));
+        if (!layers.length) host.append(el('span', 'kt-field-empty', round.openingWin ? openingRoleName(round.openingWin) : tr('最初の札を出してください')));
     }
     if (!plays.length) {
-        const choosingEffect = { exchange: '交換する手札を1枚選んでください', trash: '除外する手札を1枚選んでください', give: '渡す手札を1枚選んでください', deathSwap: '交換する手札を1枚選んでください', retrieve: '墓地から回収する札を選んでください' };
-        host.querySelector('.kt-field-empty').textContent = round.openingWin ? openingRoleName(round.openingWin) : choosingEffect[round.phase] || '最初の札を出してください';
+        const choosingEffect = { exchange: tr('交換する手札を1枚選んでください'), trash: tr('除外する手札を1枚選んでください'), give: tr('渡す手札を1枚選んでください'), deathSwap: tr('交換する手札を1枚選んでください'), retrieve: tr('墓地から回収する札を選んでください') };
+        host.querySelector('.kt-field-empty').textContent = round.openingWin ? openingRoleName(round.openingWin) : choosingEffect[round.phase] || tr('最初の札を出してください');
     }
     if (!top) {
-        $('ktFieldOwner').textContent = round.openingWin ? `${NAMES[round.winner]} の最初の手札で成立` : round.phase === 'over' ? '' : `${NAMES[round.turn]} の${round.phase === 'exchange' ? '交換' : round.phase === 'trash' ? '除外' : round.phase === 'give' ? '札渡し' : round.phase === 'deathSwap' ? (round.effectTriggerCard?.num === 15 ? ABILITY.devil : '死神の交換') : round.phase === 'retrieve' ? '回収' : '初手'}`;
+        $('ktFieldOwner').textContent = round.openingWin ? trf`${nameAt(round.winner)} の最初の手札で成立` : round.phase === 'over' ? '' : trf`${nameAt(round.turn)} の${round.phase === 'exchange' ? tr('交換') : round.phase === 'trash' ? tr('除外') : round.phase === 'give' ? tr('札渡し') : round.phase === 'deathSwap' ? (round.effectTriggerCard?.num === 15 ? tr(ABILITY.devil) : tr('死神の交換')) : round.phase === 'retrieve' ? tr('回収') : tr('初手')}`;
     } else {
-        const lead = top.exile ? `${NAMES[top.by]} が除外して上がり`
-            : round.phase === 'over' && round.winner === top.by ? `${NAMES[top.by]} の上がり札`
-            : top.start ? '最初の場札' : `${NAMES[top.by]} の札`;
+        const lead = top.exile ? trf`${nameAt(top.by)} が除外して上がり`
+            : round.phase === 'over' && round.winner === top.by ? trf`${nameAt(top.by)} の上がり札`
+            : top.start ? tr('最初の場札') : trf`${nameAt(top.by)} の札`;
         const role = round.field.kind === 'role' ? round.field.role : null;
         const elemental = ['elemental', 'highElemental', 'quad'].includes(role?.high);
         const han = elemental ? roleHan(role) - (top.call ? Rules.CALL_HAN_PENALTY : 0) : null;
-        $('ktFieldOwner').textContent = role ? `${lead}：${roleName(role)}${elemental ? `（${han}翻）` : ''}` : lead;
+        $('ktFieldOwner').textContent = role ? `${lead}：${roleName(role)}${elemental ? trf`（${han}翻）` : ''}` : lead;
     }
     const state = [];
-    if (round.back) state.push(['back', '11バック']);
-    if (round.lock) state.push(['lock', `ロック ${Rules.lockSuits(round.lock).map(suit => SUIT_NAME[suit]).join('・')}`]);
-    if (round.cut) state.push(['cut', '8カット']);
+    if (round.back) state.push(['back', tr('11バック')]);
+    if (round.lock) state.push(['lock', trf`ロック ${Rules.lockSuits(round.lock).map(suit => tr(SUIT_NAME[suit])).join('・')}`]);
+    if (round.cut) state.push(['cut', tr('8カット')]);
     const fieldState = $('ktFieldState');
     fieldState.replaceChildren(...state.map(([kind, text]) => fieldMark(kind, text)));
     fieldState.hidden = !state.length;
@@ -568,18 +574,18 @@ function openGraveyard() {
     function addSection(label, cards, zone) {
         const section = el('section', 'kt-grave-section');
         section.dataset.zone = zone;
-        section.append(el('h3', '', `${label} · ${cards.length}枚`));
+        section.append(el('h3', '', trf`${label} · ${cards.length}枚`));
         if (cards.length) {
             const row = el('div', 'kt-grave-cards');
             row.append(...sortHand(cards).map(zoomableCard));
             section.append(row);
-        } else section.append(el('p', 'kt-grave-empty', 'まだありません'));
+        } else section.append(el('p', 'kt-grave-empty', tr('まだありません')));
         sections.push(section);
     }
-    round.players.forEach((player, seat) => addSection(`${NAMES[seat]}の墓地`, player.grave, `grave-${seat}`));
-    addSection('大札の除外', round.aside, 'aside');
+    round.players.forEach((player, seat) => addSection(trf`${nameAt(seat)}の墓地`, player.grave, `grave-${seat}`));
+    addSection(tr('大札の除外'), round.aside, 'aside');
     round.players.forEach((player, seat) => {
-        if (player.exiled.length) addSection(`${NAMES[seat]}が手札から除外`, player.exiled, `exiled-${seat}`);
+        if (player.exiled.length) addSection(trf`${nameAt(seat)}が手札から除外`, player.exiled, `exiled-${seat}`);
     });
     $('ktGraveBody').replaceChildren(...sections);
     $('ktGraveDialog').hidden = false;
@@ -660,14 +666,14 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
         if (arranging) node.removeAttribute('aria-keyshortcuts');
         else node.setAttribute('aria-keyshortcuts', 'Shift+Enter');
     });
-    $('ktHandCount').textContent = `${hand.length}枚`;
+    $('ktHandCount').textContent = trf`${hand.length}枚`;
     host.classList.toggle('is-last-card', hand.length === 1 && round.phase !== 'over');
     const drawn = drawnCard();
     const drawNotice = !arranging && !selected.size && drawn;
-    $('ktSelection').textContent = arranging ? '札を選び、横に移動' : selected.size ? `${selected.size}枚を選択中` : drawNotice ? `${acquiredCardLabel()}：${cardName(drawn)}` : myTurn ? (choosing ? 'タップで選択・長押しで詳細' : 'タップして選択') : '相手の手番';
+    $('ktSelection').textContent = arranging ? tr('札を選び、横に移動') : selected.size ? trf`${selected.size}枚を選択中` : drawNotice ? `${acquiredCardLabel()}：${cardName(drawn)}` : myTurn ? (choosing ? tr('タップで選択・長押しで詳細') : tr('タップして選択')) : tr('相手の手番');
     $('ktSelection').classList.toggle('kt-draw-notice', !!drawNotice);
     $('ktSelection').classList.toggle('is-turn-note', !!tutorial || (!myTurn && !arranging && !selected.size && !drawNotice));
-    $('ktArrange').textContent = arranging ? '並べ替え完了' : '並べ替え';
+    $('ktArrange').textContent = arranging ? tr('並べ替え完了') : tr('並べ替え');
     $('ktArrange').setAttribute('aria-pressed', String(arranging));
     $('ktArrange').disabled = round.phase === 'over' || round.phase === 'retrieve' || ferrying || giving;
     $('ktActions').hidden = arranging;
@@ -708,12 +714,12 @@ function renderAbilityFocus(round) {
 
 function renderMe() {
     const round = match.round;
-    $('ktMe').replaceChildren(el('strong', '', NAMES[ME]), el('span', 'kt-me-chips kt-chip', `${match.chips[ME]}`), hanPill(ME), badges(ME));
-    if (online.view) $('ktMe').append(el('span', 'kt-player-rating', `レート${match.ratingResult?.rating ?? match.startRating}`));
-    else if (ratingPreview) $('ktMe').append(el('span', 'kt-player-rating', `レート${playerRating}`));
+    $('ktMe').replaceChildren(el('strong', '', nameAt(ME)), el('span', 'kt-me-chips kt-chip', `${match.chips[ME]}`), hanPill(ME), badges(ME));
+    if (online.view) $('ktMe').append(el('span', 'kt-player-rating', trf`レート${match.ratingResult?.rating ?? match.startRating}`));
+    else if (ratingPreview) $('ktMe').append(el('span', 'kt-player-rating', trf`レート${playerRating}`));
     $('ktMe').classList.toggle('is-turn', round.phase !== 'deathSwap' && round.phase !== 'over' && round.turn === ME);
     if (round.players[ME].hand.length === 1 && round.phase !== 'over')
-        $('ktMe').append(el('span', 'kt-last-card-flag', '残り1枚'));
+        $('ktMe').append(el('span', 'kt-last-card-flag', tr('残り1枚')));
     const avatar = seatAvatar(ME);
     if (avatar) $('ktMe').prepend(avatarImage(avatar.icon, 'kt-avatar-seat-icon'));
 }
@@ -727,43 +733,43 @@ function renderActions() {
     const pass = $('ktPass');
     const drawButton = $('ktDraw');
     if (mine && round.phase === 'ferry') {
-        play.textContent='追加で出す';
+        play.textContent=tr('追加で出す');
         play.disabled=selected.size!==1||!Rules.ferryCandidates(round,ME).some(card=>selected.has(card.id));
-        pass.textContent='見送る';pass.disabled=false;drawButton.disabled=true;
+        pass.textContent=tr('見送る');pass.disabled=false;drawButton.disabled=true;
         return;
     }
     if (mine && round.phase === 'exchange') {
-        play.textContent = '1枚交換する';
+        play.textContent = tr('1枚交換する');
         play.disabled = selected.size !== 1 || !Rules.exchangeCandidates(round, ME).some(card => selected.has(card.id)) || !round.deck.length;
-        pass.textContent = '交換しない'; pass.disabled = false; drawButton.disabled = true;
+        pass.textContent = tr('交換しない'); pass.disabled = false; drawButton.disabled = true;
         return;
     }
     if (mine && round.phase === 'deathSwap') {
-        play.textContent = 'この札で参加';
+        play.textContent = tr('この札で参加');
         play.disabled = selected.size !== 1 || !round.players[ME].hand.some(card => selected.has(card.id));
-        pass.textContent = '参加しない'; pass.disabled = false; drawButton.disabled = true;
+        pass.textContent = tr('参加しない'); pass.disabled = false; drawButton.disabled = true;
         return;
     }
     if (mine && round.phase === 'give') {
-        play.textContent = round.players[ME].hand.length === 1 ? '渡して上がる' : '1枚渡す';
+        play.textContent = round.players[ME].hand.length === 1 ? tr('渡して上がる') : tr('1枚渡す');
         play.disabled = selected.size !== 1 || !round.players[ME].hand.some(card => selected.has(card.id));
-        pass.textContent = '渡さない'; pass.disabled = false; drawButton.disabled = true;
+        pass.textContent = tr('渡さない'); pass.disabled = false; drawButton.disabled = true;
         return;
     }
     if (mine && round.phase === 'trash') {
-        play.textContent = round.players[ME].hand.length === 1 ? '除外して上がる' : '除外する';
+        play.textContent = round.players[ME].hand.length === 1 ? tr('除外して上がる') : tr('除外する');
         play.disabled = selected.size !== 1 || !Rules.trashCandidates(round, ME).some(card => selected.has(card.id));
-        pass.textContent = '除外しない';
+        pass.textContent = tr('除外しない');
         pass.disabled = false;
         drawButton.disabled = true;
         return;
     }
     const opts = Rules.options(round, ME);
     const pick = selectionPlay();
-    play.textContent = pick.kind === 'call' ? 'コール' : pick.kind === 'role' ? '役を出す' : '出す';
+    play.textContent = pick.kind === 'call' ? tr('コール') : pick.kind === 'role' ? tr('役を出す') : tr('出す');
     play.disabled = !(mine && round.phase === 'play' && pick.cards.length);
     if (!play.disabled && !pick.res.ok) play.dataset.invalid = '';
-    pass.textContent = 'パス';
+    pass.textContent = tr('パス');
     pass.disabled = !opts.canPass;
     drawButton.disabled = !opts.canDraw;
 }
@@ -774,40 +780,40 @@ function renderMessage(events, moves) {
     const box = $('ktMessage');
     if (fresh.length) box.dataset.last = fresh.slice(-2).join(' ／ ');
     let text = box.dataset.last || '';
-    if (round.phase === 'deathSwap' && !Rules.deathSwapCanChoose(round,ME)) text = '選択済み。ほかの参加者の選択を待っています。';
+    if (round.phase === 'deathSwap' && !Rules.deathSwapCanChoose(round,ME)) text = tr('選択済み。ほかの参加者の選択を待っています。');
     if (round.phase === 'deathSwap' ? Rules.deathSwapCanChoose(round,ME) : round.phase !== 'over' && round.turn === ME) {
         const pick = selectionPlay();
         const bonus = Rules.lastCardHan(round, ME);
         if (round.phase === 'trash') text = round.trashKind === 'death'
-            ? '死神の効果：コートカード（小札11〜14）を1枚だけ除外できます。最後の1枚も除外して上がれます。'
-            : ABILITY.banish + '：手札を1枚だけ除外できます。最後の1枚も除外して上がれます。';
+            ? tr('死神の効果：コートカード（小札11〜14）を1枚だけ除外できます。最後の1枚も除外して上がれます。')
+            : tr(ABILITY.banish) + tr('：手札を1枚だけ除外できます。最後の1枚も除外して上がれます。');
         else if (round.phase === 'deathSwap') {
             if (round.effectTriggerCard?.num === 15) {
                 const actor = round.deathSwap?.seats?.[0] ?? round.last;
                 const detail = actor === ME
-                    ? '交換する札を1枚選ぶか、見送ります。見送り、かつ翻がある相手から1翻受け取ります。'
-                    : '交換する札を1枚選ぶか、見送ります。見送ると、翻がある場合だけ悪魔を出した人に1翻渡します。';
+                    ? tr('交換する札を1枚選ぶか、見送ります。見送り、かつ翻がある相手から1翻受け取ります。')
+                    : tr('交換する札を1枚選ぶか、見送ります。見送ると、翻がある場合だけ悪魔を出した人に1翻渡します。');
                 text = ABILITY.devil + '：' + detail;
-            } else text = '死神の交換：渡す手札を1枚選ぶか、参加しないを押してください。選んだ人だけで交換します。';
+            } else text = tr('死神の交換：渡す手札を1枚選ぶか、参加しないを押してください。選んだ人だけで交換します。');
         }
-        else if (round.phase === 'give') text = `${ABILITY.hang}：${NAMES[round.giveTo]} に渡す手札を1枚選んでください。渡さないこともできます。`;
-        else if (round.phase === 'exchange') text = '悪魔の効果：任意の手札を1枚捨て、山札から1枚引いて交換できます。見送ることもできます。';
+        else if (round.phase === 'give') text = trf`${tr(ABILITY.hang)}：${nameAt(round.giveTo)} に渡す手札を1枚選んでください。渡さないこともできます。`;
+        else if (round.phase === 'exchange') text = tr('悪魔の効果：任意の手札を1枚捨て、山札から1枚引いて交換できます。見送ることもできます。');
         else if (round.phase==='ferry') {
             const next=Rules.ferryCandidates(round,ME).find(card=>selected.has(card.id));
-            text=next&&round.players[ME].hand.length===1 ? 'この大札で上がると、切札 +1翻'
-                : (next && selectedCardEffect(round,ME,[next],SUIT_NAME,{ferried:true})) || '死神：大札0〜12を1枚追加で出せます';
+            text=next&&round.players[ME].hand.length===1 ? tr('この大札で上がると、切札 +1翻')
+                : (next && selectedCardEffect(round,ME,[next],SUIT_NAME,{ferried:true})) || tr('死神：大札0〜12を1枚追加で出せます');
         }
-        else if (hint) text = hint;
-        else if (pick.cards.length && !pick.res.ok) text = pick.res.reason;
-        else if (pick.cards.length === 1 && bonus) text = `この大札で上がると、切札 +${bonus}翻`;
-        else if (pick.kind === 'normal' && pick.cards.length) text = selectedCardEffect(round, ME, pick.cards, SUIT_NAME).replace('正義執行', justiceName()).replace('清めの盃', temperanceName()) || text;
+        else if (hint) text = tr(hint);
+        else if (pick.cards.length && !pick.res.ok) text = tr(pick.res.reason);
+        else if (pick.cards.length === 1 && bonus) text = trf`この大札で上がると、切札 +${bonus}翻`;
+        else if (pick.kind === 'normal' && pick.cards.length) text = selectedCardEffect(round, ME, pick.cards, SUIT_NAME).replace(tr('正義執行'), justiceName()).replace(tr('清めの盃'), temperanceName()) || text;
         else if (!pick.cards.length && round.phase === 'play' && !arranging) {
-            const guide = !turnHints ? '札を選んでください'
-                : moves.some(move => move.cards.length === 1) ? '光っている札を選んで「出す」'
-                : moves.length ? '組み合わせで出せます。光っている札を選択'
-                : round.field.kind ? '返せる札がありません。パスできます'
-                : Rules.options(round, ME).canDraw ? '出せる札がありません。1枚引けます'
-                : '出せる札がありません';
+            const guide = !turnHints ? tr('札を選んでください')
+                : moves.some(move => move.cards.length === 1) ? tr('光っている札を選んで「出す」')
+                : moves.length ? tr('組み合わせで出せます。光っている札を選択')
+                : round.field.kind ? tr('返せる札がありません。パスできます')
+                : Rules.options(round, ME).canDraw ? tr('出せる札がありません。1枚引けます')
+                : tr('出せる札がありません');
             // Keep fresh turn transitions and draw feedback, not stale descriptions.
             const context = drawnCard() && text ? text : events.filter(event => ['pass', 'clear', 'cede'].includes(event.type)).map(describe).at(-1);
             text = context ? `${context} ／ ${guide}` : guide;
@@ -850,9 +856,9 @@ function render() {
     seenEvents = round.events.length;
     const fieldBefore = events.some(e => e.type === 'clear' || (e.type === 'play' && e.kind === 'call')) ? captureField() : [];
     // Once the last round is settled the label stays on it.
-    $('ktRound').textContent = match.over ? `全${match.rounds}局` : `${roundLabel(match)} / ${match.rounds}`;
+    $('ktRound').textContent = match.over ? trf`全${match.rounds}局` : `${roundLabel(match, tableLanguage())} / ${match.rounds}`;
     $('ktDeck').textContent = String(round.deck.length);
-    $('ktDeck').setAttribute('aria-label', `山札 残り${round.deck.length}枚`);
+    $('ktDeck').setAttribute('aria-label', trf`山札 残り${round.deck.length}枚`);
     // Hiding a live seat restarts the card-back fade on each room snapshot.
     const top = $('ktSeatTop');
     const hideTop = match.seats !== 4;
@@ -1030,9 +1036,9 @@ function revisedRolePlay(event,at,sweepBefore,fieldBefore,finishing,cheer) {
 function roleBanner(event, at, playSound = true) {
     const han = roleHan(event.role) - (event.kind === 'call' ? 1 : 0);
     const tier = han >= LEGEND_HAN ? 'legend' : han >= BIG_HAN ? 'big' : 'normal';
-    const label = event.kind === 'call' ? `コール！${roleName(event.role)}` : `${roleName(event.role)}！`;
+    const label = event.kind === 'call' ? trf`コール！${roleName(event.role)}` : `${roleName(event.role)}！`;
     Fx.later(at, () => {
-        const length = Fx.banner(label, rectOf($('ktFelt')), tier, `${NAMES[event.by]}　場を流せば +${han}翻`);
+        const length = Fx.banner(label, rectOf($('ktFelt')), tier, trf`${nameAt(event.by)}　場を流せば +${han}翻`);
         if (tier !== 'normal') Fx.later(120, () => Fx.flash(tier === 'legend' ? 'white' : 'gold'));
         return length;
     });
@@ -1041,15 +1047,15 @@ function roleBanner(event, at, playSound = true) {
 }
 
 const STAMPS = {
-    cut: ['8カット', 'red', 'slash'],
-    back: ['11バック', 'purple', 'stamp'],
-    skip: ['スキップ', 'blue', 'stamp'],
-    lock: ['ロック', 'gold', 'stamp'],
-    unlock: ['ロック解除', 'gold', 'stamp'],
-    reset: ['効果リセット', 'gold', 'stamp'],
-    trash: ['除外', 'red', 'stamp'],
+    cut: [tr('8カット'), 'red', 'slash'],
+    back: [tr('11バック'), 'purple', 'stamp'],
+    skip: [tr('スキップ'), 'blue', 'stamp'],
+    lock: [tr('ロック'), 'gold', 'stamp'],
+    unlock: [tr('ロック解除'), 'gold', 'stamp'],
+    reset: [tr('効果リセット'), 'gold', 'stamp'],
+    trash: [tr('除外'), 'red', 'stamp'],
     give: [ABILITY.hang, 'blue', 'stamp'],
-    deathSwapStart: ['交換', 'purple', 'stamp'],
+    deathSwapStart: [tr('交換'), 'purple', 'stamp'],
     deathDecree: [ABILITY.death, 'purple', 'stamp'],
     retrieve: [ABILITY.resurrection, 'purple', 'stamp']
 };
@@ -1174,10 +1180,10 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'pass':
-            Fx.after(at,sweepBefore,()=>{ const plate=rectOf(seatPlate(event.by)); if(plate)Fx.bubble('パス',plate); Sfx.play('pass', 0, event.by === ME); });
+            Fx.after(at,sweepBefore,()=>{ const plate=rectOf(seatPlate(event.by)); if(plate)Fx.bubble(tr('パス'),plate); Sfx.play('pass', 0, event.by === ME); });
             break;
         case 'cede':
-            Fx.after(at,sweepBefore,()=>{ const plate=rectOf(seatPlate(event.by)); if(plate)Fx.bubble('親を渡す',plate); });
+            Fx.after(at,sweepBefore,()=>{ const plate=rectOf(seatPlate(event.by)); if(plate)Fx.bubble(tr('親を渡す'),plate); });
             break;
         case 'draw': {
             const drawn = event.by === ME ? drawnCard() : null;
@@ -1192,7 +1198,7 @@ function playEffects(events, fieldBefore, feedback) {
         case 'clear': {
             const named = namedConsequence(events, event);
             if (named?.announce) Fx.after(0, arrived || sweepBefore,
-                () => Fx.stamp(localizedLabel(named.label, tableLanguage()), stampPoint(), 'gold', {ruleCue:true, compact:true}));
+                () => Fx.stamp(tr(named.label, tableLanguage()), stampPoint(), 'gold', {ruleCue:true, compact:true}));
             const cause = events.slice(0, events.indexOf(event)).findLast(c=>abilityEventBoundary.has(c.type));
             const multiCut = cause?.type === 'play' && cause.kind === 'normal' && cause.cards.length >= 2 && cause.cards.every(card=>card.num === 8);
             if (multiCut && !events.slice(events.indexOf(cause)+1, events.indexOf(event)).some(entry=>entry.type === 'cut')) {
@@ -1222,9 +1228,9 @@ function playEffects(events, fieldBefore, feedback) {
             const {cards, han} = devilResult(events, event);
             const rect = rectOf($('ktFelt'));
             const cue = () => {
-                if (rect) Fx.banner(ABILITY.devil, rect, 'legend',
-                    (cards.length ? cards.length + '人で札を交換' : '札の交換なし') +
-                    (han.length ? ' ・ ' + NAMES[event.by] + 'に+' + han.length + '翻' : ' ・ 翻の移動なし'));
+                if (rect) Fx.banner(tr(ABILITY.devil), rect, 'legend',
+                    (cards.length ? cards.length + tr('人で札を交換') : tr('札の交換なし')) +
+                    (han.length ? ' ・ ' + nameAt(event.by) + tr('に+') + han.length + tr('翻') : tr(' ・ 翻の移動なし')));
                 Sfx.play('stamp');
                 for (const {from,to} of cards) {
                     const a = handBox(from), b = handBox(to);
@@ -1236,8 +1242,8 @@ function playEffects(events, fieldBefore, feedback) {
                 for (const {from,by} of han) {
                     const source = seatHanPill(from);
                     if (source) {
-                        Fx.bubble('−1翻', rectOf(source));
-                        Fx.orb('+1翻', rectOf(source), seatHanPill(by), 'legend');
+                        Fx.bubble(tr('−1翻'), rectOf(source));
+                        Fx.orb(tr('+1翻'), rectOf(source), seatHanPill(by), 'legend');
                     }
                 }
             };
@@ -1257,7 +1263,7 @@ function playEffects(events, fieldBefore, feedback) {
         case 'tripletHan':
         case 'fiveCardFinishHan': {
             const show = () => {
-                Fx.orb((event.type === 'justiceHan' ? justiceName() : event.type === 'temperanceHan' ? temperanceName() : localizedLabel(event.type === 'tripletHan' ? 'スリーカード' : '役上がり', tableLanguage())) + ' +' + formatScoreHan(event.add, tableLanguage()), Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), 'gold');
+                Fx.orb((event.type === 'justiceHan' ? justiceName() : event.type === 'temperanceHan' ? temperanceName() : localizedLabel(event.type === 'tripletHan' ? tr('スリーカード') : tr('役上がり'), tableLanguage())) + ' +' + formatScoreHan(event.add, tableLanguage()), Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), 'gold');
                 Sfx.play('han');
             };
             Fx.after(at, arrived || sweepBefore, show);
@@ -1268,7 +1274,7 @@ function playEffects(events, fieldBefore, feedback) {
         case 'han': {
             const tier = event.add >= LEGEND_HAN ? 'legend' : event.add >= BIG_HAN ? 'big' : 'gold';
             // The swept field is empty now, so the han rises from its middle and flies to the seat.
-            Fx.later(at, () => Fx.orb(`+${event.add}翻`, Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), tier));
+            Fx.later(at, () => Fx.orb(trf`+${event.add}翻`, Fx.boxAt(fieldCentre(), 10, 10), seatHanPill(event.by), tier));
             Sfx.play('han', at / 1000, Math.min(4, 1 + Math.ceil(event.add / 3)));
             at += 1000;
             break;
@@ -1281,7 +1287,7 @@ function playEffects(events, fieldBefore, feedback) {
             const beat={at:null,promise:null};
             const announce=()=>{
                 const plate=rectOf(seatPlate(event.by));
-                if(plate)Fx.stamp('上がり！',{x:plate.left+plate.width/2,y:plate.top-6},event.by===ME?'legend':'gold',{big:true});
+                if(plate)Fx.stamp(tr('上がり！'),{x:plate.left+plate.width/2,y:plate.top-6},event.by===ME?'legend':'gold',{big:true});
                 if(event.by===ME)Fx.flash('gold');
                 Fx.shake($('ktFelt'),6);
                 // The local sole match result already has its own distinct J cheer.
@@ -1304,20 +1310,20 @@ function playEffects(events, fieldBefore, feedback) {
             break;
         }
         case 'drawn':
-            Fx.later(at, () => Fx.banner('引き分け', rectOf($('ktFelt')), 'normal'));
+            Fx.later(at, () => Fx.banner(tr('引き分け'), rectOf($('ktFelt')), 'normal'));
             at += 950;
             break;
         default: {
             const stamp = STAMPS[event.type];
             if (!stamp) break;
-            const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?'11バック解除':event.type==='reset'?temperanceName():stamp[0];
+            const label=event.type==='deathSwapStart'&&event.devil?ABILITY.devil:event.type==='back'&&!event.on?tr('11バック解除'):event.type==='reset'?temperanceName():stamp[0];
             const display=onDone=>{
                 const named = ['cut','back','reset'].includes(event.type) && namedConsequence(events, event);
                 const propKind = ['cut','lock','back'].includes(event.type) ? event.type : null;
                 if (propKind && event.on !== false) propCue(propKind, event.suit);
                 if ((propKind && !named?.announce) || named?.announce === false || (event.type === 'deathSwapStart' && event.devil && round.phase === 'deathSwap')) {
                     if (onDone) Fx.later(380, onDone);
-                } else Fx.stamp(localizedLabel(named?.label || label, tableLanguage()),stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
+                } else Fx.stamp(tr(named?.label || label, tableLanguage()),stampPoint(),stamp[1],{ruleCue:true,compact:!!named,onDone});
                 if (!propKind && event.type !== 'unlock') Sfx.play(stamp[2]);
             };
             const dependencies=arrived&&sweepBefore?Promise.all([arrived,sweepBefore]):arrived||sweepBefore;
@@ -1406,7 +1412,7 @@ function victoryMovie(avatar, still, startBgm) {
     const file = VICTORY_MOVIE_DIR + '/victory-' + id + (avatar.id === 1 ? '-v3' : FULL_HEIGHT_MOVIE_V2.has(avatar.id) ? '-v2' : '-v1');
     const block = el('section', 'kt-victory-video');
     const frame = el('div', 'kt-victory-frame');
-    const poster = avatarImage(file + '.webp', 'kt-victory-poster', avatar.name + 'の勝利');
+    const poster = avatarImage(file + '.webp', 'kt-victory-poster', avatar.name + tr('の勝利'));
     poster.addEventListener('error', () => { poster.src = still; }, { once: true });
     frame.append(poster);
     block.append(frame);
@@ -1420,7 +1426,7 @@ function victoryMovie(avatar, still, startBgm) {
         player.disablePictureInPicture = true;
         player.muted = !Sfx.isOn();
         player.volume = 0.28;
-        player.setAttribute('aria-label', avatar.name + 'の勝利ムービー');
+        player.setAttribute('aria-label', avatar.name + tr('の勝利ムービー'));
         const current = () => showing() && player.isConnected;
         let begun = false;
         const launchBgm = () => {
@@ -1480,7 +1486,7 @@ function openDialog(title, body, actions, mode = '', context = '') {
     if (mode === 'round-result') {
         scrollBody.tabIndex = 0;
         scrollBody.setAttribute('role', 'region');
-        scrollBody.setAttribute('aria-label', '局結果の明細');
+        scrollBody.setAttribute('aria-label', tr('局結果の明細'));
     }
     $('ktDialog').classList.toggle('is-match-loss', mode === 'match-loss');
     $('ktDialog').classList.toggle('is-match-place-win', mode === 'match-place-win');
@@ -1527,11 +1533,11 @@ function renderSessionControls() {
     if (tutorial) { $('ktExitCpu').hidden = true; return; }
     const allowed = canExitCpu();
     $('ktExitCpu').hidden = !allowed;
-    $('ktExitCpu').textContent = online.view ? 'CPU戦を終了' : '練習を終了';
+    $('ktExitCpu').textContent = online.view ? tr('CPU戦を終了') : tr('練習を終了');
 }
 
 function cpuExitActions() {
-    return canExitCpu() ? [[online.view ? 'CPU戦を終了' : '練習を終了', requestCpuExit]] : [];
+    return canExitCpu() ? [[online.view ? tr('CPU戦を終了') : tr('練習を終了'), requestCpuExit]] : [];
 }
 
 function leaveTable() {
@@ -1551,23 +1557,23 @@ function requestCpuExit() {
     clearTimeout(timer); timer = 0; cancelResultPresentation(); Fx.cancelAll(); cancelRulePropAnimations($('ktRuleProps'), true);
     const rated = !!online.view;
     const body = [el('p', '', rated
-        ? 'CPU全員への敗北としてレートを更新し、この対戦を終了します。退出後は友人の部屋を作成・参加できます。'
-        : '練習を終了して戻ります。レートは変わりません。')];
+        ? tr('CPU全員への敗北としてレートを更新し、この対戦を終了します。退出後は友人の部屋を作成・参加できます。')
+        : tr('練習を終了して戻ります。レートは変わりません。'))];
     if (rated) {
         const preview = calculateRating({ playerRating: match.startRating, opponentRatings: match.opponentRatings,
             playerChips: 0, opponentChips: match.opponentRatings.map(() => 1) });
-        body.push(el('p', 'kt-dialog-label', `レート ${preview.previous} → ${preview.rating}（${preview.change > 0 ? '+' : ''}${preview.change}）`));
+        body.push(el('p', 'kt-dialog-label', trf`レート ${preview.previous} → ${preview.rating}（${preview.change > 0 ? '+' : ''}${preview.change}）`));
     }
     const notice = el('p', ''); notice.setAttribute('role', 'status'); body.push(notice);
-    openDialog(rated ? 'CPU戦を途中終了しますか？' : '練習を終了しますか？', body, [
-        ['対戦を続ける', () => { cpuExitPrompt = false; online.paused = false; closeDialog(); after(); }],
-        [rated ? '降参して退出' : '終了して戻る', async () => {
+    openDialog(rated ? tr('CPU戦を途中終了しますか？') : tr('練習を終了しますか？'), body, [
+        [tr('対戦を続ける'), () => { cpuExitPrompt = false; online.paused = false; closeDialog(); after(); }],
+        [rated ? tr('降参して退出') : tr('終了して戻る'), async () => {
             if (!rated) { leaveTable(); return; }
-            if (online.busy) { notice.textContent = '通信中です。少し待ってから、もう一度押してください。'; return; }
+            if (online.busy) { notice.textContent = tr('通信中です。少し待ってから、もう一度押してください。'); return; }
             const buttons = [...$('ktDialogActions').querySelectorAll('button')]; buttons.forEach(button => { button.disabled = true; });
             const left = await send('leave');
             if (cpuExitPrompt && online.view) {
-                notice.textContent = left ? '状態が更新されました。もう一度操作してください。' : '退出できませんでした。接続を確認して、もう一度お試しください。';
+                notice.textContent = left ? tr('状態が更新されました。もう一度操作してください。') : tr('退出できませんでした。接続を確認して、もう一度お試しください。');
                 buttons.forEach(button => { button.disabled = false; });
             }
         }, true]
@@ -1584,13 +1590,13 @@ function choiceCardNode(card) {
 function showRetrieve() {
     const round = match.round;
     const hand = el('section', 'kt-retrieve-hand');
-    hand.setAttribute('aria-label', '現在の手札');
+    hand.setAttribute('aria-label', tr('現在の手札'));
     const handCards = el('div', 'kt-dialog-cards');
     handCards.append(...displayHand(round.players[ME].hand, manualHandOrder).map(zoomableCard));
-    hand.append(el('p', 'kt-dialog-label', `現在の手札（${round.players[ME].hand.length}枚）`), handCards);
+    hand.append(el('p', 'kt-dialog-label', trf`現在の手札（${round.players[ME].hand.length}枚）`), handCards);
     const choices = el('section', 'kt-retrieve-options');
-    choices.setAttribute('aria-label', '墓地の回収候補');
-    const body = [el('p', 'kt-retrieve-description', '審判の効果です。手札を確認しながら、ほかの人の墓地から小札を1枚選べます。'), hand, choices];
+    choices.setAttribute('aria-label', tr('墓地の回収候補'));
+    const body = [el('p', 'kt-retrieve-description', tr('審判の効果です。手札を確認しながら、ほかの人の墓地から小札を1枚選べます。')), hand, choices];
     const { trigger, label } = choiceFocusState(round);
     if (trigger) {
         const focalCard = el('div', 'kt-retrieve-trigger');
@@ -1600,7 +1606,7 @@ function showRetrieve() {
     }
     round.players.forEach((player, seat) => {
         if (seat === ME || !player.grave.some(card => !card.major)) return;
-        choices.append(el('p', 'kt-dialog-label', `${NAMES[seat]} の墓地`));
+        choices.append(el('p', 'kt-dialog-label', trf`${nameAt(seat)} の墓地`));
         const row = el('div', 'kt-dialog-cards');
         row.append(...sortHand(player.grave.filter(card => !card.major)).map((card) => {
             const node = cardNode(card, 'button');
@@ -1614,7 +1620,7 @@ function showRetrieve() {
         }));
         choices.append(row);
     });
-    openDialog('回収する札を選ぶ', body, [['回収しない', () => { closeDialog(); if (online.view) { sendAction({ type: 'retrieve', id: null }); return; } Rules.retrieve(round, ME, null); after(); }], ...cpuExitActions()], 'retrieve');
+    openDialog(tr('回収する札を選ぶ'), body, [[tr('回収しない'), () => { closeDialog(); if (online.view) { sendAction({ type: 'retrieve', id: null }); return; } Rules.retrieve(round, ME, null); after(); }], ...cpuExitActions()], 'retrieve');
 }
 
 function cancelResultPresentation() {
@@ -1653,39 +1659,39 @@ function showResult(result) {
     // Where the summary ends: the chip totals go right after it, above the card-by-card details, so they are seen without scrolling.
     let summaryEnd = 0;
     if (result.winner === null) {
-        body.push(el('p', '', '全員が初手を出せず、引き分けです。'));
+        body.push(el('p', '', tr('全員が初手を出せず、引き分けです。')));
         summaryEnd = body.length;
     } else {
         const w = result.winner;
         const notes = el('ul', 'kt-result-note kt-han-breakdown');
         const language = tableLanguage();
         notes.lang = language;
-        notes.setAttribute('aria-label', language === 'en' ? 'Han breakdown' : '翻の内訳');
+        notes.setAttribute('aria-label', language === 'en' ? 'Han breakdown' : tr('翻の内訳'));
         notes.append(...settlementHanBreakdown(match, result).map(entry => el('li', '', formatHanEntry(entry, language))));
         const exileWin = round.lastPlay?.type === 'trash' && round.lastPlay.by === w;
         const giftWin = round.lastPlay?.type === 'give' && round.lastPlay.by === w;
         const head = el('p', 'kt-result-head');
-        head.append(el('strong', '', `${NAMES[w]} の${round.openingWin ? openingRoleName(round.openingWin) : exileWin ? '除外上がり' : giftWin ? '札渡しで上がり' : '上がり'}`), el('span', 'kt-han-pill kt-han-pill-big', `${formatScoreHan(result.winnerHan, language)}`));
+        head.append(el('strong', '', trf`${nameAt(w)} の${round.openingWin ? openingRoleName(round.openingWin) : exileWin ? tr('除外上がり') : giftWin ? tr('札渡しで上がり') : tr('上がり')}`), el('span', 'kt-han-pill kt-han-pill-big', `${formatScoreHan(result.winnerHan, language)}`));
         body.push(head, notes);
         summaryEnd = body.length;
         const finalPlay = round.field.plays.at(-1);
         const proof = round.openingWin ? round.players[w].hand : exileWin ? round.lastPlay.cards : finalPlay?.by === w ? finalPlay.cards : null;
         if (proof) {
             const winningCards = el('section', '');
-            winningCards.setAttribute('aria-label', round.openingWin ? '配札上がりの手札' : '上がり札');
+            winningCards.setAttribute('aria-label', round.openingWin ? tr('配札上がりの手札') : tr('上がり札'));
             const cards = el('div', 'kt-dialog-cards');
             cards.append(...proof.map(zoomableCard));
-            winningCards.append(el('p', 'kt-dialog-label', round.openingWin ? `${openingRoleName(round.openingWin)}・数字の重複なし（${proof.length}枚）` : exileWin ? '除外した上がり札' : '上がり札'), cards);
+            winningCards.append(el('p', 'kt-dialog-label', round.openingWin ? trf`${openingRoleName(round.openingWin)}・数字の重複なし（${proof.length}枚）` : exileWin ? tr('除外した上がり札') : tr('上がり札')), cards);
             body.push(winningCards);
         }
         for (const pay of result.payments) {
             const extra = [];
-            if (pay.aces) extra.push(`A${pay.aces}枚 +${pay.aces * rules.aceHan}`);
-            if (round.dealer === pay.from) extra.push(`親 +${rules.dealerHan}`);
+            if (pay.aces) extra.push(trf`A${pay.aces}枚 +${pay.aces * rules.aceHan}`);
+            if (round.dealer === pay.from) extra.push(trf`親 +${rules.dealerHan}`);
             const row = el('div', 'kt-result-row');
-            const text = el('p', '', `${NAMES[pay.from]}：${pay.cards}枚 × ${pay.han}翻${extra.length ? `（${extra.join('、')}）` : ''} × ${rules.cardRate} ＝ `);
+            const text = el('p', '', trf`${nameAt(pay.from)}：${pay.cards}枚 × ${pay.han}翻${extra.length ? `（${extra.join('、')}）` : ''} × ${rules.cardRate} ＝ `);
             text.append(el('strong', 'kt-chip', `${pay.paid}`));
-            if (pay.paid < pay.owed) text.append(`（持ち分まで）`);
+            if (pay.paid < pay.owed) text.append(trf`（持ち分まで）`);
             const left = el('div', 'kt-dialog-cards');
             const losingHand = round.players[pay.from].hand;
             const visible = losingHand.filter(card => card.id && (pay.from === ME || !round.privateGifts?.includes(card.id)));
@@ -1698,7 +1704,7 @@ function showResult(result) {
     const table = el('ul', 'kt-score');
     match.chips.forEach((chips, seat) => {
         const delta = result.delta[seat];
-        const item = el('li', '', NAMES[seat]);
+        const item = el('li', '', nameAt(seat));
         item.append(el('span', 'kt-chip', `${chips}`));
         if (delta) item.append(el('span', delta > 0 ? 'kt-delta kt-delta-up' : 'kt-delta kt-delta-down', `${delta > 0 ? '+' : ''}${delta}`));
         table.append(item);
@@ -1713,25 +1719,25 @@ function showResult(result) {
         Fx.countUp(node, 0, value, 650, (n) => `${n > 0 ? '+' : ''}${n}`);
     }));
     if (!match.over) {
-        if (result.repeat) summary.push(el('p', 'kt-dialog-label', '親の上がりで、連荘します。'));
+        if (result.repeat) summary.push(el('p', 'kt-dialog-label', tr('親の上がりで、連荘します。')));
         const hero = el('section', 'kt-round-hero');
         hero.append(...body.slice(0, summaryEnd));
         const ledger = el('section', 'kt-round-ledger');
-        ledger.append(el('h3', '', 'チップ残高'), ...summary);
+        ledger.append(el('h3', '', tr('チップ残高')), ...summary);
         if (result.winner !== null) table.children[result.winner]?.classList.add('is-round-winner');
         const proof = body[summaryEnd]?.tagName === 'SECTION' ? body[summaryEnd] : null;
         proof?.classList.add('kt-round-proof');
         const detailNodes = body.slice(summaryEnd).filter(node => node !== proof);
         const details = detailNodes.length ? el('details', 'kt-round-details') : null;
-        details?.append(el('summary', '', '得点の内訳・残り手札'), ...detailNodes);
+        details?.append(el('summary', '', tr('得点の内訳・残り手札')), ...detailNodes);
         const roundLedger = [hero, ledger];
         if (proof) roundLedger.push(proof);
         if (details) roundLedger.push(details);
-        openDialog('局の結果', roundLedger, [
-            [result.repeat ? '連荘：次へ' : '次の局へ', () => { closeDialog(); beginRound(); }, true],
-            ['墓地・除外を見る', openGraveyard],
+        openDialog(tr('局の結果'), roundLedger, [
+            [result.repeat ? tr('連荘：次へ') : tr('次の局へ'), () => { closeDialog(); beginRound(); }, true],
+            [tr('墓地・除外を見る'), openGraveyard],
             ...cpuExitActions()
-        ], 'round-result', `${result.label} / 全${match.rounds}局`);
+        ], 'round-result', trf`${tr(result.label)} / 全${match.rounds}局`);
         return;
     }
     const order = ranking(match);
@@ -1745,7 +1751,7 @@ function showResult(result) {
     // Second place gets the compact victory result; the movie is still exclusive to a sole winner.
     const secondPlace = viewerRank === 2;
     const victoryResult = soleVictory || secondPlace;
-    const clashTitle = victoryResult ? '勝利' : ownLead ? '同率1位' : '敗北';
+    const clashTitle = victoryResult ? tr('勝利') : ownLead ? tr('同率1位') : tr('敗北');
     const clashMode = soleVictory ? 'victory' : secondPlace ? 'match-place-win' : ownLead ? 'match-tie' : 'match-loss';
     const musicKey = room ? 'room:' + room : match;
     const finalMatch = resultIdentity();
@@ -1758,20 +1764,20 @@ function showResult(result) {
         const still = avatar.victoryStill ?? avatar.portrait;
         movieStartsMusic = VICTORY_MOVIE_IDS.has(avatar.id);
         body.unshift(movieStartsMusic ? victoryMovie(avatar, still, startVictoryBgm)
-            : avatarImage(reducedMotion() ? still : avatar.victory, 'kt-avatar-victory', avatar.name + 'の勝利'));
+            : avatarImage(reducedMotion() ? still : avatar.victory, 'kt-avatar-victory', avatar.name + tr('の勝利')));
     }
     if (movieStartsMusic) Music.scene(null);
     else Music.scene(victoryResult ? 'victory' : ownLead ? null : 'defeat', musicKey);
     const reward = online.view && Number.isSafeInteger(match.earnedCoins) && match.earnedCoins > 0
-        ? el('p', 'kt-avatar-earned', `アバターコイン +${match.earnedCoins}枚`) : null;
+        ? el('p', 'kt-avatar-earned', trf`アバターコイン +${match.earnedCoins}枚`) : null;
     if (reward && soleVictory) body.unshift(reward);
-    const ending = [el('p', 'kt-dialog-label kt-victory-complete', match.chips.some((c) => c <= 0) ? 'チップが尽きた人が出たので、ここで終了です。' : '全局が終わりました。')];
+    const ending = [el('p', 'kt-dialog-label kt-victory-complete', match.chips.some((c) => c <= 0) ? tr('チップが尽きた人が出たので、ここで終了です。') : tr('全局が終わりました。'))];
     const final = el('ol', 'kt-score kt-score-final');
     for (const entry of order) {
-        const item = el('li', !soleVictory && entry.seat === ME ? 'kt-final-own' : '', soleVictory ? NAMES[entry.seat] : '');
+        const item = el('li', !soleVictory && entry.seat === ME ? 'kt-final-own' : '', soleVictory ? nameAt(entry.seat) : '');
         if (!soleVictory) {
             const place = order.findIndex(({ chips }) => chips === entry.chips) + 1;
-            item.append(el('span', 'kt-final-place', `${place}位`), el('span', 'kt-final-name', NAMES[entry.seat]));
+            item.append(el('span', 'kt-final-place', trf`${place}位`), el('span', 'kt-final-name', nameAt(entry.seat)));
         }
         item.append(el('span', 'kt-chip', `${entry.chips}`));
         final.append(item);
@@ -1779,17 +1785,17 @@ function showResult(result) {
     ending.push(final);
     if (!soleVictory) {
         const overview = el('div', 'kt-final-overview');
-        const leadersLabel = leaders.map(({ seat }) => NAMES[seat]).join('、');
-        overview.append(el('p', 'kt-final-viewer-rank', `あなたの順位：${viewerRank}位`),
-            el('p', 'kt-final-leaders', `${tiedLead ? '同率1位' : secondPlace ? '1位' : '勝者'}：${leadersLabel}`));
+        const leadersLabel = leaders.map(({ seat }) => nameAt(seat)).join('、');
+        overview.append(el('p', 'kt-final-viewer-rank', trf`あなたの順位：${viewerRank}位`),
+            el('p', 'kt-final-leaders', `${tiedLead ? tr('同率1位') : secondPlace ? tr('1位') : tr('勝者')}：${leadersLabel}`));
         ending.unshift(overview);
-        final.setAttribute('aria-label', '最終順位');
+        final.setAttribute('aria-label', tr('最終順位'));
     }
     const settlement = !soleVictory && (reward || match.ratingResult) ? el('div', 'kt-final-settlement') : null;
     if (reward && settlement) settlement.append(reward);
     if (match.ratingResult) {
         const change = match.ratingResult.change;
-        const rating = el('p', 'kt-rating-result', `${online.view ? 'レート' : '仮レート'} ${match.ratingResult.previous} → ${match.ratingResult.rating}`);
+        const rating = el('p', 'kt-rating-result', `${online.view ? tr('レート') : tr('仮レート')} ${match.ratingResult.previous} → ${match.ratingResult.rating}`);
         rating.append(el('strong', change >= 0 ? 'kt-delta-up' : 'kt-delta-down', `（${change > 0 ? '+' : ''}${change}）`));
         if (settlement) settlement.append(rating);
         else ending.push(rating);
@@ -1801,7 +1807,7 @@ function showResult(result) {
     const roundAt = body.indexOf(roundStart);
     if (!soleVictory || avatar) {
         const lastRound = el('details', soleVictory ? 'kt-victory-last-round' : 'kt-final-last-round');
-        lastRound.append(el('summary', '', '最終局の内訳'), ...body.splice(roundAt));
+        lastRound.append(el('summary', '', tr('最終局の内訳')), ...body.splice(roundAt));
         body.push(lastRound);
     }
     body.splice(roundAt, 0, ...ending);
@@ -1813,19 +1819,19 @@ function showResult(result) {
     }
     if (online.view) {
         openDialog(clashTitle, body, [
-            ['ロビーへ戻る', () => {
+            [tr('ロビーへ戻る'), () => {
                 const ratedCpu = isRatedCpuMatch(online.view);
                 closeDialog(); returnToLobby();
                 if (ratedCpu) showCpuLobbyAfterMatch();
             }, true],
-            ['墓地・除外を見る', openGraveyard]
+            [tr('墓地・除外を見る'), openGraveyard]
         ], clashMode);
         return;
     }
     openDialog(clashTitle, body, [
-        ['もう一度', () => { closeDialog(); begin(match.seats); }, true],
-        ['人数を選び直す', () => { closeDialog(); $('ktTable').hidden = true; $('ktSetup').hidden = false; }],
-        ['墓地・除外を見る', openGraveyard]
+        [tr('もう一度'), () => { closeDialog(); begin(match.seats); }, true],
+        [tr('人数を選び直す'), () => { closeDialog(); $('ktTable').hidden = true; $('ktSetup').hidden = false; }],
+        [tr('墓地・除外を見る'), openGraveyard]
     ], clashMode);
 }
 
@@ -1965,8 +1971,18 @@ const settingsDialog = $('ktSettingsDialog');
 const localeSetting = $('ktTableLanguage');
 localeSetting.value = getTableLanguage();
 localeSetting.addEventListener('change', () => {
-    if (setTableLanguage(localeSetting.value) && match && !$('ktTable').hidden) render();
+    if (setTableLanguage(localeSetting.value)) {
+        refreshStaticLocale();
+        document.dispatchEvent(new Event('table-language-change'));
+        if (match && !$('ktTable').hidden) {
+            $('ktMessage').dataset.last = match.round.events.slice(-8).map(describe).filter(Boolean).slice(-2).join(' / ');
+            render();
+        }
+    }
 });
+const cheerSetting = $('ktCheerSetting');
+cheerSetting.checked = Sfx.cheersOn();
+cheerSetting.addEventListener('change', () => Sfx.setCheersOn(cheerSetting.checked));
 const turnHintsInput = $('ktTurnHints');
 turnHintsInput.checked = turnHints;
 $('ktSettings').addEventListener('click', () => {
@@ -2197,7 +2213,7 @@ if (tutorialChapter !== null) {
             fieldKey = '';
             seenEvents = scripted.round.events.length;
             match = scripted;
-            NAMES = TUTORIAL_NAMES;
+            NAMES = tutorialNames('ja');
             practiceAvatar = getAvatar(null);
             $('ktSetup').hidden = true;
             $('ktTable').hidden = false;
