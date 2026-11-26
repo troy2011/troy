@@ -1,9 +1,13 @@
-/* The last match result uses its own rainy deck; ordinary rounds and victory stay unchanged. */
-#ktDialog:is(.is-match-loss,.is-match-tie) {
+/* Compact final standings without a victory movie. */
+#ktDialog.is-match-place-win {
+  --kt-match-end-art: url('../assets/tarot-kingdom-table/victory-media/victory-cabin-a.webp');
+  --kt-match-end-border: #9a8154;
+}
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) {
   padding: max(8px, env(safe-area-inset-top)) 9px max(8px, env(safe-area-inset-bottom));
   background: rgb(4 11 20 / 89%);
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-dialog-box {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-dialog-box {
   display: grid;
   grid-template-rows: auto minmax(0,1fr) auto;
   width: min(100%, 520px);
@@ -12,14 +16,14 @@
   min-height: 0;
   overflow: hidden;
   padding: clamp(10px, 3.4vw, 24px);
-  border: 1px solid #859aaa;
+  border: 1px solid var(--kt-match-end-border, #859aaa);
   border-radius: 5px;
   background: linear-gradient(180deg,#0a16212a 0%,#101e2c76 22%,#101b28d9 55%,#101b28 96%),
-              #101b28 url('../assets/tarot-kingdom-table/victory-media/tarot-match-rain-deck-v1.webp') center 35% / cover no-repeat;
+              #101b28 var(--kt-match-end-art, url('../assets/tarot-kingdom-table/victory-media/tarot-match-rain-deck-v1.webp')) center 35% / cover no-repeat;
   box-shadow: inset 0 0 0 3px #111d29a0, 0 16px 56px #000b;
   color: #eaf0f4;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-dialog-box h2 {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-dialog-box h2 {
   margin: 0 0 8px;
   padding: clamp(10px, 3dvh, 29px) 4px 12px;
   border: 0;
@@ -33,7 +37,7 @@
   text-shadow: 0 2px 2px #0a1018, 0 4px 15px #0a1018;
 }
 #ktDialog.is-match-tie .kt-dialog-box h2 { font-size: clamp(30px, 8vw, 56px); }
-#ktDialog:is(.is-match-loss,.is-match-tie) #ktDialogBody {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) #ktDialogBody {
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -41,33 +45,33 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) :is(.kt-final-overview,.kt-final-settlement) {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) :is(.kt-final-overview,.kt-final-settlement) {
   margin: 0 0 8px;
   padding: 8px 11px;
   border-block: 1px solid #8195a882;
   background: #101d2ac4;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-overview {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-overview {
   display: grid;
   grid-template-columns: max-content minmax(0,1fr);
   align-items: start;
   gap: 8px 12px;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-overview p {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-overview p {
   margin: 0;
   color: #f6efde;
   font-size: 14px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-viewer-rank { font-weight: 800; white-space: nowrap; }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-victory-complete {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-viewer-rank { font-weight: 800; white-space: nowrap; }
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-victory-complete {
   margin: 4px 0;
   color: #dae7ed;
   font-size: 12px;
   text-align: center;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-score-final {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-score-final {
   margin: 4px 0 8px;
   padding: 0;
   border-block: 1px solid #8195a882;
@@ -75,7 +79,7 @@
   background: #121f2ddd;
   font-variant-numeric: tabular-nums;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-score-final li {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-score-final li {
   display: grid;
   grid-template-columns: 2.8em minmax(0,1fr) auto;
   gap: 8px;
@@ -86,14 +90,14 @@
   font-size: 14px;
   line-height: 1.35;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-score-final .kt-final-own {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-score-final .kt-final-own {
   background: #344e617d;
   box-shadow: inset 2px 0 #d1d9dd;
 }
 .kt-final-place { color: #cad8e2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .kt-final-name { min-width: 0; overflow-wrap: anywhere; }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-score-final .kt-chip { color: #f7e6be; font-size: 15px; }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-settlement {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-score-final .kt-chip { color: #f7e6be; font-size: 15px; }
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-settlement {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -102,7 +106,7 @@
   padding: 7px 10px;
   text-align: left;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-settlement p {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-settlement p {
   margin: 0;
   padding: 0;
   border: 0;
@@ -112,24 +116,24 @@
   font-size: 13px;
   line-height: 1.5;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-last-round {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-last-round {
   margin: 0 0 2px;
   padding: 0 10px;
   border: 1px solid #788f9f88;
   background: #101b28d9;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-last-round summary {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-last-round summary {
   padding: 8px 0;
   color: #f1e4c8;
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-last-round .kt-result-last {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-last-round .kt-result-last {
   margin-top: 0;
   border-color: #788f9f88;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) #ktDialogActions {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) #ktDialogActions {
   display: grid;
   grid-template-columns: repeat(2,minmax(0,1fr));
   gap: 5px 7px;
@@ -137,7 +141,7 @@
   padding-top: 8px;
   border-top: 1px solid #788f9f88;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) #ktDialogActions .kt-button {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) #ktDialogActions .kt-button {
   min-width: 0;
   min-height: 44px;
   padding: 3px 6px;
@@ -150,7 +154,7 @@
   line-height: 1.35;
   text-shadow: none;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) #ktDialogActions .kt-button-main {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) #ktDialogActions .kt-button-main {
   grid-column: 1/-1;
   border-color: #cad4dd;
   background: linear-gradient(#dee7e8,#a7bac5 68%,#91a8b7);
@@ -158,16 +162,16 @@
   font-family: var(--kt-serif);
   font-size: 16px;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) #ktDialogActions .kt-button:last-child:nth-child(2) {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) #ktDialogActions .kt-button:last-child:nth-child(2) {
   grid-column: 1/-1;
 }
-#ktDialog:is(.is-match-loss,.is-match-tie) :is(summary,.kt-button):focus-visible {
+#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) :is(summary,.kt-button):focus-visible {
   outline: 2px solid #f8e5b4;
   outline-offset: -3px;
 }
 @media (max-height: 620px) {
-  #ktDialog:is(.is-match-loss,.is-match-tie) .kt-dialog-box h2 { padding-top: 8px; padding-bottom: 8px; }
-  #ktDialog:is(.is-match-loss,.is-match-tie) .kt-final-overview { padding-block: 6px; }
-  #ktDialog:is(.is-match-loss,.is-match-tie) .kt-score-final li { min-height: 32px; }
+  #ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-dialog-box h2 { padding-top: 8px; padding-bottom: 8px; }
+  #ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-final-overview { padding-block: 6px; }
+  #ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win) .kt-score-final li { min-height: 32px; }
 }
-body:has(#ktDialog:is(.is-match-loss,.is-match-tie):not([hidden])) .kt-fx-stamp { visibility: hidden; }
+body:has(#ktDialog:is(.is-match-loss,.is-match-tie,.is-match-place-win):not([hidden])) .kt-fx-stamp { visibility: hidden; }

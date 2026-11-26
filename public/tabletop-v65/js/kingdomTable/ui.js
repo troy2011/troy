@@ -723,6 +723,7 @@ function renderActions() {
     const mine = round.phase === 'deathSwap' ? Rules.deathSwapCanChoose(round,ME) : round.turn === ME;
     $('ktTable').dataset.ownPlay = String(mine && round.phase === 'play');
     const play = $('ktPlay');
+    delete play.dataset.invalid;
     const pass = $('ktPass');
     const drawButton = $('ktDraw');
     if (mine && round.phase === 'ferry') {
@@ -760,7 +761,8 @@ function renderActions() {
     const opts = Rules.options(round, ME);
     const pick = selectionPlay();
     play.textContent = pick.kind === 'call' ? 'コール' : pick.kind === 'role' ? '役を出す' : '出す';
-    play.disabled = !(mine && round.phase === 'play' && pick.res.ok);
+    play.disabled = !(mine && round.phase === 'play' && pick.cards.length);
+    if (!play.disabled && !pick.res.ok) play.dataset.invalid = '';
     pass.textContent = 'パス';
     pass.disabled = !opts.canPass;
     drawButton.disabled = !opts.canDraw;
@@ -1466,7 +1468,7 @@ document.addEventListener('visibilitychange', () => {
 function closeDialog() {
     pauseVictoryMovie();
     $('ktDialog').hidden = true;
-    $('ktDialog').classList.remove('is-retrieve', 'is-victory', 'is-round-result', 'is-match-loss', 'is-match-tie');
+    $('ktDialog').classList.remove('is-retrieve', 'is-victory', 'is-round-result', 'is-match-loss', 'is-match-tie', 'is-match-place-win');
 }
 
 function openDialog(title, body, actions, mode = '', context = '') {
@@ -1481,6 +1483,7 @@ function openDialog(title, body, actions, mode = '', context = '') {
         scrollBody.setAttribute('aria-label', '局結果の明細');
     }
     $('ktDialog').classList.toggle('is-match-loss', mode === 'match-loss');
+    $('ktDialog').classList.toggle('is-match-place-win', mode === 'match-place-win');
     $('ktDialog').classList.toggle('is-match-tie', mode === 'match-tie');
     $('ktDialogTitle').textContent = title;
     if (context) $('ktDialogTitle').append(el('small', 'kt-round-context', context));
@@ -1738,9 +1741,12 @@ function showResult(result) {
     const tiedLead = leaders.length > 1;
     const ownLead = leaders.some(({ seat }) => seat === ME);
     const soleVictory = ownLead && !tiedLead;
-    const clashTitle = soleVictory ? '勝利' : ownLead ? '同率1位' : '敗北';
-    const clashMode = soleVictory ? 'victory' : ownLead ? 'match-tie' : 'match-loss';
     const viewerRank = order.findIndex(({ chips }) => chips === match.chips[ME]) + 1;
+    // Second place gets the compact victory result; the movie is still exclusive to a sole winner.
+    const secondPlace = viewerRank === 2;
+    const victoryResult = soleVictory || secondPlace;
+    const clashTitle = victoryResult ? '勝利' : ownLead ? '同率1位' : '敗北';
+    const clashMode = soleVictory ? 'victory' : secondPlace ? 'match-place-win' : ownLead ? 'match-tie' : 'match-loss';
     const musicKey = room ? 'room:' + room : match;
     const finalMatch = resultIdentity();
     const startVictoryBgm = () => { if (match?.over && resultIdentity() === finalMatch) Music.scene('victory', musicKey); };
@@ -1755,7 +1761,7 @@ function showResult(result) {
             : avatarImage(reducedMotion() ? still : avatar.victory, 'kt-avatar-victory', avatar.name + 'の勝利'));
     }
     if (movieStartsMusic) Music.scene(null);
-    else Music.scene(soleVictory ? 'victory' : ownLead ? null : 'defeat', musicKey);
+    else Music.scene(victoryResult ? 'victory' : ownLead ? null : 'defeat', musicKey);
     const reward = online.view && Number.isSafeInteger(match.earnedCoins) && match.earnedCoins > 0
         ? el('p', 'kt-avatar-earned', `アバターコイン +${match.earnedCoins}枚`) : null;
     if (reward && soleVictory) body.unshift(reward);
@@ -1803,7 +1809,7 @@ function showResult(result) {
         if (soleVictory) {
             Fx.confetti();
             if (liveVictoryRound === resultIdentity()) { liveVictoryRound = null; Sfx.playMatchVictory(); }
-        } else if (!ownLead) Sfx.play('lose', 0.1);
+        } else if (!ownLead && !secondPlace) Sfx.play('lose', 0.1);
     }
     if (online.view) {
         openDialog(clashTitle, body, [
@@ -2092,12 +2098,27 @@ $('ktStart').addEventListener('click', () => {
     begin(Number(document.querySelector('input[name="ktSeats"]:checked').value));
 });
 
+const invalidHandMotions = new WeakMap();
+function showInvalidHandPlay(hand) {
+    if (!hand?.children.length || !Fx.active() || reducedMotion()) return;
+    invalidHandMotions.get(hand)?.cancel();
+    invalidHandMotions.set(hand, hand.animate(
+        ['0px', '-5px', '5px', '-3px', '3px', '0px'].map(translate => ({ translate })),
+        { duration: 260, easing: 'ease-out' }
+    ));
+}
+
 $('ktPlay').addEventListener('click', () => {
-    if (tutorial) { tutorial.act('play'); return; }
-    const round = match.round;
+    const round = match?.round;
+    if (!round || $('ktPlay').disabled || online.busy) return;
     if (round.phase === 'deathSwap' ? !Rules.deathSwapCanChoose(round,ME) : round.turn !== ME) return;
+    const pick = selectionPlay();
+    if (round.phase === 'play' && !pick.res.ok) {
+        if (pick.cards.length) showInvalidHandPlay($('ktHand'));
+        return;
+    }
+    if (tutorial) { tutorial.act('play'); return; }
     if (online.view) {
-        const pick = selectionPlay();
         if((pick?.kind!=='normal'||round.phase==='ferry')&&pick?.cards)playOrigins=new Map(pick.cards.map(card=>[card.id,rectOf($('ktHand').querySelector('[data-card="'+card.id+'"]'))]));
         sendAction(['trash', 'exchange', 'ferry', 'give', 'deathSwap'].includes(round.phase) ? { type: round.phase, id: [...selected][0] } : { type: 'play', ids: pick.cards.map(c => c.id), kind: pick.kind });
         return;
@@ -2110,7 +2131,6 @@ $('ktPlay').addEventListener('click', () => {
         after();
         return;
     }
-    const pick = selectionPlay();
     const origins = new Map(pick.cards.map((card) => [card.id, rectOf($('ktHand').querySelector(`[data-card="${card.id}"]`))]));
     const eventStart = round.events.length;
     const res = Rules.play(round, ME, pick.cards.map((c) => c.id), pick.kind);

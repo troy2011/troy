@@ -455,4 +455,4 @@
 .kt-actions .kt-button { padding: 8px 2px; font-family: var(--kt-serif); font-size: 16px; }
 /* During your turn Play stays visibly primary, even before a legal selection exists. */
 .kt-table[data-own-play="true"] .kt-button-pass { --kt-button-top: #35312e; --kt-button-bottom: #25201e; border-color: #ae9878; }
-.kt-table[data-own-play="true"] .kt-button-play:disabled { --kt-button-top: #634232; --kt-button-bottom: #432a21; opacity: 1; border-color: #c8a077; color: #fff1db; box-shadow: inset 0 0 0 1px #4b2b1f; }
+.kt-table[data-own-play="true"] .kt-button-play:is(:disabled, [data-invalid]) { --kt-button-top: #634232; --kt-button-bottom: #432a21; opacity: 1; border-color: #c8a077; color: #fff1db; box-shadow: inset 0 0 0 1px #4b2b1f; }
