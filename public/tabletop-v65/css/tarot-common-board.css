@@ -94,9 +94,8 @@
   transform: translate(-50%, -100%) rotate(var(--kt-grip-angle, 0deg));
   transform-origin: 50% 100%;
 }
-.kt-seat.is-last-card .kt-fan-card:only-child, #ktHand.is-last-card > .kt-card:only-child {
-  outline: 1.5px solid #ff7b6f;
-  box-shadow: 0 0 4px #ff392f, 0 0 10px rgb(230 33 32 / 78%);
+.kt-fan-card.is-final-hand-card, #ktHand > .is-final-hand-card {
+  box-shadow: 0 0 0 1px #591b24, 0 0 0 3px #ff5965, 0 0 8px rgb(255 63 82 / 65%);
 }
 .kt-fan-card {
   position: absolute;

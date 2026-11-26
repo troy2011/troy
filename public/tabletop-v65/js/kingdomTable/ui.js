@@ -392,6 +392,7 @@ function renderOpponentHand(host, count) {
         fan.dataset.count = String(count);
     }
     fan.hidden = count === 0;
+    [...fan.children].forEach(card => card.classList.toggle('is-final-hand-card', count === 1 && match.round.phase !== 'over'));
     host.classList.toggle('is-last-card', count === 1);
     if (changed && host.classList.contains('kt-seat-right')) positionOpponentHand(host);
 }
@@ -646,6 +647,7 @@ function renderHand(moves = turnHints ? Rules.listMoves(match.round, ME) : []) {
         node.style.setProperty('--kt-card-angle', `${offset * HAND_FAN_ANGLE_STEP}deg`);
         node.style.setProperty('--kt-card-offset', `${Math.abs(offset) * HAND_FAN_CURVE_STEP}px`);
         node.style.setProperty('--kt-card-order', String(index));
+        node.classList.toggle('is-final-hand-card', hand.length === 1 && round.phase !== 'over');
         node.classList.toggle('is-drawn', card.id === acquisition?.id);
         node.setAttribute('aria-label', `${cardName(card)}${card.id === acquisition?.id ? '（' + acquiredCardLabel() + '）' : ''}`);
         node.classList.toggle('is-selected', selected.has(card.id));
@@ -1341,7 +1343,18 @@ function playEffects(events, fieldBefore, feedback) {
         const seats = feedback.lastSeats.filter(seat => match.round.players[seat]?.hand.length === 1);
         if (!seats.length) return;
         Sfx.play('last-card');
-        for (const seat of seats) pulse(seat === ME ? $('ktMe') : seatHost(seat), 'last-card');
+        if (reducedMotion()) return;
+        for (const seat of seats) {
+            const hand = seat === ME ? $('ktHand') : seatHost(seat)?.querySelector('.kt-opponent-hand');
+            const card = hand?.querySelector('.is-final-hand-card');
+            if (!card) continue;
+            const resting = getComputedStyle(card).boxShadow;
+            card.animate([
+                { boxShadow: resting },
+                { boxShadow: '0 0 0 1px #591b24, 0 0 0 4px #ff8b8e, 0 0 19px rgb(255 59 78 / 95%)', offset: 0.24 },
+                { boxShadow: resting }
+            ], { duration: 560, easing: 'ease-out' });
+        }
     });
     if (feedback.ownEntered) Fx.after(at + (feedback.lastSeats.length ? 240 : 0) + (events.some(event => event.type === 'pass' && event.by !== ME) ? 115 : 0), sweepBefore, () => {
         if (!current() || match.round.phase !== 'play' || match.round.turn !== ME) return;
