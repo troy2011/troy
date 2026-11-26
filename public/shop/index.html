@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="apple-touch-icon" href="/Sprites/PirateIcon/Icon1.png">
     <link rel="stylesheet" href="/shop/shop.css?v=20261126">
-    <link rel="stylesheet" href="/shop/home.css?v=3">
-    <script type="module" src="/shop/calendar.js?v=4"></script>
+    <link rel="stylesheet" href="/shop/home.css?v=4">
+    <script type="module" src="/shop/calendar.js?v=5"></script>
 
     <meta property="og:type" content="website">
     <meta property="og:locale" content="ja_JP">
@@ -87,6 +87,10 @@
         <section id="hours" class="home-section home-calendar" aria-labelledby="hours-title">
             <h2 id="hours-title" class="home-rule-title">航海予定</h2>
             <p id="shop-calendar-status" class="home-calendar-message" role="status" hidden></p>
+            <div id="shop-calendar-today" class="home-calendar-today" role="status" hidden>
+                <strong id="shop-calendar-today-label"></strong>
+                <small id="shop-calendar-today-helm" hidden></small>
+            </div>
             <div id="shop-calendar-labels" class="home-calendar-labels" aria-hidden="true" hidden>
                 <span>日付</span><span>出航時間</span><span>ご案内</span>
             </div>
@@ -121,6 +125,7 @@
                     <p><span>〒286-0212</span><br><strong>千葉県富里市十倉310-401</strong></p>
                     <p><a href="tel:09047120670">090-4712-0670</a></p>
                 </address>
+                <p class="home-parking"><strong>駐車場</strong><br>お車でお越しの方は、駐車場所を<a href="tel:09047120670">お電話でご確認ください</a>。</p>
                 <div class="access-actions">
                     <a href="https://www.google.com/maps?cid=2095983393703557607" target="_blank" rel="noopener noreferrer">Googleマップでルートを見る</a>
                     <a href="https://www.instagram.com/piratesbar.troy/" target="_blank" rel="noopener noreferrer">Instagramを見る</a>

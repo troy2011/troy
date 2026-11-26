@@ -12,6 +12,7 @@ test.describe('public shop MEO page', () => {
     await expect(page.getByRole('link', { name: 'お問い合わせ' })).toHaveAttribute('href', 'tel:09047120670');
 
     const routeLink = page.getByRole('link', { name: 'Googleマップでルートを見る' });
+    await expect(page.getByRole('link', { name: 'お電話でご確認ください' })).toHaveAttribute('href', 'tel:09047120670');
     await expect(routeLink).toHaveAttribute('href', 'https://www.google.com/maps?cid=2095983393703557607');
     await expect(page.getByRole('navigation', { name: '来店アクション' }).getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
 
@@ -42,6 +43,7 @@ test.describe('public shop MEO page', () => {
 
   test('renders the public schedule and picks up updates without a LINE session', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
+    await page.clock.setFixedTime(new Date('2030-12-03T15:05:00Z'));
     let calendar = [
       { date: '2030-12-04', status: 'open', openTime: '22:00', closeTime: '02:00', publicHelmName: 'カイ' },
       { date: '2030-12-06', status: 'private', openTime: '', closeTime: '', publicHelmName: '公開しない名前' }
@@ -52,28 +54,32 @@ test.describe('public shop MEO page', () => {
       await route.fulfill({ json: { calendar } });
     });
     await page.goto('/shop/#hours');
-    await expect(page.locator('#shop-calendar-days')).toContainText('22:00–02:00');
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日 22:00 出航');
+    await expect(page.locator('#shop-calendar-today-helm')).toHaveText('本日の舵取り：カイ');
+    await expect(page.locator('#shop-calendar-today')).toBeInViewport();
+    await expect(page.locator('#shop-calendar-days')).not.toContainText('22:00');
     await expect(page.getByText('出航時間', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: '航海予定' })).toBeVisible();
-    await expect(page.locator('#shop-calendar-days')).toContainText('出航');
-    await expect(page.locator('#shop-calendar-days')).toContainText('本日の舵取り：カイ');
     await expect(page.locator('#shop-calendar-days')).not.toContainText('公開しない名前');
     await expect(page.locator('#shop-calendar-days')).toContainText('貸切');
-    await expect(page.locator('#shop-calendar-days > div')).toHaveCount(2);
+    await expect(page.locator('#shop-calendar-days > div')).toHaveCount(1);
     calendar = [{ date: '2030-12-04', status: 'closed', openTime: '', closeTime: '' }];
     await page.reload();
-    await expect(page.locator('#shop-calendar-days')).toContainText('休航');
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日休航');
+    await expect(page.locator('#shop-calendar-today-helm')).toBeHidden();
     await expect(page.locator('#shop-calendar-days')).not.toContainText('本日の舵取り');
     await expect(page.locator('#shop-calendar-days')).not.toContainText('22:00');
     calendar = [];
     await page.reload();
-    await expect(page.getByRole('status')).toHaveText('今後の航海予定はまだ掲載されていません。');
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日の営業は未掲載');
+    await expect(page.locator('#shop-calendar-status')).toHaveText('今後の航海予定はまだ掲載されていません。');
   });
 
   test('keeps the calendar failure separate from a closure', async ({ page }) => {
     await page.route('**/api/troy-calendar/public', (route) => route.fulfill({ status: 503 }));
     await page.goto('/shop/#hours');
-    await expect(page.getByRole('status')).toContainText('航海予定を読み込めませんでした');
+    await expect(page.locator('#shop-calendar-status')).toContainText('航海予定を読み込めませんでした');
+    await expect(page.locator('#shop-calendar-today')).toBeHidden();
     await expect(page.locator('#shop-calendar-days > div')).toHaveCount(0);
     await expect(page.getByRole('link', { name: /お電話で営業を確認/ })).toBeVisible();
   });
@@ -155,6 +161,7 @@ test.describe('public shop MEO page', () => {
     await expect(mobileActions.getByRole('link', { name: 'メニュー' })).toHaveAttribute('href', '/shop/menu.html');
     await expect(mobileActions.getByRole('link', { name: 'アクセス' })).toHaveAttribute('href', '#access');
     await expect(page.getByText('23:00–01:00')).toBeInViewport();
+    await expect(page.locator('#shop-calendar-today-label')).toHaveText('本日の営業は未掲載');
     await expect(page.getByText('営業日を見る', { exact: true })).toHaveCount(0);
     await expect(page.locator('.home-play-grid img')).toHaveCount(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
