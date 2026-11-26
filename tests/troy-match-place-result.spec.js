@@ -35,6 +35,7 @@ for(const [label,chips,title,mode,music] of [
     if(mode==='is-match-place-win'){
         await expect(dialog.locator('.kt-final-viewer-rank')).toHaveText('あなたの順位：2位');
         await expect(dialog.locator('.kt-final-own .kt-final-place')).toHaveText('2位');
+        await expect(dialog.locator('.kt-final-leaders')).toHaveText(/^1位：/);
         await expect(dialog.locator('.kt-dialog-box')).toHaveCSS('background-image',/victory-cabin-a\.webp/);
     }
 });

@@ -1781,7 +1781,7 @@ function showResult(result) {
         const overview = el('div', 'kt-final-overview');
         const leadersLabel = leaders.map(({ seat }) => NAMES[seat]).join('、');
         overview.append(el('p', 'kt-final-viewer-rank', `あなたの順位：${viewerRank}位`),
-            el('p', 'kt-final-leaders', `${tiedLead ? '同率1位' : '勝者'}：${leadersLabel}`));
+            el('p', 'kt-final-leaders', `${tiedLead ? '同率1位' : secondPlace ? '1位' : '勝者'}：${leadersLabel}`));
         ending.unshift(overview);
         final.setAttribute('aria-label', '最終順位');
     }
