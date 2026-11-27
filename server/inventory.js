@@ -40,6 +40,7 @@ const {
 const { parseJsonValue } = require('./tarotSkills');
 const { FEATURE_UNLOCK_LEVELS, isFeatureUnlocked } = require('./featureUnlocks');
 const { getDestinyProfile } = require('./personalityAssessmentEngine');
+const { getProfileArcanaCompatibility } = require('./fourElements');
 const {
     EQUIPMENT_ENHANCEMENT_MAX_STAT,
     applyEquipmentEnhancementToCatalogData,
@@ -2928,6 +2929,8 @@ function initializeInventoryRoutes(app, deps) {
 
     app.post('/api/get-player-public-profile', async (req, res) => {
         let { playFabId, targetPlayFabId } = req.body || {};
+        const includeArcanaCompatibility = req.body?.includeArcanaCompatibility === true;
+        if (includeArcanaCompatibility) res.set('Cache-Control', 'private, no-store');
         if (!playFabId || !targetPlayFabId) {
             return res.status(400).json({ error: 'プレイヤーIDが不足しています。' });
         }
@@ -3025,6 +3028,9 @@ function initializeInventoryRoutes(app, deps) {
                 );
                 playerShip.majorArcanaItemIds = majorArcanaItemIds;
             }
+            const arcanaCompatibility = includeArcanaCompatibility && profileResult?.PlayerProfile
+                ? await getProfileArcanaCompatibility({ promisifyPlayFab, PlayFabServer }, playFabId, targetId).catch(() => null)
+                : null;
             return res.json({
                 success: true,
                 profile: {
@@ -3036,6 +3042,7 @@ function initializeInventoryRoutes(app, deps) {
                     stats: publicStats,
                     statAllocation: isOwnProfile ? calculateStatAllocationState(stats) : null,
                     destinyProfile,
+                    ...(includeArcanaCompatibility ? { arcanaCompatibility } : {}),
                     currentPet,
                     avatarBase,
                     playerShip,

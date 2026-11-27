@@ -1057,6 +1057,7 @@ function endProfileSession(uid) {
     profileReady = false;
     hasCachedProfile = false;
     window.__tkUid = null;
+    window.dispatchEvent(new Event('troy:session-changed'));
     window.myAvatarBaseInfo = { Race: 'human', SkinColorIndex: 1, FacialHairStyleIndex: 1, Nation: 'fire' };
     myAvatarBaseInfo = window.myAvatarBaseInfo;
     showLoginRecovery();
@@ -1705,6 +1706,7 @@ async function initializeLiff() {
                 console.log("Firebase authenticated successfully. User UID:", user.uid);
                 window.__tkUid = user.uid;
                 watchProfileSession(user.uid);
+                window.dispatchEvent(new Event('troy:session-changed'));
                 Player.showCachedBalance(user.uid);
                 void refreshDailyFortuneStatus();
                 startHomeRescueSignalWatcher();

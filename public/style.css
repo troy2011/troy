@@ -6102,6 +6102,32 @@ body.app-booting .boot-splash {
     color: var(--text-sub);
 }
 
+.troy-elements-dialog {
+    background: #1c1513;
+    color: #f4dfbc;
+    border: 1px solid #856844;
+    border-radius: 12px;
+    padding: 10px;
+    width: min(96vw, 680px);
+    max-width: 96vw;
+    box-sizing: border-box;
+}
+.troy-elements-dialog::backdrop { background: #000a; }
+.troy-elements-dialog > form { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.troy-elements-dialog > iframe { display: block; width: 100%; height: min(74dvh, 660px); border: 0; }
+.home-arcana-detail { width: min(92vw, 360px); text-align: center; padding: .85rem 1.1rem 1.1rem; }
+.home-arcana-detail h2 { color: #ffe8b0; margin: .1rem 0 .7rem; overflow-wrap: anywhere; }
+.home-arcana-detail img { display: block; margin: 0 auto; width: auto; max-width: 60%; height: min(31dvh, 210px); object-fit: contain; }
+.home-arcana-detail p { line-height: 1.55; margin: .65rem 0 0; }
+.home-arcana-detail-caption { color: #edcf9a; font-size: .8rem; }
+
+.player-arcana-compatibility { margin: .7rem 0; color: #f5dfbd; border: 1px solid #866642; border-radius: 8px; background: #2c2130; padding: .55rem .75rem; }
+.player-arcana-compatibility[hidden] { display: none; }
+.player-arcana-compatibility summary { cursor: pointer; min-height: 44px; padding: .35rem 0; }
+.player-arcana-compatibility summary span { margin-right: .55em; overflow-wrap: anywhere; }
+.player-arcana-compatibility summary strong { color: #ffda90; font-size: 1.18em; }
+.player-arcana-compatibility p { font-size: .9rem; line-height: 1.55; margin: .35rem 0; }
+
 .troy-entry-count {
     margin-top: 4px;
     text-align: center;

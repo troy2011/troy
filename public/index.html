@@ -35,17 +35,17 @@
         "config": "./js/config.js",
         "api": "./js/api.js?v=20261029-startup-v1",
         "./js/api.js": "./js/api.js?v=20261029-startup-v1",
-        "./js/playfabClient.js?v=20260830-s1-auth-v1": "./js/playfabClient.js?v=20261029-startup-v1",
-        "./js/playfabClient.js": "./js/playfabClient.js?v=20261029-startup-v1",
+        "./js/playfabClient.js?v=20260830-s1-auth-v1": "./js/playfabClient.js?v=20261127-arcana-profile-v7",
+        "./js/playfabClient.js": "./js/playfabClient.js?v=20261127-arcana-profile-v7",
         "./js/island.js": "./js/island.js?v=20261029-startup-v1",
         "./js/ship.js?v=20260828-exploration-retreat-v1": "./js/ship.js?v=20261104-random-option-v1",
         "./js/companions.js?v=20260604d": "./js/companions.js?v=20261029-startup-v1",
         "./js/player.js": "./js/player.js?v=20261109-pirate-king-v1",
-        "./js/playerProfile.js": "./js/playerProfile.js?v=20261122-home-pet-floor-v1",
+        "./js/playerProfile.js": "./js/playerProfile.js?v=20261127-arcana-profile-v7",
         "./js/tarotKingdomPixelFx.js?v=20261103-pixelfx-v11": "./js/tarotKingdomPixelFx.js?v=20261103-pixelfx-v15",
         "./js/pixelMonsterCompanion.js?v=20260825-monster-motion-v2": "./js/pixelMonsterCompanion.js?v=20261103-pet-size-v1",
         "./js/playerBootstrapCache.js": "./js/playerBootstrapCache.js?v=20261003-profile-cache-v2",
-        "./js/troy.js": "./js/troy.js?v=20261122-cup-noodles-menu-v1",
+        "./js/troy.js": "./js/troy.js?v=20261127-arcana-home-v7",
         "ui": "./js/ui.js?v=20261122-games-deck-v1",
         "./js/ui.js": "./js/ui.js?v=20261122-games-deck-v1",
         "avatar": "./js/avatar.js",
@@ -56,14 +56,14 @@
       }
     }
     </script>
-    <script type="module" src="main.js?v=20261126-calendar-helm-v1"></script>
+    <script type="module" src="main.js?v=20261127-arcana-session-v3"></script>
     <script type="module" src="/js/troy-home-music.js?v=victory-mix-v1"></script>
-    <link rel="stylesheet" href="style.css?v=20261122-games-deck-v1">
-    <link rel="stylesheet" href="css/troy-games-deck-v1.css?v=20261122-home-games-tavern-v1">
+    <link rel="stylesheet" href="style.css?v=20261127-arcana-profile-v7">
+    <link rel="stylesheet" href="css/troy-games-deck-v1.css?v=20261127-arcana-game-v3">
     <link rel="stylesheet" href="css/island.css">
     <link rel="stylesheet" href="css/panel-slice-25.css?v=20260618a">
     <link rel="stylesheet" href="tarot-kingdom-summons.css?v=20261103-element-ace-v8">
-    <link rel="stylesheet" href="css/home-v3.css?v=home-title-v1">
+    <link rel="stylesheet" href="css/home-v3.css?v=20261127-arcana-overlay-v6">
     <link rel="stylesheet" href="/css/pirate-tarot-artwork.css">
 </head>
 
@@ -124,6 +124,9 @@
                                 <span>王</span>
                             </button>
                             <img src="Sprites/Ships/homeShip.png" alt="" class="home-ship-image">
+                            <button id="homeArcanaCard" class="home-arcana-card" type="button" aria-label="保存した大アルカナの詳細" aria-haspopup="dialog" hidden>
+                                <img id="homeArcanaArt" width="48" height="78" alt="">
+                            </button>
                             <div id="home-avatar" class="home-ship-avatar avatar-container" role="button" tabindex="0" aria-label="プレイヤー情報を開く">
                                 <div id="home-avatar-layer-body" class="avatar-layer"></div>
                                 <div id="home-avatar-layer-head" class="avatar-layer"></div>
@@ -391,7 +394,7 @@
                     <header class="troy-games-mast">
                         <span class="troy-games-kicker">PIRATES BAR TROY</span>
                         <h2 id="troyGamesHeading">ゲーム</h2>
-                        <p>今夜は、どちらで遊ぶ？</p>
+                        <p>今夜は、何をしよう？</p>
                     </header>
                     <div class="troy-games-grid">
                         <a id="troyTavernMinigames" class="troy-game-card troy-game-card--tavern" href="/tavern-minigames.html">
@@ -402,6 +405,11 @@
                         <a id="tarotTabletopV65" class="troy-game-card troy-game-card--table" href="/tarot-kingdom-table.html?v=65">
                             <span class="troy-game-emblem" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 34 12 38 4 18 16 13m10 21 10 4 8-20-12-5"/><rect x="15" y="8" width="18" height="29" rx="3"/><path d="m24 15 4 7-4 7-4-7z"/></svg></span>
                             <span class="troy-game-copy"><strong class="tarot-mode-name">タロットキングダム<br>卓上戦</strong><span class="tarot-shared-lobby-note">CPU練習・ルール・チュートリアル</span><span class="troy-game-badge">ログイン不要</span></span>
+                            <span class="troy-game-arrow" aria-hidden="true">›</span>
+                        </a>
+                        <a id="btnTroyFourElements" class="troy-game-card troy-game-card--arcana" href="/four-elements/index.html?v=20261127-7" aria-haspopup="dialog">
+                            <span class="troy-game-emblem" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="12" y="6" width="24" height="36" rx="4"/><path d="m24 13 2.8 8.2L34 24l-7.2 2.8L24 35l-2.8-8.2L14 24l7.2-2.8z"/></svg></span>
+                            <span class="troy-game-copy"><strong class="tarot-mode-name">大アルカナ診断</strong><span class="tarot-shared-lobby-note">絵を選んで、あなたを表す一枚へ</span></span>
                             <span class="troy-game-arrow" aria-hidden="true">›</span>
                         </a>
                         <a id="troyLineTabletop" data-troy-line-tabletop hidden style="display:none" class="troy-game-card troy-game-card--table" href="/api/tarot/start" target="_self">
@@ -1413,9 +1421,13 @@
                 <button id="btnPlayerProfileTransfer" type="button" class="player-profile-action-btn player-profile-action-btn-icon player-profile-action-btn-gold" aria-label="ゴールド送金" title="ゴールド送金">G</button>
                 <button id="btnPlayerProfileFavorite" type="button" class="player-profile-action-btn player-profile-action-btn-icon player-profile-action-btn-heart" aria-label="お気に入りに追加" title="お気に入り">♡</button>
                 <button id="btnPlayerProfileBeauty" type="button" class="player-profile-action-btn" hidden>美容室</button>
-                <button id="btnPlayerProfileCompatibility" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">相性</button>
                 <button id="btnPlayerProfileCopyId" type="button" class="player-profile-action-btn player-profile-action-btn-secondary">IDコピー</button>
             </div>
+            <details id="playerArcanaCompatibility" class="player-arcana-compatibility" hidden>
+                <summary><span>大アルカナ相性</span><span id="playerArcanaTargetTitle"></span><strong id="playerArcanaMark"></strong></summary>
+                <p id="playerArcanaReason"></p>
+                <p id="playerArcanaAdvice"></p>
+            </details>
             <div id="playerProfileStatAllocation" class="player-profile-stat-allocation" hidden></div>
             <section id="playerProfileDestiny" class="player-profile-destiny" aria-label="前世動物診断" hidden>
                 <span>前世動物診断</span>
@@ -1452,12 +1464,6 @@
                     <button id="btnPlayerProfileDestinyDetail" type="button">詳しい鑑定を見る</button>
                     <button id="btnPlayerProfileDestinyCopy" type="button">鑑定書をコピー</button>
                 </div>
-                <div id="playerProfileCompatibilitySummary" class="player-profile-compatibility-summary" hidden>
-                    <span>このプレイヤーとの相性</span>
-                    <strong id="playerProfileCompatibilityScore"></strong>
-                    <p id="playerProfileCompatibilityText"></p>
-                    <button id="btnPlayerProfileCompatibilityDetail" type="button">詳しく見る</button>
-                </div>
             </section>
             <div id="playerProfileTransferPanel" class="player-profile-transfer-panel" hidden>
                 <div class="player-profile-transfer-title">このプレイヤーにゴールドを送る</div>
@@ -1480,31 +1486,7 @@
         </div>
     </div>
 
-    <div id="playerCompatibilityModal" class="modal-overlay" aria-hidden="true">
-        <div class="modal-content item-detail-sheet player-compatibility-sheet" role="dialog" aria-modal="true" aria-labelledby="playerCompatibilityTitle">
-            <div class="sheet-handle" aria-hidden="true"></div>
-            <h3 id="playerCompatibilityTitle">プレイヤー相性</h3>
-            <label id="playerCompatibilityTargetField" class="player-compatibility-target" hidden>
-                <span>相手を選ぶ</span>
-                <select id="playerCompatibilityTarget"></select>
-            </label>
-            <div id="playerCompatibilityStatus" class="player-compatibility-status" role="status" aria-live="polite"></div>
-            <div id="playerCompatibilityResult" hidden>
-                <div class="player-compatibility-overall">
-                    <span>総合相性</span>
-                    <strong id="playerCompatibilityOverall"></strong>
-                    <p id="playerCompatibilityOverallText"></p>
-                </div>
-                <div id="playerCompatibilityScores" class="player-compatibility-scores"></div>
-                <dl class="player-compatibility-reading">
-                    <div><dt>二人の強み</dt><dd id="playerCompatibilityStrength"></dd></div>
-                    <div><dt>すれ違いやすい点</dt><dd id="playerCompatibilityFriction"></dd></div>
-                    <div><dt>関係を育てる一手</dt><dd id="playerCompatibilityAdvice"></dd></div>
-                </dl>
-            </div>
-            <button id="btnClosePlayerCompatibility" class="item-detail-close" type="button">閉じる</button>
-        </div>
-    </div>
+
 
     <!-- その他モーダル -->
     <div id="loadingSpinner" class="modal-overlay">
@@ -1698,6 +1680,21 @@
             <button type="button" class="item-detail-close" data-modal-close-target="shipDetailsModal">閉じる</button>
         </div>
     </div>
+
+    <dialog id="troyFourElementsDialog" class="troy-elements-dialog" aria-label="大アルカナ診断">
+        <form method="dialog"><button class="troy-entry-btn" type="submit">閉じる</button></form>
+        <iframe id="troyFourElementsFrame" title="大アルカナ診断"></iframe>
+    </dialog>
+    <dialog id="homeArcanaDetail" class="troy-elements-dialog home-arcana-detail" aria-labelledby="homeArcanaName">
+        <form method="dialog"><button class="troy-entry-btn" type="submit">閉じる</button></form>
+        <p id="homeArcanaNumber" class="home-arcana-detail-caption"></p>
+        <h2 id="homeArcanaName"></h2>
+        <p id="homeArcanaElements" class="home-arcana-detail-caption"></p>
+        <img id="homeArcanaDetailArt" width="116" height="190" alt="">
+        <p id="homeArcanaLead"></p>
+        <p id="homeArcanaDescription" hidden></p>
+    </dialog>
+    <script type="module" src="/js/arcanaDiagnosis.js?v=20261127-7"></script>
 
     <!-- Scripts -->
 

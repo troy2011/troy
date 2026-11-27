@@ -170,7 +170,9 @@ export function ensureAvatarStyleDefaults(playFabId, options) {
 }
 
 export function getPublicPlayerProfile(playFabId, targetPlayFabId, options) {
-    return callApiWithLoader('/api/get-player-public-profile', { playFabId, targetPlayFabId }, options);
+    return callApiWithLoader('/api/get-player-public-profile', {
+        playFabId, targetPlayFabId, ...(options?.includeArcanaCompatibility ? { includeArcanaCompatibility: true } : {})
+    }, options);
 }
 
 export function getPlayerCompatibility(playFabId, targetPlayFabId, options) {

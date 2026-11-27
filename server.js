@@ -47,6 +47,7 @@ const chat = require('./server/chat');
 const tarotFortune = require('./server/tarotFortune');
 const tarotReading = require('./server/tarotReading');
 const personalityAssessment = require('./server/personalityAssessment');
+const { initializeFourElementsRoutes } = require('./server/fourElements');
 const tarotDeck = require('./server/tarotDeck');
 const {
     normalizeTarotCatalogFriendlyId,
@@ -2139,6 +2140,7 @@ async function main() {
 
     // 実店舗・性格診断とプレイヤー相性
     personalityAssessment.initializePersonalityAssessmentRoutes(app, deps);
+    initializeFourElementsRoutes(app, deps);
 
     // タロット予言イベントスケジューラ
 

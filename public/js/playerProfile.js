@@ -3,7 +3,6 @@ import { getNationLabel } from './nationLabels.js';
 import {
     transferPoints,
     getPublicPlayerProfile,
-    getPlayerCompatibility,
     allocateStatPoints,
     getTarotKingdomPetState,
     renameTarotKingdomPet
@@ -34,7 +33,6 @@ let pendingStatAllocation = {};
 let statAllocationSaveInFlight = false;
 let homePetRequestToken = 0;
 let petRenameInFlight = false;
-let compatibilityRequestToken = 0;
 
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (match) => ({
@@ -61,7 +59,6 @@ function getPlayerProfileModalElements() {
         close: document.getElementById('btnClosePlayerProfile'),
         transferButton: document.getElementById('btnPlayerProfileTransfer'),
         favoriteButton: document.getElementById('btnPlayerProfileFavorite'),
-        compatibilityButton: document.getElementById('btnPlayerProfileCompatibility'),
         beautyButton: document.getElementById('btnPlayerProfileBeauty'),
         copyIdButton: document.getElementById('btnPlayerProfileCopyId'),
         statAllocation: document.getElementById('playerProfileStatAllocation'),
@@ -83,10 +80,6 @@ function getPlayerProfileModalElements() {
         destinyActions: document.getElementById('playerProfileDestinyActions'),
         destinyDetailButton: document.getElementById('btnPlayerProfileDestinyDetail'),
         destinyCopyButton: document.getElementById('btnPlayerProfileDestinyCopy'),
-        compatibilitySummary: document.getElementById('playerProfileCompatibilitySummary'),
-        compatibilityScore: document.getElementById('playerProfileCompatibilityScore'),
-        compatibilityText: document.getElementById('playerProfileCompatibilityText'),
-        compatibilityDetail: document.getElementById('btnPlayerProfileCompatibilityDetail'),
         pet: document.getElementById('playerProfilePetCompanion'),
         petName: document.getElementById('playerProfilePetName'),
         petRenameForm: document.getElementById('playerProfilePetRenameForm'),
@@ -99,23 +92,6 @@ function getPlayerProfileModalElements() {
     };
 }
 
-function getCompatibilityModalElements() {
-    return {
-        modal: document.getElementById('playerCompatibilityModal'),
-        title: document.getElementById('playerCompatibilityTitle'),
-        close: document.getElementById('btnClosePlayerCompatibility'),
-        targetField: document.getElementById('playerCompatibilityTargetField'),
-        target: document.getElementById('playerCompatibilityTarget'),
-        status: document.getElementById('playerCompatibilityStatus'),
-        result: document.getElementById('playerCompatibilityResult'),
-        overall: document.getElementById('playerCompatibilityOverall'),
-        overallText: document.getElementById('playerCompatibilityOverallText'),
-        scores: document.getElementById('playerCompatibilityScores'),
-        strength: document.getElementById('playerCompatibilityStrength'),
-        friction: document.getElementById('playerCompatibilityFriction'),
-        advice: document.getElementById('playerCompatibilityAdvice')
-    };
-}
 
 function getFavoritePlayersElements() {
     return {
@@ -277,7 +253,6 @@ function updateProfileActionState() {
     const {
         transferButton,
         favoriteButton,
-        compatibilityButton,
         beautyButton,
         copyIdButton
     } = getPlayerProfileModalElements();
@@ -302,9 +277,6 @@ function updateProfileActionState() {
         favoriteButton.setAttribute('aria-pressed', favoriteActive ? 'true' : 'false');
         favoriteButton.setAttribute('aria-label', favoriteActive ? 'お気に入りから外す' : 'お気に入りに追加');
         favoriteButton.setAttribute('title', favoriteActive ? 'お気に入り済み' : 'お気に入り');
-    }
-    if (compatibilityButton) {
-        compatibilityButton.disabled = !loaded;
     }
     if (beautyButton) {
         beautyButton.hidden = !isTargetSelf;
@@ -441,7 +413,8 @@ async function saveProfilePetName() {
 export function closePlayerProfileModal() {
     const { modal } = getPlayerProfileModalElements();
     if (!modal) return;
-    closeCompatibilityModal();
+    ++activeProfileRequestToken;
+    renderArcanaCompatibility(null);
     setTransferPanelOpen(false);
     setProfilePetRenameOpen(false);
     modal.style.display = 'none';
@@ -575,8 +548,6 @@ function bindModalEvents() {
         close,
         transferButton,
         favoriteButton,
-        compatibilityButton,
-        compatibilityDetail,
         destinyDetail,
         destinyDetailButton,
         destinyCopyButton,
@@ -606,14 +577,7 @@ function bindModalEvents() {
         favoriteButton.dataset.profileBound = 'true';
         favoriteButton.addEventListener('click', () => handleFavoriteToggle());
     }
-    if (compatibilityButton && !compatibilityButton.dataset.profileBound) {
-        compatibilityButton.dataset.profileBound = 'true';
-        compatibilityButton.addEventListener('click', openCompatibilityModal);
-    }
-    if (compatibilityDetail && !compatibilityDetail.dataset.profileBound) {
-        compatibilityDetail.dataset.profileBound = 'true';
-        compatibilityDetail.addEventListener('click', openCompatibilityModal);
-    }
+
     if (destinyDetailButton && !destinyDetailButton.dataset.profileBound) {
         destinyDetailButton.dataset.profileBound = 'true';
         destinyDetailButton.addEventListener('click', () => {
@@ -697,24 +661,7 @@ function bindModalEvents() {
         });
     }
 
-    const compatibilityElements = getCompatibilityModalElements();
-    bindModalClose(compatibilityElements.close, closeCompatibilityModal, {
-        overlay: compatibilityElements.modal,
-        closeOnBackdrop: true,
-        closeOnEscape: true
-    });
-    if (compatibilityElements.target && !compatibilityElements.target.dataset.compatibilityBound) {
-        compatibilityElements.target.dataset.compatibilityBound = 'true';
-        compatibilityElements.target.addEventListener('change', () => {
-            const selectedName = compatibilityElements.target.selectedOptions?.[0]?.textContent || '';
-            if (compatibilityElements.title) {
-                compatibilityElements.title.textContent = selectedName && compatibilityElements.target.value
-                    ? `あなた × ${selectedName}`
-                    : 'プレイヤー相性';
-            }
-            void loadCompatibility(compatibilityElements.target.value, { showDetail: true });
-        });
-    }
+
 }
 
 function renderEquipmentRows(rows = []) {
@@ -927,12 +874,6 @@ function renderProfileStats(stats = {}) {
     `).join('');
 }
 
-function clearProfileCompatibilitySummary() {
-    const { compatibilitySummary, compatibilityScore, compatibilityText } = getPlayerProfileModalElements();
-    if (compatibilitySummary) compatibilitySummary.hidden = true;
-    if (compatibilityScore) compatibilityScore.textContent = '';
-    if (compatibilityText) compatibilityText.textContent = '';
-}
 
 function renderProfileDestiny(destinyProfile) {
     const {
@@ -974,7 +915,6 @@ function renderProfileDestiny(destinyProfile) {
         if (arcanaDayOmen) arcanaDayOmen.textContent = '';
         if (destinyDetail) destinyDetail.hidden = true;
         if (destinyActions) destinyActions.hidden = true;
-        clearProfileCompatibilitySummary();
         return;
     }
     destiny.hidden = false;
@@ -1000,122 +940,21 @@ function renderProfileDestiny(destinyProfile) {
     if (destinyDetailButton) destinyDetailButton.textContent = '詳しい鑑定を見る';
 }
 
-function renderCompatibilitySummary(compatibility) {
-    const { compatibilitySummary, compatibilityScore, compatibilityText } = getPlayerProfileModalElements();
-    if (!compatibilitySummary || !compatibility) {
-        clearProfileCompatibilitySummary();
-        return;
+function renderArcanaCompatibility(result) {
+    const section = document.getElementById('playerArcanaCompatibility');
+    if (!section) return;
+    const valid = result && ['◎', '○', '△'].includes(result.mark);
+    section.open = false;
+    section.hidden = !valid;
+    for (const [id, value] of [
+        ['playerArcanaTargetTitle', result?.title],
+        ['playerArcanaMark', result?.mark],
+        ['playerArcanaReason', result?.reason],
+        ['playerArcanaAdvice', result?.advice]
+    ]) {
+        const node = document.getElementById(id);
+        if (node) node.textContent = valid ? String(value || '') : '';
     }
-    compatibilitySummary.hidden = false;
-    if (compatibilityScore) compatibilityScore.textContent = `${Math.round(Number(compatibility.overall) || 0)}点`;
-    if (compatibilityText) compatibilityText.textContent = String(compatibility.summary || '');
-}
-
-function renderCompatibilityDetail(compatibility) {
-    const { result, status, overall, overallText, scores, strength, friction, advice } = getCompatibilityModalElements();
-    if (!compatibility) {
-        if (result) result.hidden = true;
-        return;
-    }
-    if (result) result.hidden = false;
-    if (status) status.textContent = '';
-    if (overall) overall.textContent = `${Math.round(Number(compatibility.overall) || 0)}点`;
-    if (overallText) overallText.textContent = String(compatibility.summary || '');
-    if (scores) {
-        scores.innerHTML = Object.values(compatibility.categories || {}).map((entry) => `
-            <div class="player-compatibility-score">
-                <span>${escapeHtml(entry?.label || '')}</span>
-                <strong>${Math.round(Number(entry?.score) || 0)}点</strong>
-                <p>${escapeHtml(entry?.summary || '')}</p>
-            </div>
-        `).join('');
-    }
-    if (strength) strength.textContent = String(compatibility.strength || '');
-    if (friction) friction.textContent = String(compatibility.friction || '');
-    if (advice) advice.textContent = String(compatibility.advice || '');
-}
-
-async function loadCompatibility(targetPlayFabId, { showDetail = false, showSummary = false } = {}) {
-    const myPlayFabId = getCurrentUserPlayFabId();
-    const targetId = String(targetPlayFabId || '').trim();
-    const requestToken = ++compatibilityRequestToken;
-    const { status, result } = getCompatibilityModalElements();
-    if (!myPlayFabId || !targetId || myPlayFabId === targetId) {
-        if (showDetail && status) status.textContent = '相手を選んでください。';
-        if (showDetail && result) result.hidden = true;
-        if (showSummary) clearProfileCompatibilitySummary();
-        return null;
-    }
-    if (showDetail && status) status.textContent = '相性を読み解いています。';
-    if (showDetail && result) result.hidden = true;
-    try {
-        const response = await getPlayerCompatibility(myPlayFabId, targetId, { isSilent: true });
-        if (requestToken !== compatibilityRequestToken) return null;
-        if (!response?.available || !response?.compatibility) {
-            const reason = String(response?.reason || '相性を表示できません。');
-            if (showDetail && status) status.textContent = reason;
-            if (showSummary) clearProfileCompatibilitySummary();
-            return null;
-        }
-        if (showDetail) renderCompatibilityDetail(response.compatibility);
-        if (showSummary) renderCompatibilitySummary(response.compatibility);
-        return response.compatibility;
-    } catch (error) {
-        if (requestToken !== compatibilityRequestToken) return null;
-        if (showDetail && status) status.textContent = error?.message || '相性を表示できません。';
-        if (showSummary) clearProfileCompatibilitySummary();
-        return null;
-    }
-}
-
-function closeCompatibilityModal() {
-    const { modal } = getCompatibilityModalElements();
-    if (!modal) return;
-    compatibilityRequestToken += 1;
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-    syncModalLockState();
-}
-
-function populateCompatibilityTargets() {
-    const { target, targetField, title, status, result } = getCompatibilityModalElements();
-    if (!target || !targetField) return '';
-    const favorites = loadFavoritePlayers();
-    target.replaceChildren();
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = favorites.length ? 'お気に入りから選択' : 'お気に入りがありません';
-    target.appendChild(placeholder);
-    favorites.forEach((entry) => {
-        const option = document.createElement('option');
-        option.value = entry.playFabId;
-        option.textContent = entry.displayName || entry.playFabId;
-        target.appendChild(option);
-    });
-    target.disabled = favorites.length === 0;
-    targetField.hidden = false;
-    if (title) title.textContent = 'プレイヤー相性';
-    if (status) status.textContent = favorites.length ? '相手を選んでください。' : '先に相手のプロフィールをお気に入りへ追加してください。';
-    if (result) result.hidden = true;
-    return '';
-}
-
-function openCompatibilityModal() {
-    const { modal, title, targetField, status, result } = getCompatibilityModalElements();
-    if (!modal || !activeProfile?.loaded) return;
-    showModal(modal);
-    modal.setAttribute('aria-hidden', 'false');
-    if (result) result.hidden = true;
-    const myPlayFabId = getCurrentUserPlayFabId();
-    const targetId = String(activeProfile.playFabId || '').trim();
-    if (targetId === myPlayFabId) {
-        populateCompatibilityTargets();
-        return;
-    }
-    if (title) title.textContent = `あなた × ${activeProfile.displayName || targetId}`;
-    if (targetField) targetField.hidden = true;
-    if (status) status.textContent = '相性を読み解いています。';
-    void loadCompatibility(targetId, { showDetail: true });
 }
 
 const PROFILE_SHIP_LABELS = {
@@ -1209,12 +1048,7 @@ function renderProfile(profile = {}) {
         refreshFavoritePlayersList();
     }
     updateProfileActionState();
-    const myPlayFabId = getCurrentUserPlayFabId();
-    if (activeProfile.playFabId && activeProfile.playFabId !== myPlayFabId) {
-        void loadCompatibility(activeProfile.playFabId, { showSummary: true });
-    } else {
-        clearProfileCompatibilitySummary();
-    }
+    renderArcanaCompatibility(profile.arcanaCompatibility);
 }
 
 function renderLoadingState(targetPlayFabId = '') {
@@ -1239,8 +1073,7 @@ function renderLoadingState(targetPlayFabId = '') {
         statAllocation.innerHTML = '';
     }
     renderProfileDestiny(null);
-    compatibilityRequestToken += 1;
-    clearProfileCompatibilitySummary();
+    renderArcanaCompatibility(null);
     renderProfilePet(null);
     if (equipment) {
         equipment.innerHTML = '<div class="player-profile-empty">プレイヤー情報を読み込んでいます。</div>';
@@ -1258,8 +1091,7 @@ function renderErrorState(message) {
         statAllocation.innerHTML = '';
     }
     renderProfileDestiny(null);
-    compatibilityRequestToken += 1;
-    clearProfileCompatibilitySummary();
+    renderArcanaCompatibility(null);
     if (activeProfile) activeProfile.currentPet = null;
     renderProfilePet(null);
     if (equipment) {
@@ -1278,16 +1110,19 @@ export async function openPlayerProfile(targetPlayFabId, options = {}) {
     renderLoadingState(targetId);
     showModal(modal);
     const requestToken = ++activeProfileRequestToken;
+    const generation = window.__troySessionGeneration;
+    const stillCurrent = () => requestToken === activeProfileRequestToken
+        && generation === window.__troySessionGeneration;
     try {
-        const data = await getPublicPlayerProfile(requesterPlayFabId, targetId, { isSilent: true });
-        if (requestToken !== activeProfileRequestToken) return;
+        const data = await getPublicPlayerProfile(requesterPlayFabId, targetId, { isSilent: true, includeArcanaCompatibility: true });
+        if (!stillCurrent()) return;
         if (!data?.profile) {
             renderErrorState(data?.error || 'プレイヤー情報を取得できませんでした。');
             return;
         }
         renderProfile(data.profile);
     } catch (error) {
-        if (requestToken !== activeProfileRequestToken) return;
+        if (!stillCurrent()) return;
         renderErrorState(error?.message || 'プレイヤー情報を取得できませんでした。');
     }
 }
@@ -1368,6 +1203,8 @@ export function buildPlayerTriggerHtml(playFabId, label, options = {}) {
 export function installPlayerProfileInteractions() {
     if (playerProfileInstalled || typeof document === 'undefined') return;
     playerProfileInstalled = true;
+    window.addEventListener('troy:session-changed', closePlayerProfileModal);
+    window.addEventListener('troy:auth-expired', closePlayerProfileModal);
     bindModalEvents();
     refreshFavoritePlayersList();
     window.addEventListener('tarot-kingdom:pet-changed', (event) => {
