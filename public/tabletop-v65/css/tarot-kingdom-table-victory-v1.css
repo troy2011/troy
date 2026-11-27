@@ -86,7 +86,7 @@ body {
 .kt-hero-card:nth-child(3) { transform: rotate(11deg) translateY(8px); }
 .kt-eyebrow { margin: 0; color: var(--kt-gold); font-size: 12px; letter-spacing: 0.14em; font-weight: 700; text-align: center; }
 .kt-setup h1 { margin: 4px 0 10px; font-family: var(--kt-serif); font-size: 27px; line-height: 1.35; font-weight: 600; text-align: center; }
-.kt-setup h1 span { display: block; color: var(--kt-gold); font-size: 16px; letter-spacing: 0.22em; }
+.kt-setup h1 span:not(.kt-title-en) { display: block; color: var(--kt-gold); font-size: 16px; letter-spacing: 0.22em; }
 .kt-rating-setup { margin-bottom: 16px; padding: 12px; border: 1px solid #9f7944; border-radius: 8px; background: var(--kt-panel); }
 .kt-rating-setup p { margin: 0; text-align: center; }
 .kt-rating-setup strong { margin-left: 8px; color: var(--kt-gold); font-size: 26px; }

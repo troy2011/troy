@@ -1523,7 +1523,7 @@ function isRatedCpuMatch(view) {
 }
 
 function canExitCpu() {
-    if (!match) return false;
+    if (!match || tutorial || choiceFocusState(match.round).active) return false;
     if (!online.view) return !match.over;
     const view = online.view;
     return view.status === 'playing' && view.owner && view.members.slice(1).every(member => member.cpu);
@@ -1620,7 +1620,7 @@ function showRetrieve() {
         }));
         choices.append(row);
     });
-    openDialog(tr('回収する札を選ぶ'), body, [[tr('回収しない'), () => { closeDialog(); if (online.view) { sendAction({ type: 'retrieve', id: null }); return; } Rules.retrieve(round, ME, null); after(); }], ...cpuExitActions()], 'retrieve');
+    openDialog(tr('回収する札を選ぶ'), body, [[tr('回収しない'), () => { closeDialog(); if (online.view) { sendAction({ type: 'retrieve', id: null }); return; } Rules.retrieve(round, ME, null); after(); }]], 'retrieve');
 }
 
 function cancelResultPresentation() {
